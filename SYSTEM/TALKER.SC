@@ -91,11 +91,12 @@
 
 		curVolume			NULL		;Private, for CD use
 		saveCursor			NULL		;Private, for CD use
-		audModNum			NULL
-		audNoun			   NULL
-		audVerb			   NULL
-		audCase			   NULL
-		audSequence		   NULL
+		audModNum			0
+		audNoun			   0
+		audVerb			   0
+		audCase			   0
+		audSequence		   0
+		printClass			NULL
 	)
 
 	(methods
@@ -244,7 +245,9 @@
 			(= theWidth talkWidth)
 		)
 
-		(= thePrint (Print new:))
+		(= thePrint 
+			(if printClass (printClass new:) else (Print new:) )
+		)
 		(if showTitle
 			(thePrint addTitle: name)
 		)
@@ -578,3 +581,4 @@
 		(super dispose: dWD)
 	)
 )
+

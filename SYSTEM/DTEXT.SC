@@ -115,8 +115,9 @@
 			font
 			theWidth
 		)
-		(= textRight (+ textLeft (r at: 2)))
-		(= textBottom (+ textTop (r at: 3)))
+		(= textRight (r at: 2))
+		(if (> theWidth textRight) (= textRight theWidth))
+		(= textBottom (r at: 3))
 		(r dispose:)
 
 		; Now calculate the nsRect by either adding a margin (if no bitmap)
@@ -208,3 +209,4 @@
 		)
 	)
 )
+

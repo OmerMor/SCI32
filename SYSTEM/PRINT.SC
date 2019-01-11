@@ -328,6 +328,8 @@
 				setSize:
 			)
 		)
+
+		(return theButton)
 	)
 
 	(method (addEdit buf maxSize theX theY default &tmp eX eY ret editClass)
@@ -982,3 +984,4 @@
 )
 
 
+

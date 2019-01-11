@@ -290,7 +290,6 @@
 
 		(return
 			(if argc
-				(DoAudio AudVolume newVol)
 				(DoSound SndMasterVol newVol)
 			else
 				(DoSound	SndMasterVol)
@@ -435,6 +434,7 @@
 		)
 		(cast plane: thePlane)
 
+		(Styler init:)	; creates array
 		(self setCursor: normalCursor TRUE)
 	)
 
@@ -461,6 +461,8 @@
 			(autoRobot doit:)
 		)
 
+		; Give any control panels their chance
+		(if panels (panels eachElementDo: #doit) )
 
 		; Give each character in the cast the chance to do its thing.  Show the
 		;	changes on the screen, then delete any cast members who are scheduled
@@ -468,10 +470,9 @@
 		(cast doit:)
 		(FrameOut)
 
-		;This should soon be obsolete...
-		(if doMotionCue
-			(= doMotionCue FALSE)
-			(cast eachElementDo: #motionCue:)
+		; Check for user input, unless a room change is in progress
+		(if (== newRoomNum curRoomNum)
+			(user doit:)
 		)
 
 		; If we have any pending Cue objects, process them
@@ -490,11 +491,6 @@
 
 		; Now give each region a chance.
 		(regions eachElementDo: #doit:)
-
-		; Check for user input, unless a room change is in progress
-		(if (== newRoomNum curRoomNum)
-			(user doit:)
-		)
 
 		; Miscellaneous objects that need doits
 		(theDoits doit:)
@@ -1404,3 +1400,4 @@
 		)
 	)
 )
+

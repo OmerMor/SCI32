@@ -83,16 +83,14 @@
 
 	; time to rock 'n roll
 	(for (TRUE) n ((-- n))
-		(aPlane setRect: l1 t1 r1 b1)
-		(UpdatePlane aPlane)
+		(aPlane setRect: l1 t1 r1 b1 TRUE)
 		(FrameOut)
-		(aPlane setRect: l2 t2 r2 b2)
-		(UpdatePlane aPlane)
+		(aPlane setRect: l2 t2 r2 b2 TRUE)
 		(FrameOut)
 	)
 
 	; put plane back to normal
-	(aPlane setRect: l t r b)
+	(aPlane setRect: l t r b TRUE)
 )
 
 
@@ -107,6 +105,25 @@
 		refFrame		FALSE			; Capture a reference frame first
 		divisions	0				; # of divisions in style
 		captureList	0				; List used for objects in cast
+		pFadeArray	0				; ed's magic array
+	)
+
+	(methods
+		addExclusionRange
+	)
+
+	(method (init)
+		(super init: &rest)
+
+		;; create  Exclusion array
+		(= pFadeArray (IntArray new: 0))
+	)
+
+	(method (addExclusionRange aStart aEnd &tmp tSize)
+		(if pFadeArray
+			(= tSize (pFadeArray size:))
+			(pFadeArray at: tSize aStart aEnd)
+		)
 	)
 
 	(method (doit aPlane aStyle time aBack ani &tmp xDir yDir)
@@ -163,10 +180,10 @@
 				(SetScroll plane xDir yDir (plane picture?) animate (ego cycleSpeed?))
 			)
 			(divisions
-				(SetShowStyle style plane seconds back priority animate refFrame divisions)
+				(SetShowStyle style plane seconds back priority animate refFrame (pFadeArray data?) divisions) 
 			)
 			(else
-				(SetShowStyle style plane seconds back priority animate refFrame)
+				(SetShowStyle style plane seconds back priority animate refFrame (pFadeArray data?))
 			)
 		)
 	)
@@ -174,3 +191,4 @@
 
 
 
+

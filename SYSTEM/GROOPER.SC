@@ -111,24 +111,11 @@
 ;¯gtp¯	code modified to update cycler
 ;¯gtp¯
 			(if (!= newL oldL)
-				(client loop: newL)
+				(client setLoop: newL)
 				(if cc  
 					(cc clientLastCel: (client lastCel:))
 				)
 			)
-;¯gtp¯
-;¯gtp¯			(client 							; just go to proper loop without
-;¯gtp¯				loop:
-;¯gtp¯				[trans2 
-;¯gtp¯					(*
-;¯gtp¯						(if (== numLoops 4) 2 else 1)
-;¯gtp¯						(/ 
-;¯gtp¯							(umod (+ (client heading?) (/ 180 numLoops)) 360)
-;¯gtp¯							(/ 360 numLoops)
-;¯gtp¯						)
-;¯gtp¯					)
-;¯gtp¯				]
-;¯gtp¯			)									; gradual turn (i.e. an 8 loop DirLoop)
 			(if caller? (caller cue:))	;PG
 			(= caller 0)
 			(return)
@@ -234,7 +221,7 @@
 			(if (and	(((client looper?) oldCycler?) isKindOf: StopWalk)
 						(== (((client looper?) oldCycler?) vStopped) SAMEVIEW)
 					)
-				(client loop: [trans2 loopIndex])
+				(client setLoop: [trans2 loopIndex])
 				(= clientLastCel (client lastCel:) )
 			)
 			(self cycleDone:)
@@ -242,9 +229,8 @@
 	); init
 	
 	(method (doit &tmp newLoop)
-;¯gtp¯	  	(client loop: (self nextCel:))	; sorry but this class is a hybrid
 		(if (!= (= newLoop (self nextCel:)) (client loop?))
-			(client loop: newLoop)
+			(client setLoop: newLoop)
 			(= clientLastCel (client lastCel:) )
 	  		(if (self loopIsCorrect:)
 	  			(self cycleDone:)
@@ -255,7 +241,6 @@
 	(method (cycleDone)
 		(= completed TRUE)
 		(self motionCue:)
-;¯gtp¯		(= doMotionCue TRUE)
 	);cycleDone
 
 	(method (loopIsCorrect)
@@ -270,7 +255,6 @@
 	(method (nextCel)
 		;; Return client's next logical cel.
 		;Increment the number of animation cycles since the client last cycled.
-;		(++ cycleCnt)
 		(return
 			(if (or (< (Abs (- gameTime cycleCnt)) (client cycleSpeed?))(self loopIsCorrect:))
 				;Not yet time to change the client's cel.
@@ -282,20 +266,8 @@
 				[trans2 loopIndex]	;return value
 			)
 		)
-;		(cond
-;			((or (<= cycleCnt (client cycleSpeed?)) (self loopIsCorrect:))
-;				;Not yet time to change the client's cel.
-;				(client loop?) 										;return value
-;			)
-;			(else
-;				;Reset counter.
-;				(= cycleCnt 0)
-;				(+= loopIndex (* cycleDir (/ 8 numOfLoops)))
-;				(= loopIndex (umod loopIndex 8))
-;				[trans2 loopIndex]	;return value
-;			)
-;		); cond
 	);nextCel
 
 ); GradualCycler
 
+

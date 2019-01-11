@@ -242,8 +242,8 @@
 			)
 		)
 		(aTimer 
-			ticks: 		(+ (GetTime) theTicks),	 ; kernel call is more accurate
-			init:			caller						 ; than using gameTime  -gtp
+			ticks: 		(+ (GetTime) theTicks tickOffset),	 
+			init:			caller						 
 		)
 		(return aTimer)
 	)
@@ -273,3 +273,4 @@
 		)
 	)
 )
+

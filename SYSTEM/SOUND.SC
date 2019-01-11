@@ -137,7 +137,7 @@
 		)
 		(DoSound
 			SndPause
-			(if (and (self isMemberOf: Sound) (!= self Sound)) self else 0)
+			(if (and (self isKindOf: Sound) (!= self Sound)) self else 0)
 			value
 		)	
 	)
@@ -301,3 +301,4 @@
 		(super dispose:)
 	)
 )
+

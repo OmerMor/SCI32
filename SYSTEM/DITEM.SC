@@ -87,12 +87,12 @@
 			(if
 				(or
 					; pressed your key
-					(and 	(== evtType keyDown)
+					(and 	(& evtType keyDown)
 							(== (event message?) key)
 					)
 
 					; clicked in box
-					(and 	(== evtType mouseDown)
+					(and 	(& evtType mouseDown)
 							(self onMe: event)
 					)
 				)
@@ -190,3 +190,4 @@
 		)
 	)
 )
+

@@ -244,7 +244,7 @@
 			)
 		)
 		(Robot RobotOpen robot plane priority x y)
-		(Robot RobotDisplayFrame 0)
+;¯gtp¯		(Robot RobotDisplayFrame 0)
 		(Robot RobotPlay)
 		(= started TRUE)
 		(if mode
@@ -258,3 +258,4 @@
 	)
 
 )
+

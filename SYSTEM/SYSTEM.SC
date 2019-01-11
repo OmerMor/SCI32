@@ -326,6 +326,7 @@
 		next					;return next KNode of the Collection
 		release				;delete elements from list to deallocate all nodes
 		isDuplicate			;return object ID if already in Collection, else FALSE
+		value					;return the value of a node
 	)
 
 	(method (new)
@@ -463,6 +464,10 @@
 
 		(return FALSE)
 	)
+
+	(method (value n)
+		(return (KList LNodeValue n) )
+	)
 )
 
 
@@ -480,6 +485,7 @@
 		addToEnd			;add object to end of List
 		addAfter			;add object after an element of List
 		indexOf			;return index of an object in a List
+		sort				;sort list by property or id
 	)
 
 	(method (at n &tmp node)
@@ -564,6 +570,12 @@
 ;			)
 ;		)
 ;		(return -1)
+	)
+
+	(method (sort theProp doDescending &tmp v des)
+		(= v (if argc theProp else -1))
+		(= des (and (> argc 1) doDescending))
+		(KList LSort elements v des)
 	)
 )
 
@@ -840,3 +852,4 @@
 		(self dispose:)
 	)
 )
+

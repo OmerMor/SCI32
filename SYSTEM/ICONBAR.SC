@@ -61,19 +61,23 @@
 	)
 
 	(method (show iX iY &tmp iconNo uISize iconSpace leftEdge topEdge celWide pnv)
-		(|= signal IB_ACTIVE)
-		(if argc
-			(self posn: iX iY)
-			(SetNowSeen self)
-		)
-
-		(if (& signal DISABLED)
-			(self mask:)
+		(if (& signal viewHidden)
+			(super show:) ; so as not to invalidate normal View hide/show
 		else
-			(= view mainView)
-			(= loop mainLoop)
-			(= cel mainCel)
-			(UpdateScreenItem self)
+			(|= signal IB_ACTIVE)
+			(if argc
+				(self posn: iX iY)
+				(SetNowSeen self)
+			)
+
+			(if (& signal DISABLED)
+				(self mask:)
+			else
+				(= view mainView)
+				(= loop mainLoop)
+				(= cel mainCel)
+				(UpdateScreenItem self)
+			)
 		)
 	)
 
@@ -1045,3 +1049,4 @@
 		(= cel (theIcon cursorCel?))
 	)
 )
+

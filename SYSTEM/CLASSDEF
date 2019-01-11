@@ -80,6 +80,7 @@
 		next
 		release
 		isDuplicate
+		value
 	)
 )
 
@@ -103,6 +104,7 @@
 		addToEnd
 		addAfter
 		indexOf
+		sort
 	)
 )
 
@@ -1198,7 +1200,7 @@
 		cel 0
 		bitmap 0
 		yStep 2
-		signal 16417
+		signal 20513
 		lsLeft 0
 		lsTop 0
 		lsRight 0
@@ -1244,16 +1246,16 @@
 	file# "actor.sc"
 
 	(properties
-		-size- 64
+		-size- 65
 		-script- 47
 		-super- 46
-		signal 33
 		cycleSpeed 6
 		script 0
 		cycler 0
 		timer 0
 		detailLevel 0
 		scaler 0
+		code 0
 	)
 
 	(methods
@@ -1294,7 +1296,6 @@
 		looper 0
 		viewer 0
 		avoider 0
-		code 0
 		robot 0
 	)
 
@@ -1387,7 +1388,7 @@
 	file# "styler.sc"
 
 	(properties
-		-size- 19
+		-size- 20
 		-script- 51
 		-super- 0
 		style 0
@@ -1399,10 +1400,13 @@
 		refFrame 0
 		divisions 0
 		captureList 0
+		pFadeArray 0
 	)
 
 	(methods
+		init
 		doit
+		addExclusionRange
 	)
 )
 
@@ -2157,6 +2161,8 @@
 		copy
 		readWord
 		writeWord
+		readByte
+		writeByte
 	)
 )
 
@@ -2437,42 +2443,15 @@
 )
 
 
-(classdef Gauge
-	script# 64987
-	class# 85
-	super# 61
-	file# "gauge.sc"
-
-	(properties
-		-size- 35
-		-script- 85
-		-super- 61
-		description 0
-		higher 0
-		lower 3
-		normal 7
-		minimum 0
-		maximum 15
-	)
-
-	(methods
-		init
-		doit
-		handleEvent
-		update
-	)
-)
-
-
 (classdef Orbit
 	script# 64986
-	class# 86
+	class# 85
 	super# 28
 	file# "orbit.sc"
 
 	(properties
 		-size- 32
-		-script- 86
+		-script- 85
 		-super- 28
 		centerObj 0
 		radius 50
@@ -2492,13 +2471,13 @@
 
 (classdef Path
 	script# 64983
-	class# 87
+	class# 86
 	super# 29
 	file# "path.sc"
 
 	(properties
 		-size- 27
-		-script- 87
+		-script- 86
 		-super- 29
 		intermediate 0
 		value 0
@@ -2516,13 +2495,13 @@
 
 (classdef RelPath
 	script# 64983
-	class# 88
-	super# 87
+	class# 87
+	super# 86
 	file# "path.sc"
 
 	(properties
-		-script- 88
-		-super- 87
+		-script- 87
+		-super- 86
 	)
 
 	(methods
@@ -2533,13 +2512,13 @@
 
 (classdef StopWalk
 	script# 64961
-	class# 89
+	class# 88
 	super# 22
 	file# "stopwalk.sc"
 
 	(properties
 		-size- 18
-		-script- 89
+		-script- 88
 		-super- 22
 		vWalking 0
 		vStopped 0
@@ -2555,13 +2534,13 @@
 
 (classdef GradualLooper
 	script# 64977
-	class# 90
+	class# 89
 	super# 1
 	file# "grooper.sc"
 
 	(properties
 		-size- 14
-		-script- 90
+		-script- 89
 		-super- 1
 		client 0
 		oldCycler 0
@@ -2579,13 +2558,13 @@
 
 (classdef GradualCycler
 	script# 64977
-	class# 91
+	class# 90
 	super# 21
 	file# "grooper.sc"
 
 	(properties
 		-size- 18
-		-script- 91
+		-script- 90
 		-super- 21
 		loopIndex 0
 		numOfLoops 0
@@ -2603,13 +2582,13 @@
 
 (classdef SmoothLooper
 	script# 64968
-	class# 92
+	class# 91
 	super# 1
 	file# "smooper.sc"
 
 	(properties
 		-size- 20
-		-script- 92
+		-script- 91
 		-super- 1
 		nextLoop 0
 		client 0
@@ -2633,13 +2612,13 @@
 
 (classdef Cat
 	script# 64976
-	class# 93
+	class# 92
 	super# 48
 	file# "cat.sc"
 
 	(properties
 		-size- 89
-		-script- 93
+		-script- 92
 		-super- 48
 		left -1
 		top -1
@@ -2667,13 +2646,13 @@
 
 (classdef DCIcon
 	script# 64967
-	class# 94
+	class# 93
 	super# 56
 	file# "dcicon.sc"
 
 	(properties
 		-size- 65
-		-script- 94
+		-script- 93
 		-super- 56
 		cycler 0
 		cycleSpeed 6
@@ -2690,13 +2669,13 @@
 
 (classdef DPath
 	script# 64964
-	class# 95
+	class# 94
 	super# 28
 	file# "dpath.sc"
 
 	(properties
 		-size- 27
-		-script- 95
+		-script- 94
 		-super- 28
 		points 0
 		value 0
@@ -2713,13 +2692,13 @@
 
 (classdef RelDPath
 	script# 64963
-	class# 96
-	super# 95
+	class# 95
+	super# 94
 	file# "reldpath.sc"
 
 	(properties
-		-script- 96
-		-super- 95
+		-script- 95
+		-super- 94
 	)
 
 	(methods
@@ -2730,13 +2709,13 @@
 
 (classdef RegionPath
 	script# 64984
-	class# 97
+	class# 96
 	super# 29
 	file# "regpath.sc"
 
 	(properties
 		-size- 34
-		-script- 97
+		-script- 96
 		-super- 29
 		completed 1
 		currentRoom 0
@@ -2768,13 +2747,13 @@
 
 (classdef ForwardCounter
 	script# 64956
-	class# 98
+	class# 97
 	super# 22
 	file# "forcount.sc"
 
 	(properties
 		-size- 17
-		-script- 98
+		-script- 97
 		-super- 22
 		count 0
 	)
@@ -2788,13 +2767,13 @@
 
 (classdef Track
 	script# 64955
-	class# 99
+	class# 98
 	super# 28
 	file# "track.sc"
 
 	(properties
 		-size- 29
-		-script- 99
+		-script- 98
 		-super- 28
 		who 0
 		xOffset 0
@@ -2811,13 +2790,13 @@
 
 (classdef Approach
 	script# 64953
-	class# 100
+	class# 99
 	super# 28
 	file# "approach.sc"
 
 	(properties
 		-size- 27
-		-script- 100
+		-script- 99
 		-super- 28
 		who 0
 		distance 20
@@ -2834,12 +2813,12 @@
 
 (classdef MoveFwd
 	script# 64951
-	class# 101
+	class# 100
 	super# 35
 	file# "movefwd.sc"
 
 	(properties
-		-script- 101
+		-script- 100
 		-super- 35
 	)
 
@@ -2851,13 +2830,13 @@
 
 (classdef MoveCycle
 	script# 64942
-	class# 102
+	class# 101
 	super# 21
 	file# "movecyc.sc"
 
 	(properties
 		-size- 19
-		-script- 102
+		-script- 101
 		-super- 21
 		value 0
 		points 0
@@ -2875,13 +2854,13 @@
 
 (classdef RandCycle
 	script# 64941
-	class# 103
+	class# 102
 	super# 21
 	file# "randcyc.sc"
 
 	(properties
 		-size- 18
-		-script- 103
+		-script- 102
 		-super- 21
 		count -1
 		reset 0
@@ -2898,13 +2877,13 @@
 
 (classdef RTRandCycle
 	script# 64941
-	class# 104
-	super# 103
+	class# 103
+	super# 102
 	file# "randcyc.sc"
 
 	(properties
-		-script- 104
-		-super- 103
+		-script- 103
+		-super- 102
 	)
 
 	(methods
@@ -2914,13 +2893,13 @@
 
 (classdef Oscillate
 	script# 64939
-	class# 105
+	class# 104
 	super# 21
 	file# "osc.sc"
 
 	(properties
 		-size- 17
-		-script- 105
+		-script- 104
 		-super- 21
 		howManyCycles -1
 	)
@@ -2935,13 +2914,13 @@
 
 (classdef RangeOsc
 	script# 64938
-	class# 106
+	class# 105
 	super# 21
 	file# "rangeosc.sc"
 
 	(properties
 		-size- 19
-		-script- 106
+		-script- 105
 		-super- 21
 		cycles -1
 		firstC 0
@@ -2958,13 +2937,13 @@
 
 (classdef PseudoMouse
 	script# 64933
-	class# 107
+	class# 106
 	super# 1
 	file# "pmouse.sc"
 
 	(properties
 		-size- 15
-		-script- 107
+		-script- 106
 		-super- 1
 		cursorInc 2
 		minInc 2
@@ -2984,9 +2963,33 @@
 
 (classdef PChase
 	script# 64930
-	class# 108
+	class# 107
 	super# 35
 	file# "pchase.sc"
+
+	(properties
+		-size- 34
+		-script- 107
+		-super- 35
+		who 0
+		distance 0
+		targetX 0
+		targetY 0
+	)
+
+	(methods
+		init
+		doit
+		moveDone
+	)
+)
+
+
+(classdef PFollow
+	script# 64932
+	class# 108
+	super# 35
+	file# "pfollow.sc"
 
 	(properties
 		-size- 34
@@ -3006,39 +3009,15 @@
 )
 
 
-(classdef PFollow
-	script# 64932
-	class# 109
-	super# 35
-	file# "pfollow.sc"
-
-	(properties
-		-size- 34
-		-script- 109
-		-super- 35
-		who 0
-		distance 0
-		targetX 0
-		targetY 0
-	)
-
-	(methods
-		init
-		doit
-		moveDone
-	)
-)
-
-
 (classdef PAvoider
 	script# 64927
-	class# 110
+	class# 109
 	super# 1
 	file# "pavoid.sc"
 
 	(properties
 		-size- 15
-		-script- 110
+		-script- 109
 		-super- 1
 		client 0
 		oldBlocker 0
@@ -3057,13 +3036,13 @@
 
 (classdef Blink
 	script# 64928
-	class# 111
+	class# 110
 	super# 21
 	file# "talker.sc"
 
 	(properties
 		-size- 20
-		-script- 111
+		-script- 110
 		-super- 21
 		waitCount 0
 		lastCount 0
@@ -3081,13 +3060,13 @@
 
 (classdef Narrator
 	script# 64928
-	class# 112
+	class# 111
 	super# 0
 	file# "talker.sc"
 
 	(properties
-		-size- 32
-		-script- 112
+		-size- 33
+		-script- 111
 		-super- 0
 		x -1
 		y -1
@@ -3111,6 +3090,7 @@
 		audVerb 0
 		audCase 0
 		audSequence 0
+		printClass 0
 	)
 
 	(methods
@@ -3129,14 +3109,14 @@
 
 (classdef Talker
 	script# 64928
-	class# 113
-	super# 112
+	class# 112
+	super# 111
 	file# "talker.sc"
 
 	(properties
-		-size- 44
-		-script- 113
-		-super- 112
+		-size- 45
+		-script- 112
+		-super- 111
 		talkWidth 318
 		frame 0
 		bust 0
@@ -3165,13 +3145,13 @@
 
 (classdef MessageObj
 	script# 64925
-	class# 114
+	class# 113
 	super# 0
 	file# "conv.sc"
 
 	(properties
 		-size- 21
-		-script- 114
+		-script- 113
 		-super- 0
 		modNum -1
 		noun 0
@@ -3194,13 +3174,13 @@
 
 (classdef Conversation
 	script# 64925
-	class# 115
+	class# 114
 	super# 3
 	file# "conv.sc"
 
 	(properties
 		-size- 16
-		-script- 115
+		-script- 114
 		-super- 3
 		script 0
 		curItem -1
@@ -3221,13 +3201,13 @@
 
 (classdef Inset
 	script# 64923
-	class# 116
+	class# 115
 	super# 0
 	file# "inset.sc"
 
 	(properties
-		-size- 35
-		-script- 116
+		-size- 38
+		-script- 115
 		-super- 0
 		picture -1
 		style 0
@@ -3254,6 +3234,9 @@
 		plane 0
 		oldTimers 0
 		oldHotCast 0
+		case 0
+		oldCast 0
+		oldRegions 0
 	)
 
 	(methods
@@ -3273,13 +3256,13 @@
 
 (classdef ScaleTo
 	script# 64975
-	class# 117
+	class# 116
 	super# 45
 	file# "scaleto.sc"
 
 	(properties
 		-size- 24
-		-script- 117
+		-script- 116
 		-super- 45
 		caller 0
 		endScale 0
@@ -3299,13 +3282,13 @@
 
 (classdef Door
 	script# 64954
-	class# 118
+	class# 117
 	super# 47
 	file# "door.sc"
 
 	(properties
-		-size- 84
-		-script- 118
+		-size- 85
+		-script- 117
 		-super- 47
 		entranceTo 0
 		locked 0
@@ -3344,13 +3327,13 @@
 
 (classdef Flags
 	script# 64985
-	class# 119
+	class# 118
 	super# 0
 	file# "flags.sc"
 
 	(properties
 		-size- 12
-		-script- 119
+		-script- 118
 		-super- 0
 		size 0
 		array 0

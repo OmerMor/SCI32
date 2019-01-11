@@ -91,3 +91,4 @@
 		(self init:)		;proceed with next step, same properties
 	)
 )
+

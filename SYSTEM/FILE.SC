@@ -37,6 +37,8 @@
 		copy						;copy the file
 		readWord					;read next 16-bit value
 		writeWord				;write a 16-bit value
+		readByte					;read next byte into low end of return
+		writeByte				;write low byte of word to file
 	)
 
 
@@ -123,6 +125,10 @@
 		)
 	)
 
+	(method (readByte)
+		(return (FileIO FileGetByte handle))
+	)
+
 	(method (readString str len)
 		;; Read a line (of maximum length len) from a file.
 
@@ -202,6 +208,10 @@
 		)
 	)
 
+	(method (writeByte b)
+		(return (FileIO FilePutByte handle b))
+	)
+
 	(method (writeString str &tmp i)
 		;; Write the string pointed to by 'str' to the file.  Multiple strings
 		;; may be sent in one call.
@@ -226,3 +236,4 @@
 		(return (FileIO FilePutWord handle theValue))
 	)
 )
+

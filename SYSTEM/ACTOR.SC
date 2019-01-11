@@ -47,7 +47,7 @@
 		;	Adding crit properties below this requires changing the xxxx define
 
 		yStep				2 			;here for BaseSetter use only
-		signal			(| setBaseRect canUpdate ignrAct)
+		signal			(| setBaseRect canUpdate ignrAct skipCheck)
 		
 		lsLeft			0
 		lsTop				0 			;lastSeen - previous rectangle
@@ -432,7 +432,7 @@
 		timer 		0 					;object ID of an attached Timer
 		detailLevel 0					;level to start animating
 		scaler		0					;object ID of scaler object
-		signal		(| setBaseRect canUpdate)
+		code			NULL				;any additional code to get done in a doit
 	)
 	(methods
 		setCycle			;attach an instance of a Cycle class
@@ -456,6 +456,10 @@
 
 		(if script
 			(script doit:)
+		)
+
+		(if code
+			(code doit: self)
 		)
 
 		(if (& signal canUpdate)
@@ -566,7 +570,7 @@
 		)
 	)
 
-	(method (setScaler theScaler)
+	(method (setScaler theScaler &tmp theActor)
 		;
 		; Set a scaler object on us
 
@@ -595,12 +599,13 @@
 			(else
 				; Match the scaler of 'theScaler'.  Note that we don't want
 				;	to reinit the scaler.
-				(= scaler ((theScaler scaler?) new:))
-				(= scaleSignal (theScaler scaleSignal?))
-				(= maxScale 	(theScaler maxScale?))
-				(scaler
-					client:	self,
-					doit:
+				(= theActor theScaler)
+ 				(= theScaler (theActor scaler?))
+				(if theScaler
+					(= scaler (theScaler new:))
+					(= scaleSignal (theActor scaleSignal?))
+					(= maxScale 	(theActor maxScale?))
+					(scaler client: self, doit:)
 				)
 			)
 		)
@@ -1301,3 +1306,4 @@
 		)
 	)
 )
+

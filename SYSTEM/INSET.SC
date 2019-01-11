@@ -6,9 +6,11 @@
 ;;;;	Author: 	Warren Schwader & Robert W. Lindsley
 ;;;;	Updated:	Brian K. Hughes
 ;;;;	Extensively Modified:	Tom DeSalvo 3/31/94
+;;;;  Modified to Allow Nesting of Insets: Steve Conrad 5/31/95
+;;;;													 Arijit De	
 ;;;;	
 ;;;;	An Inset is a self-contained structure that appears over the current
-;;;;	room.
+;;;;	room or inset.
 ;;;;
 ;;;;	Classes:
 ;;;;		Inset
@@ -54,6 +56,9 @@
 		plane				NULL
 		oldTimers		NULL
 		oldHotCast     NULL
+		case				NULL
+		oldCast			NULL	 ;Private. The cast in use before this inset.
+		oldRegions		NULL	 ;Private. The regions list in use before this inset.
 	)
 	(methods
 		init						 ;Public. User defined. Include a super init at the proper time.
@@ -96,12 +101,14 @@
 		(= oldWH walkHandler)
 		(= oldObstacles (curRoom obstacles?))
 		(= oldTimers timers)
+		(= oldCast cast)
 	  	((= timers (Set new:))
 			name: {inTimers},
 			add:,
 		)
 		(curRoom obstacles: ((List new:) add:, yourself:))
 
+		(= oldRegions (List new:))
       (for ((= i 0)) (< i (regions size?)) ((++ i))
             (oldRegions add: (regions at: i))
       )
@@ -223,9 +230,9 @@
 			(= modNum curRoomNum)
 		)
 		(if (and	msgType
-					(Message MsgGet modNum noun theVerb NULL 1)
+					(Message MsgGet modNum noun theVerb case 1)
 				)
-			(messager say: noun theVerb NULL NULL NULL modNum)
+			(messager say: noun theVerb case NULL NULL modNum)
 		else
 			(theGame pragmaFail:)
 		)
@@ -270,7 +277,7 @@
 		((curRoom obstacles?) 	dispose:)
 		(client inset: 0)
 		(curRoom obstacles: oldObstacles)
-		(= cast (((curRoom plane?) casts?) at: 0))
+		(= cast oldCast)
 		(= thePlane (curRoom plane?))
 		(= features 			oldFeatures)
 		(= mouseDownHandler 	oldMH)
@@ -304,10 +311,6 @@
 		(return FALSE)
 	)
 )
-
-(instance oldRegions of List)
-
-
 
 
 ;;;******************** USAGE *********************************************
@@ -364,3 +367,4 @@
 ;;;
 ;;;Of course any Views that you want to show up after the inset is up
 ;;;can be init:'ed normally and will be disposed when the Inset is disposed
+

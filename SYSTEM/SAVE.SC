@@ -651,7 +651,7 @@
 
 (procedure (HaveSpace)
 	(return 	(and 	(< numGames MAXGAMES)
-						(FileIO FileCheckFreeSpace (KString StrGetData curSaveDir) CFSEnoughSpaceToSave)
+						(FileIO FileCheckFreeSpace CFSEnoughSpaceToSave (KString StrGetData curSaveDir))
 				)
 	)
 )
@@ -778,3 +778,4 @@
 		borderColor	0
 	)
 )
+
