@@ -389,8 +389,34 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 
 	lastFrameNum = frameNum;
 }
+/*
+	xsize = vh->xsize;
+	ysize = vh->ysize;
+	int xorg, yorg;
 
+	if (accessType == 1)  {
+		int highResX1 = vh->x1 + ((xoff * 63) / 32);
+		int highResY1 = vh->y1 + ((yoff * 9) / 4);
+		int highResY2 = highResY1 + ysize - 1;
+	
+		int lowResX1 = (highResX1 * 32) / 63;
+		int lowResY1 = (highResY1 * 4) / 9;
+		int lowResY2 = (highResY2 * 4) / 9;
 
+		xorg = (highResX1 - ((lowResX1 * 63) / 32)) * -1;
+		yorg = ((lowResY2 * 9) / 4) - highResY1;
+		x1[index] = lowResX1;
+		y1[index] = lowResY2;
+	}
+	else  {
+		xorg = vh->xoff;
+		yorg = vh->yoff;
+		fileX1[index] = vh->x1;
+		fileY1[index] = vh->y1;
+		x1[index] = fileX1[index] + xoff;
+		y1[index] = fileY1[index] + yoff;
+	}
+*/
 
 void
 Robot::KillRobot()
@@ -510,7 +536,7 @@ Robot::CreateCel(uchar* video, Bool usePalette)
 		OffsetData(ptr, PALSHIFT);
 
 	if (vertScaleFactor != 100)  {
-		ExpandData((uchar*) *bmHandle[0] + CELHEADERSIZE, ptr);
+		ExpandData((uchar*) *bmHandle[0] + CELHEADERSIZE, ptr, 0);
 		temp.Free();
 	}
 
@@ -532,19 +558,6 @@ Robot::CreateCel4(uchar* video, int celCount, Bool usePalette)
 	}
 }
 
-/*
-	vheader.xsize = xdim;
-	vheader.ysize = ydim;				//  Unscaled Ysize
-	vheader.x1 = rect.x1;
-	vheader.y1 = rect.y1;
-	vheader.xoff = 0;
-	vheader.yoff = 0;
-//	vheader.x1 = (rect.x1 * 32) / 63;
-//	vheader.y1 = (rect.y2 * 4) / 9;
-//	vheader.xoff = (rect.x1 - ((vheader.x1 * 63) / 32)) * -1;
-//	vheader.yoff = ((vheader.y1 * 9) / 4) - rect.y1;
-
-*/
 
 void
 Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
@@ -552,12 +565,34 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 	VideoHeader4* vh = (VideoHeader4*) video;
 	compressType = vh->compressionType;
 	vertScaleFactor = vh->vertScaleFactor;
-	fileX1[index] = vh->x1;  			//  was lowres
-	fileY1[index] = vh->y1;  			//  was lowres
-	x1[index] = fileX1[index] + xoff;
-	y1[index] = fileY1[index] + yoff;
+
 	xsize = vh->xsize;
 	ysize = vh->ysize;
+	int xorg, yorg;
+
+	if (accessType == 1)  {
+		int highResX1 = vh->x1 + ((xoff * 63) / 32);
+		int highResY1 = vh->y1 + ((yoff * 9) / 4);
+		int highResY2 = highResY1 + ysize - 1;
+	
+		int lowResX1 = (highResX1 * 32) / 63;
+		int lowResY1 = (highResY1 * 4) / 9;
+		int lowResY2 = (highResY2 * 4) / 9;
+
+		xorg = (highResX1 - ((lowResX1 * 63) / 32)) * -1;
+		yorg = ((lowResY2 * 9) / 4) - highResY1;
+		x1[index] = lowResX1;
+		y1[index] = lowResY2;
+	}
+	else  {
+		xorg = vh->xoff;
+		yorg = vh->yoff;
+		fileX1[index] = vh->x1;
+		fileY1[index] = vh->y1;
+		x1[index] = fileX1[index] + xoff;
+		y1[index] = fileY1[index] + yoff;
+	}
+ 
 
 	//  Do checksum to verify data integrity
 	uchar* vidptr = video + sizeof(VideoHeader4);
@@ -569,7 +604,7 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 
 	bmHandle[index].Free();
 	bmHandle[index].Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
-	BuildHeader(bmHandle[index], xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
+	BuildHeader(bmHandle[index], xsize, ysize, 255, xorg, yorg, xRes, yRes, usePalette);
 
 	MemID temp;
 	uchar* ptr = NULL;
@@ -597,7 +632,10 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 		OffsetData(ptr, PALSHIFT);
 
 	if (vertScaleFactor != 100)  {
-		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr);
+		int startY = 0;
+		if (accessType == 1)
+			startY = vh->y1;
+		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr, startY);
 		temp.Free();
 	}
 
@@ -662,7 +700,7 @@ _Packed	struct AudPrimerHdr
 		Read(fd, &audFlag, 1);
 		Read(fd, junk, 2);			//  cueCount, frameRate
 		Read(fd, &frameRate, 2);
-		Read(fd, junk, 2);			//  cueCount, frameRate
+		Read(fd, &accessType, 2);
 		Read(fd, &canSkip, 2);
 		Read(fd, &maxCelsPerFrame, 2);
 		Read(fd, &maxsize0, 4);
@@ -839,13 +877,13 @@ Robot::LZDecode(uchar* dest, uchar* src, ulong srcCount)
 
 
 void
-Robot::ExpandData(uchar* dest, const uchar* src)
+Robot::ExpandData(uchar* dest, const uchar* src, int starty)
 {
 	int ydim = (ysize * vertScaleFactor) / 100;
 
-	long total = 0;
 	int numer = ysize;
 	int denom = ydim;
+	int total = (numer * starty) % denom;
 
 	for (int y = ydim - 1; y >= 0; y--)  {
 		total += numer;

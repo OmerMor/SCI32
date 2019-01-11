@@ -17,7 +17,6 @@ asmOpts	= /c /Cp /Zm
 	@if $(%alreadyMaking)==1 @%abort
 	#
 	@%create $(%vcsid)._		
-	@fixtime
 	@set include=$(include)
 
 .ERROR

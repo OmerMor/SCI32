@@ -45,7 +45,7 @@ class Robot
 	void		Create1Cel4(uchar* video, int index, Bool usePalette);
 	void		RLEDecode(uchar* dest, uchar* src);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount);
-	void		ExpandData(uchar* dest, const uchar* src);
+	void		ExpandData(uchar* dest, const uchar* src, int starty);
 	int		ToTicks(int frame);
 	int		ToFrame(int ticks);
 	void		DoVersion2();
@@ -63,6 +63,7 @@ class Robot
 	int				frameCount;
 	int				frameNum;
 	short				frameRate;		//  Frames per second
+	short				accessType;
 	int				resNum;
 	short				xRes, yRes;		//  MUST BE SHORT!
 	Bool				firstFrame;
