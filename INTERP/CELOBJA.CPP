@@ -457,13 +457,11 @@ CelObj::ScaleDrawNoMD(const Buffer& dest, const Ratio& ratioX, const Ratio& rati
 		beginindex = x1;
 		pixelcount = x2 - x1 + 1;
 		skipval = skip;
-#ifndef MACINTOSH		//causing problems in PQ4
-	#ifndef WINDOWS	//causing problems in QG4
+#ifndef WINDOWS	//causing problems in QG4
 		if (doubleHorz)
 			WriteUncompScaleLine2();
 		else
-	#endif
-#endif	//MACINTOSH
+#endif
 			WriteUncompScaleLine();
 
 		// Draw a line
@@ -526,13 +524,11 @@ CelObj::ScaleDrawUncompNoMD(const Buffer& dest, const Ratio& ratioX, const Ratio
  		beginindex = x1;
 		pixelcount = x2 - x1 + 1;
 		skipval = skip;
-#ifndef MACINTOSH		//causing problems in PQ4
-	#ifndef WINDOWS	//causing problems in QG4
+#ifndef WINDOWS	//causing problems in QG4
 		if (doubleHorz)
 			WriteUncompScaleLine2();
 		else
-	#endif
-#endif	//MACINTOSH
+#endif
 			WriteUncompScaleLine();
 
 		// Draw a line

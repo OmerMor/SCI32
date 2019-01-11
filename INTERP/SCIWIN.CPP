@@ -15,7 +15,8 @@
 #include "audio.hpp"
 #include "graphmw.hpp"
 #include "kernel.hpp"
-#include "scidll.hpp"
+//#include "scidll.hpp"
+#include "memmgrw.hpp"
 #include "mousew.hpp"
 #include "moview.hpp"
 #include "sci.hpp"
@@ -26,6 +27,7 @@
 #include "timew.hpp"
 #include "mmsystem.h"
 #include "moview.hpp"
+#include "winthunk.hpp"
 
 int scimain (int argc, PSTR argv[]);
 
@@ -92,11 +94,12 @@ int		asyncCheckFreq = 10;
 int		monoDisp = 0;
 MSG myMsg;
 BOOL	  SHOWMEM   = FALSE;
+BOOL	  SHOWNEWS   = FALSE;
 BOOL    LOCKMAIN   = FALSE;
 BOOL    LOCKAUDIO  = FALSE;
 BOOL    GAMEPAUSED = FALSE;
 BOOL    REQUIREDAC       = FALSE;       /* require user to have a DAC */
-BOOL    CONFIRMDAC       = FALSE;       /* confirm from user if no DAC */
+BOOL    CONFIRMDAC   = TRUE;       /* confirm from user if no DAC */
 BOOL    CONFIRMMIDI  = FALSE;   /* confirm from user if no MIDI */
 BOOL    CONFIRMREDBOOK = FALSE; /* confirm from user if no Redbook */
 BOOL    USEAUDIO = TRUE;
@@ -105,6 +108,7 @@ BOOL    DOPPCTEST = TRUE;
 BOOL    HIRES = TRUE;
 BOOL	  TITLEBAR = TRUE;
 BOOL	  ALLOWRESIZE = TRUE;
+BOOL	  ALLOWTRUECOLOR = TRUE;
 BOOL	  TRUECOLOR = FALSE;
 BOOL	  TRAPCLOSE = TRUE;
 BOOL	  COLORCURSOR = FALSE;
@@ -144,7 +148,7 @@ int     vmapWidth = 640;
 int     vmapHeight = 480;
 int	  DACSize;
 int	  cursorViewAdd = 0;
-int	  maxCursorSize = 600;
+int	  maxCursorSize = 0;
 Bool    isMaximized = False;
 Bool    minMaxFlag = False;
 extern	int	writeCount;
@@ -286,6 +290,10 @@ RECT            windRect;
 
 	CheckConfig();
 
+	InitThunk();
+
+	GetWindowsMemory();
+
 	scimain (argc, argv);                   /* call sci.c to start intrpreter */
 
 	exit (1);
@@ -416,7 +424,7 @@ unsigned			 aSize, dSize;
 	wingMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "wingmink", 3000, (LPSTR)szIniFile);
 #endif
 	cursorViewAdd	= GetPrivateProfileInt ((LPSTR)szInfo, "cursorviewadd", 0, (LPSTR)szIniFile);
-	maxCursorSize	= GetPrivateProfileInt ((LPSTR)szInfo, "maxCursorSize", 600, (LPSTR)szIniFile);
+	maxCursorSize	= GetPrivateProfileInt ((LPSTR)szInfo, "maxCursorSize", 0, (LPSTR)szIniFile);
 	maxCursorSize = (((maxCursorSize + 3) >> 2) << 2);
 	forcePPC			= GetPrivateProfileInt ((LPSTR)szInfo, "forceppc", 0, (LPSTR)szIniFile);
 	dSize 			= (unsigned)GetIntOption ("DACSize", GetDACDefaultSize());
@@ -427,7 +435,7 @@ unsigned			 aSize, dSize;
 	asyncCheckFreq	= GetPrivateProfileInt ((LPSTR)szInfo, "asynccheckfreq", 10, (LPSTR)szIniFile);
 	monoDisp			= GetPrivateProfileInt ((LPSTR)szInfo, "monodisp", 0, (LPSTR)szIniFile);
 
-	CONFIRMDAC		= GetTFOption("confirmdac",FALSE);
+	CONFIRMDAC		= GetTFOption("confirmdac",TRUE);
 	REQUIREDAC		= GetTFOption("requiredac",FALSE);
 	CONFIRMMIDI		= GetTFOption("confirmmidi",FALSE);
 	USEMIDI			= GetTFOption("usemidi",TRUE);
@@ -437,9 +445,11 @@ unsigned			 aSize, dSize;
 	LOCKMAIN			= GetTFOption("lockmain",FALSE);
 	LOCKAUDIO		= GetTFOption("lockaudio",FALSE);
 	SHOWMEM			= GetTFOption("showmem",FALSE);
+	SHOWNEWS			= GetTFOption("shownews",FALSE);
 	HIRES				= GetTFOption("hires",TRUE);
 	DOPPCTEST		= GetTFOption("doppctest",TRUE);
 	ALLOWRESIZE		= GetTFOption("allowresize",TRUE);
+	ALLOWTRUECOLOR	= GetTFOption("allowtruecolor",TRUE);
 	TRAPCLOSE		= GetTFOption("trapclose",TRUE);
 	COLORCURSOR		= GetTFOption("colorcursor",FALSE);
 #ifdef WIN32S
@@ -554,11 +564,11 @@ void
 CheckConfig (void)
 {
 PCMWAVEFORMAT   pwf;
-HMIDIOUT                        hMidiOut;
-//MCI_OPEN_PARMS        mciOpenParms;
-//MCI_GENERIC_PARMS     mciGenericParms;
+HWAVEOUT			hWave;
+HMIDIOUT       hMidiOut;
 WORD                            wError;
 BOOL                            dlgResult;
+char	szErrorText[150];
 
 	if (SHOWMEM) {
 		sprintf(mbuff,"&CheckConfig:%08x",&CheckConfig);
@@ -569,13 +579,27 @@ BOOL                            dlgResult;
 		TRUECOLOR = TRUE;
 	else
 		TRUECOLOR = FALSE;
+
 	if (nCOLORS < 256)
 		{
 		GetPrivateProfileString ("boot", "display.drv", "none", mbuff, 40,
 									"system.ini");
 		MessageBox (NULL,
 			"Your current display driver is not supported by this game."
-			"  We require a driver which can display 256 colors or more."
+			"  We require a driver which can display at least 256 colors."
+			"  You can install a different driver by selecting the appropriate"
+			" options from Windows Setup.",
+				mbuff, MB_OK | MB_ICONSTOP);
+		exit(1);
+		}
+
+	if ((nCOLORS > 256) && !ALLOWTRUECOLOR)
+		{
+		GetPrivateProfileString ("boot", "display.drv", "none", mbuff, 40,
+									"system.ini");
+		MessageBox (NULL,
+			"Your current display driver is not supported by this game."
+			"  We require a driver which can display exactly 256 colors."
 			"  You can install a different driver by selecting the appropriate"
 			" options from Windows Setup.",
 				mbuff, MB_OK | MB_ICONSTOP);
@@ -589,14 +613,18 @@ BOOL                            dlgResult;
 	pwf.wf.nBlockAlign = 1;
 	pwf.wBitsPerSample = (WORD)8;
 
-	wError = waveOutOpen (NULL,
-								WAVE_MAPPER,
-								(LPWAVEFORMAT)&pwf.wf,
-								(DWORD)0,
-								(DWORD)0,
-								(DWORD)WAVE_FORMAT_QUERY);
+	wError = waveOutOpen ((LPHWAVEOUT)&hWave,
+									WAVE_MAPPER,
+									(LPWAVEFORMAT)&pwf.wf,
+									(DWORD)hMyWnd,
+									(DWORD)0,
+									CALLBACK_WINDOW);
 	if (wError) {
 		USEAUDIO = FALSE;
+		if (REQUIREDAC || CONFIRMDAC)
+			if (!waveOutGetErrorText(wError, (LPSTR)szErrorText, sizeof(szErrorText)))
+				MessageBox (NULL, szErrorText, "waveOutOpen", MB_OK);
+
 		if (REQUIREDAC) {
 			doDialog(DLG_REQUIREDAC);
 			exit(1);
@@ -609,7 +637,8 @@ BOOL                            dlgResult;
 			if (!dlgResult)
 				exit(1);
 		}
-	}
+	} else
+		waveOutClose(hWave);
 
 /*      If there is no device connected to the MIDI Mapper, then force the MIDI
 	device to be the PC speaker.  Default is base-level synth.
@@ -651,20 +680,6 @@ BOOL                            dlgResult;
 											MCI_WAIT,
 											(DWORD)(LPVOID)&mciGenericParms);
       FreeAlias16((DWORD)mciOpenParms.lpstrDeviceType);
-	}
-#endif
-
-#ifdef WIN32SX
-	if (WING) {
-		if (!WingInit(640,480)) {
-			WING = FALSE;
-		}
-	}
-	if (SHOWMEM) {
-		if (WING)
-			MBox("Using WinG","");
-		else
-			MBox("Not using WinG","");
 	}
 #endif
 }
@@ -1031,4 +1046,5 @@ BOOL FAR PASCAL _export testDlgProc (HWND hDlg, WORD wMsg, WORD wParam, LONG lPa
    return(FALSE);
 }
 
+
 

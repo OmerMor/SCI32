@@ -1,60 +1,86 @@
-//	new.cpp		11/26/91
-//		an error checking and reporting new
+//      neww.cpp
+//		Assign "new" requests from a memory cache.  Windows only.
 
 #include <stdio.h>
 #include <string.h>
 
+#include "sciwin.hpp"
 #include "sol.hpp"
 
 #include "heapleak.hpp"
 #include "memmgr.hpp"
+#include "memmgrw.hpp"
 #include "msg.hpp"
+#include "neww.hpp"
 #include "pmachine.hpp"
-
-#ifdef WINDOWS
 #include "mbox.hpp"
-#endif
 
-#define CACHESIZE1 200
-#define ENTRYSIZE1 32
-int	dummy1;
-char	cache1[CACHESIZE1 * ENTRYSIZE1];
-Bool	inUse1[CACHESIZE1];
-void	*cache1Start;
-void	*cache1End;
 
-#define CACHESIZE2 350
-#define ENTRYSIZE2 512
-int	dummy2;
-char	cache2[CACHESIZE2 * ENTRYSIZE2];
-Bool	inUse2[CACHESIZE2];
-void	*cache2Start;
-void	*cache2End;
+// A call to "new" causes an allocation to be to be made from one of
+// the following sources:
+//
+// Local cache
+// Some calls are made to "new" before the program even has control.  This
+// is a small static data segment cache to handle calls until memory can
+// be allocated.
+//
+//	Formatted memory caches
+// There are three tables set up with different element sizes and number
+// of elements.  These handle the vast majority of dynamic news and deletes.
+//
+// Reserve cache
+// Most of the calls to "new" which occur before the pmachine starts tend
+// to be static allocations.  That is, they are not deleted until the
+// interpreter terminates.  They also tend to be of odd sizes.  Therefore,
+// any call made before starting the pmachine for allocations which will
+// not fit into the formatted caches are allocated here.  They are assigned
+// contiguously since we don't need to worry about deleting them.
+//
+// Memory manager
+// Finally, any requests made after the pmachine starts which will not fit
+// one of the formatted caches, are allocated from the memory manager.  The
+// intention is that this should be a rare occurance.
+//
+//
+// Structure of "new" allocations.
+// Each allocation is prepended by a 4-byte header.  The first two bytes
+// identify the cache.  The second two bytes identify the element number
+// within the cache if it is a formatted cache.  The purpose is to gain
+// performance for deletes.  The address returned to the requestor points
+// to the first byte past the header.  All allocations are on mod 4
+// bounderies.
 
-#define CACHESIZE3 100
-#define ENTRYSIZE3 1140
-int	dummy3;
-char	cache3[CACHESIZE3 * ENTRYSIZE3];
-Bool	inUse3[CACHESIZE3];
-void	*cache3Start;
-void	*cache3End;
 
-#define RESERVESIZE 35000
-int	dummy4;
-char	reserve[RESERVESIZE];
-void	*reserveStart;
-void	*reserveNext;
-void	*reserveEnd;
-Bool	firstTime = True;
-Bool	firstInit = True;
-int	preTot = 0;
+// Local cache for news occuring before we can allocate memory
+static	void	*localNext;
+static	void	*localEnd;
+static	char	localCache[LOCALSIZE];
 
-int	totCount = 0;
-int	newCount = 0;
-int	cnt1 = 0;
-int	cnt2 = 0;
-int	cnt3 = 0;
-int	cnt4 = 0;
+// Reserve cache for news occuring before pmachine starts
+			void	*newCacheAddr;
+static	void	*reserveNext;
+static	void	*reserveEnd;
+
+// Cache 1
+static	Bool	inUse1[CACHESIZE1];
+static	void	*cache1Addr[CACHESIZE1];
+
+// Cache 2
+static	Bool	inUse2[CACHESIZE2];
+static	void	*cache2Addr[CACHESIZE2];
+
+// Cache 3
+static	Bool	inUse3[CACHESIZE3];
+static	void	*cache3Addr[CACHESIZE3];
+
+int	newState = NEW_FIRST_CALL;
+
+// Statistics
+static	int	localHigh = 0;
+static	int	reserveHigh = 0;
+static	int	cnt[4] = {0, 0, 0, 0};
+static	int	high[4] = {0, 0, 0, 0};
+
 
 HeapLeakChecker* heapLeakChecker;
 
@@ -108,147 +134,258 @@ HeapLeakChecker::~HeapLeakChecker()
 void*
 operator new(size_t size, char* file, int line)
 {
+
+	switch (newState) {
+
+		case NEW_FIRST_CALL:
+			// First call to new.  Initialize local cache.
+			InitLocalCache();
+			newState = NEW_PRE_MEM_CACHE;
+
+		case NEW_PRE_MEM_CACHE:
+			// Memory cache not yet available.  Use local cache.
+			return AllocInLocal(size);
+
+		case NEW_MEM_CACHE_AVAIL:
+			// Memory cache now available.  Format it.
+			InitMemoryCache();
+			newState = NEW_USE_MEM_CACHE;
+
+		case NEW_USE_MEM_CACHE:
+			// Cache is formatted.  Use cache tables.
+			return AllocInTables(size,file,line);
+
+		default:
+			MBox("Invalid newState","");
+			return (void *)0;
+	}
+}
+
+void
+operator delete(void* p)
+{
+int	cacheNum, entryNum;
+
+	if (!p)
+		return;
+
+	cacheNum = (int)*((ushort *)p - 2);
+	entryNum = (int)*((ushort *)p - 1);
+
+	switch (cacheNum) {
+
+		case NEW_CACHE_ONE:
+			inUse1[entryNum] = False;
+			if (SHOWNEWS)
+				cnt[1]--;
+			return;
+
+		case NEW_CACHE_TWO:
+			inUse2[entryNum] = False;
+			if (SHOWNEWS)
+				cnt[2]--;
+			return;
+
+		case NEW_CACHE_THREE:
+			inUse3[entryNum] = False;
+			if (SHOWNEWS)
+				cnt[3]--;
+			return;
+
+		case NEW_CACHE_LOCAL:
+			// nothing to do
+			return;
+
+		case NEW_CACHE_RESERVE:
+			// nothing to do
+			return;
+
+		case NEW_CACHE_MEMMGR:
+			p = (char *)p - HEADERSIZE;
+//			free(p);
+		  	memMgr->Free(memMgr->GetHandle(p));
+			if (SHOWNEWS)
+				cnt[4]--;
+			return;
+
+		default:
+#ifdef DEBUG
+			MBox("unknown cache ID","");
+#endif
+			// probably a "new" instead of a "New"
+			free(p);
+	}
+}
+
+void
+InitLocalCache(void)
+// Set up pointers for local data segment cache
+{
+	localNext = localCache + HEADERSIZE;
+	localEnd = (void *)(localCache + LOCALSIZE);
+}
+
+void*
+AllocInLocal(size_t size)
+// Allocate contiguously from local cache
+{
 void	*p;
 
-	if (firstTime) {
-		firstTime = False;
-		reserveStart = (void *)reserve;
-		reserveNext = (void *)reserve;
-		reserveEnd = (void *)((char *)reserveStart + RESERVESIZE);
-
-		cache1Start = (void *)((((int)cache1) >> 2) << 2);
-		cache1End = (void *)((char *)cache1Start + (CACHESIZE1 * ENTRYSIZE1));
-		for (int i = 0; i < CACHESIZE1; i++)
-			inUse1[i] = False;
-
-		cache2Start = (void *)((((int)cache2) >> 2) << 2);
-		cache2End = (void *)((char *)cache2Start + (CACHESIZE2 * ENTRYSIZE2));
-		for (i = 0; i < CACHESIZE2; i++)
-			inUse2[i] = False;
-
-		cache3Start = (void *)((((int)cache3) >> 2) << 2);
-		cache3End = (void *)((char *)cache3Start + (CACHESIZE3 * ENTRYSIZE3));
-		for (i = 0; i < CACHESIZE3; i++)
-			inUse3[i] = False;
-	}
-
-	if (!pm.game) {
-		preTot += size;
-		p = reserveNext;
-		reserveNext = (char *)reserveNext + size;
-		if (reserveNext > reserveEnd) {
-			MBox("reserve overflow","");
+		size = ((size + 3) >> 2) << 2;
+		p = localNext;
+		localNext = (char *)localNext + size + HEADERSIZE;
+		if (localNext > localEnd) {
+			MBox("local overflow","");
 			exit(255);
 		}
+		localHigh += size + HEADERSIZE;
+		*((ushort *)p - 2) = NEW_CACHE_LOCAL;
+		*((ushort *)p - 1) = 0;
 		return p;
+}
+
+void
+InitMemoryCache(void)
+// Format the allocated memory into three caches of fixed-length blocks
+// and one reserve for contiguous assignments.  We pre-set the headers and
+// establish a table of pointers so it will be fast.
+{
+ushort	i;
+char	*cache1;
+char	*cache2;
+char	*cache3;
+
+	reserveNext = (char *)newCacheAddr + HEADERSIZE;
+	reserveEnd = (void *)((char *)newCacheAddr + RESERVESIZE);
+
+	cache1 = (char *)reserveEnd;
+	cache2 = cache1 + CACHESIZE1 * (ENTRYSIZE1 + HEADERSIZE);
+	cache3 = cache2 + CACHESIZE2 * (ENTRYSIZE2 + HEADERSIZE);
+
+	for (i = 0; i < CACHESIZE1; i++) {
+		inUse1[i] = False;
+		cache1Addr[i] = (void *)((char *)cache1 + (i * (ENTRYSIZE1 + HEADERSIZE)));
+		*((ushort *)cache1Addr[i] - 2) = NEW_CACHE_ONE;
+		*((ushort *)cache1Addr[i] - 1) = i;
 	}
 
-#ifdef JUNK
-	if (firstInit) {
-		firstInit = False;
-		sprintf(mbuff,"init:%d",preTot);
-		MBox(mbuff,"");
+	for (i = 0; i < CACHESIZE2; i++) {
+		inUse2[i] = False;
+		cache2Addr[i] = (void *)((char *)cache2 + (i * (ENTRYSIZE2 + HEADERSIZE)));
+		*((ushort *)cache2Addr[i] - 2) = NEW_CACHE_TWO;
+		*((ushort *)cache2Addr[i] - 1) = i;
 	}
 
-	totCount++;
-	if (totCount > 1000) {
-		totCount = 0;
-		sprintf(mbuff,"new:%d 1:%d 2:%d 3:%d 4:%d", newCount, cnt1, cnt2, cnt3, cnt4);
-		newCount = 0;
-		cnt1 = 0;
-		cnt2 = 0;
-		cnt3 = 0;
-		cnt4 = 0;
-		SciDisplay(mbuff);
+	for (i = 0; i < CACHESIZE3; i++) {
+		inUse3[i] = False;
+		cache3Addr[i] = (void *)((char *)cache3 + (i * (ENTRYSIZE3 + HEADERSIZE)));
+		*((ushort *)cache3Addr[i] - 2) = NEW_CACHE_THREE;
+		*((ushort *)cache3Addr[i] - 1) = i;
 	}
+}
 
-	if (size <= ENTRYSIZE1)
-		cnt1++;
-	else if (size <= ENTRYSIZE2)
-		cnt2++;
-	else if (size <= ENTRYSIZE3)
-		cnt3++;
-	else
-		cnt4++;
-#endif
+void*
+AllocInTables(size_t size,char* file,int line)
+{
+void	*p;
 
+	// Can we use table 1?
 	if (size <= ENTRYSIZE1) {
 		for (int i = 0; i < CACHESIZE1; i++) {
 			if (!inUse1[i]) {
 				inUse1[i] = True;
-				p = (void *)((char *)cache1Start + (i * ENTRYSIZE1));
+				p = (void *)cache1Addr[i];
+				if (SHOWNEWS)
+					DisplayStats(1);
 				return p;
 			}
 		}
-//		SciDisplay("cache1 overflow");
+#ifdef DEBUG
+		SciDisplay("cache1 overflow");
+#endif
 	}
 
+	// Can we use table 2?
 	if (size <= ENTRYSIZE2) {
 		for (int i = 0; i < CACHESIZE2; i++) {
 			if (!inUse2[i]) {
 				inUse2[i] = True;
-				p = (void *)((char *)cache2Start + (i * ENTRYSIZE2));
+				p = (void *)cache2Addr[i];
+				if (SHOWNEWS)
+					DisplayStats(2);
 				return p;
 			}
 		}
-//		SciDisplay("cache2 overflow");
+#ifdef DEBUG
+		SciDisplay("cache2 overflow");
+#endif
 	}
 
+	// Can we use table 3?
 	if (size <= ENTRYSIZE3) {
 		for (int i = 0; i < CACHESIZE3; i++) {
 			if (!inUse3[i]) {
 				inUse3[i] = True;
-				p = (void *)((char *)cache3Start + (i * ENTRYSIZE3));
+				p = (void *)cache3Addr[i];
+				if (SHOWNEWS)
+					DisplayStats(3);
 				return p;
 			}
 		}
-//		SciDisplay("cache3 overflow");
+#ifdef DEBUG
+		SciDisplay("cache3 overflow");
+#endif
 	}
 
-//	newCount++;
+	// If the pmachine is not started, use the reserve cache
+	if (!pm.game) {
+		int sizeMod4 = ((size + 3) >> 2) << 2;
+		if (SHOWNEWS)
+			reserveHigh += sizeMod4 + HEADERSIZE;
+	  	p = reserveNext;
+	  	reserveNext = (char *)reserveNext + sizeMod4 + HEADERSIZE;
+	  	if (reserveNext < reserveEnd) {
+	  		*((ushort *)p - 2) = NEW_CACHE_RESERVE;
+	  		*((ushort *)p - 1) = 0;
+	  		return p;
+	  	}
+	  	reserveNext = p;
+#ifdef DEBUG
+		SciDisplay("reserve overflow");
+#endif
+	}
 
-	p = malloc(size);
+	// All else failed.  Get it from the memory manager.
+//	p = new char[size + HEADERSIZE];
+	p = memMgr->GetAddr(memMgr->Alloc(LOCKEDNOSAVE, size + HEADERSIZE, 0, 0, 0));
 	if (!p)
 		msgMgr->Fatal("Can't allocate %u bytes in %s(%d)", size, file, line);
+
 #if CHECKHEAPLEAKS
 	if (heapLeakChecker)
 		heapLeakChecker->Add(file, line, p);
 #endif
+
+	p = (char *)p + HEADERSIZE;
+	*((ushort *)p - 2) = NEW_CACHE_MEMMGR;
+	*((ushort *)p - 1) = 0;
+	if (SHOWNEWS)
+		DisplayStats(4);
+
 	return p;
 }
 
-//#if CHECKHEAPLEAKS
 void
-operator delete(void* p)
+DisplayStats(int cacheNum)
+// set the "showNews" option in resource.win to display cache
+// high-water marks.
 {
-				
-	if ((p < cache1End) && (p >= cache1Start)) {
-		int i = ((int)p - (int)cache1Start) / ENTRYSIZE1;
-		inUse1[i] = False;
-		return;
-	}
-
-	if ((p < cache2End) && (p >= cache2Start)) {
-		int i = ((int)p - (int)cache2Start) / ENTRYSIZE2;
-		inUse2[i] = False;
-		return;
-	}
-
-	if ((p < cache3End) && (p >= cache3Start)) {
-		int i = ((int)p - (int)cache3Start) / ENTRYSIZE3;
-		inUse3[i] = False;
-		return;
-	}
-
-	if ((p < reserveNext) && (p >= reserveStart)) {
-		return;
-	}
-
-//	if (heapLeakChecker)
-//		heapLeakChecker->Delete(p);
-	if (p) {
-		free(p);
+	cnt[cacheNum]++;
+	if (cnt[cacheNum] > high[cacheNum]) {
+		high[cacheNum] = cnt[cacheNum];
+		sprintf(mbuff,"high loc:%d 1:%d 2:%d 3:%d res:%d mgr:%d",
+						localHigh,high[1],high[2],high[3],reserveHigh,high[4]);
+		SciDisplay(mbuff);
 	}
 }
-//#endif
 

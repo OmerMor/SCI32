@@ -33,13 +33,14 @@
 #include "pmachine.hpp"
 #include "mbox.hpp"
 #include <dos.h>
+#include "event.hpp"
 
 void	InitMovie(void);
 void	closeWaveDev(void);
 short movieType;	   
 static BOOL	movieInit = FALSE;
 static Plane * moviePlane;
-static char movieName[80];
+static char movieName[_MAX_PATH];
 static int currentlyPlayingMovie;
 static int aviStatus[10];
 
@@ -350,7 +351,7 @@ unsigned int AviPut(int movieNo,int x, int y, int width, int height)
 	int sRight = x + width - 1;
 	int sBottom = y + height - 1;
 	sRect.Set(x,y,sRight,sBottom);
-	moviePlane = new Plane(sRect);
+	moviePlane = New Plane(sRect);
 	graphMgr->AddPlane(moviePlane);
 	graphMgr->FrameOut(TRUE);
 
@@ -427,7 +428,7 @@ unsigned int AviPutDouble(int movieNo,int x, int y)
 	int sRight = x + width - 1;
 	int sBottom = y + height - 1;
 	sRect.Set(x,y,sRight,sBottom);
-	moviePlane = new Plane(sRect);
+	moviePlane = New Plane(sRect);
 	graphMgr->AddPlane(moviePlane);
 	graphMgr->FrameOut(TRUE);
 
@@ -506,6 +507,7 @@ unsigned int AviWaitEvent(int,int flags)
 
 	while (1) {
 		
+		AsyncEventCheck();
 		if(flags & AVI_COMPLETED && PeekMessage(&msg, hMyWnd, MM_MCINOTIFY, MM_MCINOTIFY, PM_NOREMOVE)) {
 			retValue = AVI_COMPLETED;
 			break;
@@ -522,6 +524,14 @@ unsigned int AviWaitEvent(int,int flags)
 			retValue = AVI_MOUSE_DOWN;
 			break;
 		}
+
+		if(flags & AVI_HOT_RECTANGLE) {
+			if(eventMgr->IsAvail(NULL, 0x400)) {
+				retValue = AVI_HOT_RECTANGLE;
+				break;
+			}
+		}
+
 	}
 
 	return retValue;
@@ -674,4 +684,5 @@ unsigned int AviGetStatus(int movieNo)
 {
 	return aviStatus[movieNo];
 }
+
 

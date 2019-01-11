@@ -65,6 +65,7 @@ struct SOL_Event {
 		Command		= 0x0080,
 
       MouseExt    = 0x0200,
+	   HotRectangle = 0x400,
 
 		All			= 0x7FFF,
 		Leave			= 0x8000

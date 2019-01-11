@@ -13,7 +13,14 @@ class SOL_Rect;
 
 class SOL_Mouse : public PointerDevice
 {
+ protected:
+	SCI_Rect * hotRectangles;
+	int hotRectangleCount;
+	int inRect;
+	int hotOn;
+
  public:
+ 	SOL_Mouse();
 	virtual ~SOL_Mouse() {}
 
 	virtual	Bool	Exists() const = 0;
@@ -27,6 +34,9 @@ class SOL_Mouse : public PointerDevice
 	virtual	void	Setup(SOL_Cursor&) = 0;
 	virtual	Bool	IsSwift()const {return False;}
 	virtual	void	Vibrate(int , int = 1, int = 1) const {}
+	virtual void	SetHotRectangleStatus(int status);
+	virtual void	SetupHotRectangles(int count,MemID handle);
+	virtual void	CheckHotRectangles(SOL_Point & pos);
 };
 
 extern SOL_Mouse* mouse;

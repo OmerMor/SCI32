@@ -21,7 +21,6 @@
 #include "sci.hpp"
 #include "stampver.hpp"
 #include "time.hpp"
-#include "test.hpp"
 
 SCI* sci;
 
@@ -29,7 +28,7 @@ void
 SCI::Init(int argc, char* argv[])
 {
 #if CHECKHEAPLEAKS
-	heapLeakChecker= new HeapLeakChecker;
+	heapLeakChecker= New HeapLeakChecker;
 #endif
 
 	critErrHandler	= MakeCritErrHandler();
@@ -108,7 +107,7 @@ SCI::Run(int argc, char* argv[])
 		resMgr->ExtractResources();
 	else
 #endif
-	Test();
+	pm.Run();
 }
 
 SCI::~SCI()

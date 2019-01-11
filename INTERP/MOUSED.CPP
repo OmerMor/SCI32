@@ -232,6 +232,9 @@ MouseDOS::SetPos(const SOL_Point& p)
 	pos.x = pos.x * Ratio(graphMgr->Xdim(), SCIRESX);
 	pos.y = pos.y * Ratio(graphMgr->Ydim(), SCIRESY);
 
+	if(hotOn)
+		CheckHotRectangles(pos);
+
 	if (useMouse)  {
 		SetMouseDriverPos(pos);
 		if (cursor)
@@ -369,4 +372,5 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 	entered = False;
 }
 #pragma on (check_stack)
+
 

@@ -31,11 +31,6 @@ public:
 
 protected:
 #ifndef WIN32S
-	HANDLE	hlib32;
-	HINDIR	hTermTimeMgr;
-	HINDIR	hTickCount;
-	HINDIR	hTickSet;
-	HINDIR	hSetCheckTime;
 	FARPROC	lpTimerCallback;
 	int		timerId;
 #endif

@@ -94,6 +94,7 @@ objects = &
 	picture.obj &
 	plane.obj &
 	platfrmd.obj &
+	playvmd.obj &
 	plist.obj &
 	polygon.obj &
 	pmachine.obj &

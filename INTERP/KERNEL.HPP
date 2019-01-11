@@ -217,7 +217,9 @@ void	KNetwork(argList);
 void	KSID(argList);
 void	KBaseLineSpan(argList);
 void	KCelInfo(argList);
-void  KMorphOn(argList);
+void	KMorphOn(argList);
+void	KPlayVMD(argList);
+void	KSetHotRectangles(argList);
 
 extern KernelCall	kernelCalls[];
 extern int			kernelMax;

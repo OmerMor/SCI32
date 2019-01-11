@@ -50,7 +50,7 @@ RmResList::RmResList(unsigned listSize)
 	} else
 		tracking = False;
 
-	theList = new resourceInfo[listSize];
+	theList = New resourceInfo[listSize];
 	if (configMgr->Get(configMgr->RoomMinK))
 		maxAlocID.Get(MemResourceList,maxRooms*sizeof(MaxAloc));
 }

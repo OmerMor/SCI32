@@ -114,6 +114,9 @@ Bool			prevInCage;
 	}
 	pos = tmp;
 
+	if(hotOn)
+		CheckHotRectangles(pos);
+
 	// Must do a SetCursor on every move even if it hasn't changed so that
 	// Windows will change it when entering client area.
 	SetCursor(hCurCur);

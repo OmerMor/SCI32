@@ -24,7 +24,7 @@ extern SOL_List	sounds;
 DWORD	smallMidiSize = 5000;
 DWORD	largeMidiSize = 50000;
 DWORD	numSoundNodes = NUMSOUNDNODES;
-char far *lockedPagePtr;
+char far *midiCachePtr;
 char far *smallBuffPtr;
 char far *largeBuffPtr;
 BOOL				smallBuffInUse = FALSE;
@@ -57,8 +57,8 @@ InitSoundDriver()
 	soundInstalled = True;
 	DoSound(SProcess,True);
 
-	largeBuffPtr = lockedPagePtr;
-	smallBuffPtr = lockedPagePtr + largeMidiSize + 10;
+	largeBuffPtr = midiCachePtr;
+	smallBuffPtr = midiCachePtr + largeMidiSize + 10;
 	for (int i = 0; i < NUMSOUNDNODES; i++) {
 		nodeInUse[i] = FALSE;
 		nodeBuffPtr[i] = (SNodeData far *)
@@ -246,3 +246,4 @@ SaveAllSounds()
 		snID = snID->Next();
 	}
 }
+

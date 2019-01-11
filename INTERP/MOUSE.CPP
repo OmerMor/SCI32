@@ -10,6 +10,8 @@
 #include "mouse.hpp"
 #include "pmachine.hpp"
 #include "savegame.hpp"
+#include "event.hpp"
+#include "memmgr.hpp"
 
 SOL_Mouse* mouse = NULL;
 
@@ -81,4 +83,81 @@ KVibrateMouse(argList)
 		mouse->Vibrate(arg(1), arg(2), arg(3));
 }
 
+void
+KSetHotRectangles(argList)
+{
+	switch(arg(0)) {		// switch on count 
+
+		case 1:	// Turn on or off
+			if(arg(1))
+				mouse->SetHotRectangleStatus(True);
+			else
+				mouse->SetHotRectangleStatus(False);
+
+			break;
+
+		case 2:	// setup rectangles
+
+			mouse->SetHotRectangleStatus(True);
+			mouse->SetupHotRectangles(arg(1),arg(2));
+	}
+
+}
+
+SOL_Mouse::SOL_Mouse() 
+{
+	hotOn = 0;	// not on
+	inRect = -1;
+	hotRectangles = NULL;
+}
+
+void
+SOL_Mouse::SetHotRectangleStatus(int status)
+{
+	hotOn = status;
+}
+
+void
+SOL_Mouse::SetupHotRectangles(int count, MemID handle)
+{
+	hotRectangleCount = count;
+	handle.Lock();
+	hotRectangles = (SCI_Rect *) ((char *) (*handle) + 4);	// dereference once - locked memory
+	inRect = -1;
+}
+
+void
+SOL_Mouse::CheckHotRectangles(SOL_Point & pos)
+{
+	SOL_Event event;
+	int lastRect = inRect;
+	inRect = -1;
+
+	for(int i = 0; i < hotRectangleCount;i++) {
+		if(pos.x >= hotRectangles[i].ul.x &&
+			pos.x <= hotRectangles[i].lr.x &&
+			pos.y >= hotRectangles[i].ul.y &&
+			pos.y <= hotRectangles[i].lr.y) {
+
+			inRect = i;
+			if(i != lastRect) {
+				// it's in a rectangle, create an event
+				event.type = SOL_Event::HotRectangle;
+				event.message = i;
+				eventMgr->Post(&event);
+				break;	// no need to continue once hit
+			}
+
+			lastRect = inRect;
+
+		}
+	}
+
+	// it WAS in a rect, but not now - need to send a message too
+	if(lastRect != inRect && lastRect != -1) {	
+		event.type = SOL_Event::HotRectangle;
+		event.message = -1;
+		eventMgr->Post(&event);
+	}
+}
 

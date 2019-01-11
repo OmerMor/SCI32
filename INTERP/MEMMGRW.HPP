@@ -17,6 +17,7 @@ void FreeWinMem(void far *lpMem, int pageLock);
 void * AllocWinMem(int size, int pageLock);
 void FreeWinMem(void *lpMem, int pageLock);
 #endif
+void	GetWindowsMemory(void);
 
 
 struct MemoryMgrWin : MemoryMgr {

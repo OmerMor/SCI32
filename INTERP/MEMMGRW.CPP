@@ -4,325 +4,101 @@
 #include <i86.h>
 #include <dos.h>
 #include <string.h>
-#ifndef WIN32S
-#include <malloc.h>
-#endif
-
+#include <conio.h>
 #include "sol.hpp"
-
 #include "config.hpp"
 #include "memmgrw.hpp"
 #include "mbox.hpp"
+#include "neww.hpp"
 #include "msg.hpp"
 #include "newroom.hpp"
 #include "shiftpal.hpp"
 #include "sound.hpp"
+#include "winthunk.hpp"
 
-
-#ifdef WIN32S
+#ifndef WIN32S
+#include <malloc.h>
+#else
 #include "wingfunc.hpp"
-#include "scidllws.h"
-#define	W32SUT_32
-#include "w32sut.h"
-extern	UT32PROC	pfnUTProc;
-static	DWORD		Args[5];
 #endif
 
-void	UnloadDll(void);
+
+void	GetWindowsMemory(void);
 int	GetMemSize(int limit);
+int	PageLockableBytes(void);
+int 	BaseMem(void);
+int 	ExtendedMem(void);
 
 #define	DPMI_INT								0x31
-#define	MAXIMUM_SYSTEM_MEMORY			8192 * 1024
 #define	WINGSIZE								400  * 1024
 
 extern	uchar *wAudioBuffAddr;
-int	wAudioBuffSize;
-int	cursorBuffSize;
-
 extern	uchar *cursorBuffAddr;
 extern	int	maxCursorSize;
-
-HLOCAL	hLocal;
-#ifdef WIN32S
-HGLOBAL	hAudioBuff;
-HGLOBAL	hCursorBuff;
-#endif
-
 // Midi page locking variables
 extern	DWORD		smallMidiSize;
 extern	DWORD		largeMidiSize;
 extern	DWORD		numSoundNodes;
-extern	char far *lockedPagePtr;
+extern	char far *midiCachePtr;
 
-// Special Kludge for AVI to allow us to free it's Alias assignments
-void	TermMovie(void);
-int	PageLockableBytes(void);
+int	sysMemAvail;
+char	*sysMemAddr;
+int	wAudioBuffSize;
+int	newCacheSize;
+int	cursorBuffSize;
+
+#ifdef WIN32S
+HLOCAL	hLocal;
+HGLOBAL	hAudioBuff;
+HGLOBAL	hCursorBuff;
+static	DWORD		Args[5];
+#endif
 
 
 size_t
 MemoryMgrWin::GetSysMemAvail()
 {
-int sciMin, sciMax, availMem;
-int totMem, allocMem;
-int reserveMem;
-int reserveMem4;
-int reserveMem8;
-int reserveMem16;
-int totExternalBuffs;
-DWORD		lockedPageSize;
-char		errbuff[200];
-int lockableSize;
-
-#ifdef WIN32S
-int wingMin;
-int maxSize;
-#else
-int hiSize, loSize, currSize;
-#endif
-	
-	memPtrWin = NULL;
-	wAudioBuffAddr = NULL;
-	lockedPagePtr = NULL;
-	cursorBuffAddr = NULL;
-
-	wAudioBuffSize = DACSize;
-	reserveMem = reserveK * 1024;
-	reserveMem4 = reserveK4 * 1024;
-	reserveMem8 = reserveK8 * 1024;
-	reserveMem16 = reserveK16 * 1024;
-	sciMin = sciMinK * 1024;
-	sciMax = sciMaxK * 1024;
-	lockedPageSize = 0;
-	cursorBuffSize = 0;
-//#ifdef WIN32S
-	lockableSize = PageLockableBytes();
-	if (lockableSize < (4 * 1024 * 1024))
-		reserveMem = reserveMem4;
-	else if (lockableSize < (8 * 1024 * 1024))
-		reserveMem = reserveMem8;
-	else 		  
-		reserveMem = reserveMem16;
-	if (SHOWMEM) {
-		sprintf(mbuff,"detected:%d reserving:%d",lockableSize,reserveMem);
-		MBox(mbuff,"");
-	}
-//#endif
-
-	totExternalBuffs = wAudioBuffSize + reserveMem;
-	if (COLORCURSOR) {
-		cursorBuffSize = 12 * maxCursorSize;
-		totExternalBuffs += cursorBuffSize;
-	}
-
-#ifndef WIN32S
-//************************** NOT WIN32S ***********************************
-	lockedPageSize = smallMidiSize + largeMidiSize + 
-							(numSoundNodes * sizeof(SNodeData)) + 30;
-	lockedPagePtr = (char far *)AllocWinMem(lockedPageSize, PAGELOCK);
-
-	totMem = PageLockableBytes();
-
-	// Now see if we can actually allocate this much.  If not,
-	// find out how much we can get.
-	memPtrWin = (char*)_nmalloc(totMem);
-	if (!memPtrWin) {
-		hiSize = totMem;
-		loSize = 0;
-
-		while ((hiSize - loSize) > 500) {
-			currSize = (hiSize + loSize) / 2;
-			memPtrWin = (char *)_nmalloc(currSize);
-			if (memPtrWin) {
-				_nfree(memPtrWin);
-				loSize = currSize;			
-			} else {
-				hiSize = currSize;
-			}
-		}
-		_nheapmin();
-		totMem = loSize;
-	} else {
-	 	_nfree(memPtrWin);
-	}
-
-	_nheapmin();
-
-#else
-//************************** WIN32S ***********************************
-
-	wingMin = wingMinK * 1024;
-
-	// How much do we want for the memory manager?
-	if (sciMax > MAXIMUM_SYSTEM_MEMORY)
-		maxSize = MAXIMUM_SYSTEM_MEMORY;
-	else
-		maxSize = sciMax;
-
-	// Add in the external buffers
-	maxSize += totExternalBuffs;
-
-	if (WING) 
-		// Add in WinG size
-		maxSize += WINGSIZE;
-
-	// find out how much we can get up to the limit
-	totMem = GetMemSize(maxSize);
-
-#endif
-
-
-	// Subtract off the external buffers
-	availMem = totMem - totExternalBuffs;
-
-	allocMem = availMem;
-
-#ifdef WIN32S
-	if (WING) {
-		// do we have enough memory to run WinG?
-		if (wingMin > allocMem) {
-			WING = FALSE;
-			if (SHOWMEM)
-				MBox("Not enough memory for WING","");
-		} else {
-			// load WinG
-			if (!WingInit(640,480)) {
-				WING = FALSE;
-				if (SHOWMEM)
-					MBox("Could not load WING","");
-			} else {
-				if (SHOWMEM) {
-					sprintf(mbuff, "total:%d\n\n-reserve:%d\n-audio:%d\n-midi:%d\n-cursor:%d\n\navailable:%d",
-						totMem, reserveMem, wAudioBuffSize, lockedPageSize, cursorBuffSize, allocMem);
-					MBox(mbuff,"Before WING");
-				}
-				// reduce avail memory by amount WinG takes
-//				totMem = GetMemSize(totMem);
-				totMem -= WINGSIZE;
-				allocMem = totMem - totExternalBuffs;
-			}
-		}	
-	}
-
-	if (SHOWMEM) {
-		if (WING)
-			MBox("Using WinG","");
-		else
-			MBox("Not using WinG","");
-	}
-#endif
-
-	if (SHOWMEM) {
-		sprintf(mbuff, "total:%d\n\n-reserve:%d\n-audio:%d\n-midi:%d\n-cursor:%d\n\navailable:%d",
-					totMem, reserveMem, wAudioBuffSize, lockedPageSize, cursorBuffSize, allocMem);
-		MBox(mbuff,"Memory");
-	}
-
-	if (sciMin > allocMem) {
-		// If not enough memory, can't play.
-		sprintf(errbuff, "You need %d more bytes of available memory to "
-					"run under Windows.  If other applications are running, "
-					"you might try terminating them.",
-					sciMin - allocMem);
-		MBox(errbuff,"");  
-		exit(255);
-	}
-
-	return allocMem;
+	return sysMemAvail;
 }
 
 char *
 MemoryMgrWin::GetSysMem(size_t theSize)
 {
-	if (SHOWMEM) {
-		sprintf(mbuff,"asking:%d",theSize);
+	if (theSize > sysMemAvail) {
+		sprintf(mbuff,"asking:%d, have:%d",theSize,sysMemAvail);
 		MBox(mbuff,"");
+		exit(255);
 	}
-
-#ifndef WIN32S
-	// allocate for the memory manager
-	memPtrWin = (char*)_nmalloc(theSize + 100);
-	if (!memPtrWin) {
-		sprintf(mbuff,"main alloc error - size:%d", theSize);
-		MBox(mbuff,"");
-	}
-
-	// allocate the audio buffers
-	wAudioBuffAddr = (uchar*)_nmalloc(wAudioBuffSize);
-	if (!wAudioBuffAddr) {
-		sprintf(mbuff,"audio alloc error - size:%d", wAudioBuffSize);
-		MBox(mbuff,"");
-	}
-	// allocate the cursor buffers
-	if (COLORCURSOR) {
-		cursorBuffAddr = (uchar*)_nmalloc(cursorBuffSize);
-		if (!cursorBuffAddr) {
-			sprintf(mbuff,"cursor alloc error - size:%d", cursorBuffSize);
-			MBox(mbuff,"");
-		}
-	}
-
-#else
-	// allocate for the memory manager
-//	memPtrWin = (char *)AllocWinMem(theSize, LOCKMAIN);
-	hLocal = LocalAlloc(LMEM_MOVEABLE | LMEM_ZEROINIT, (UINT)theSize);
-	if (!hLocal) {
-		MBox("main alloc error","");
-		return (char *)0;
-	}
-	memPtrWin = (char *)LocalLock(hLocal);
-	if (!memPtrWin) {
-		MBox("mem alloc error","");
-		return (char *)0;
-	}
-
-	// allocate the audio buffers
-	wAudioBuffAddr = (uchar *)AllocWinMem(wAudioBuffSize, LOCKAUDIO);
-	if (!wAudioBuffAddr) {
-		MBox("audio alloc error","");
-		return (char *)0;
-	}
-
-	// allocate the cursor buffers (local or global?)
-	if (COLORCURSOR) {
-		cursorBuffAddr = (unsigned char *)AllocWinMem(cursorBuffSize, LOCKMAIN);
-		if (!cursorBuffAddr) {
-			MBox("cursor alloc error","");
-			return (char *)0;
-		}
-	}
-
-#endif
-
-	return memPtrWin;
+	return sysMemAddr;
 }
 
 
 MemoryMgrWin::~MemoryMgrWin()
 {
-	TermMovie();	//free any AVI Aliases
-
 #ifndef WIN32S
-	free(memPtrWin);
+	free(sysMemAddr);
 	free(wAudioBuffAddr);
-	if (COLORCURSOR)
+	if (cursorBuffSize)
 		free(cursorBuffAddr);
-	FreeWinMem(lockedPagePtr, PAGELOCK);
+	FreeWinMem(midiCachePtr, PAGELOCK);
 
 #else
-//	FreeWinMem(memPtrWin, LOCKMAIN);
+//	FreeWinMem(sysMemAddr, LOCKMAIN);
 	LocalUnlock(hLocal);
 	LocalFree(hLocal);
 	FreeWinMem(wAudioBuffAddr, LOCKAUDIO);
-	if (COLORCURSOR)
+	if (cursorBuffSize)
 		FreeWinMem(cursorBuffAddr, PAGELOCK);
 #endif
-	UnloadDll();
+
 #ifdef DEBUG
 	if (configMgr->Get(configMgr->RoomMinK)) {
 		sprintf(mbuff,"Min bytes required:%d in Room# %d\n",gameMaxAloc,gameMaxRoom);
 		MBox(mbuff,"");
 	}
 #endif
+
+	EndThunk();
 }
 
 
@@ -345,45 +121,278 @@ MemoryMgrWin::FreeConvMem(char *base)
 	char *x = base;
 }
 
-int	GetMemSize(int limit)
+void	GetWindowsMemory(void)
 {
-int hiSize, loSize, currSize, lockableSize;
-//HLOCAL hGlobal;
+int sciMin, sciMax;
+int grossMemAvail, netMemAvail;
+int reserveMem;
+int reserveMem4;
+int reserveMem8;
+int reserveMem16;
+int wingMin;
+int wingSize;
+int physicalBytes;
+int lockableBytes;
+int useableBytes;
+int totExternalBuffs;
+DWORD		midiCacheSize;
+char		errbuff[300];
 
-	// do DPMI call to get number of bytes which are lockable
-	lockableSize = PageLockableBytes();
+	
+	sysMemAddr		= NULL;
+	wAudioBuffAddr	= NULL;
+	midiCachePtr	= NULL;
+	cursorBuffAddr	= NULL;
 
-	// subtract 16k from this number; it's always too large
-	lockableSize -= 16384;
+	// compute size in bytes of all required buffers
+	wAudioBuffSize = DACSize;
+	reserveMem		= reserveK * 1024;
+	reserveMem4		= reserveK4 * 1024;
+	reserveMem8		= reserveK8 * 1024;
+	reserveMem16	= reserveK16 * 1024;
+	sciMin			= sciMinK * 1024;
+	sciMax			= sciMaxK * 1024;
+	newCacheSize	= NEWCACHESIZE;
+	cursorBuffSize = 12 * maxCursorSize;
+#ifndef WIN32S
+	midiCacheSize = smallMidiSize + largeMidiSize + 
+							(numSoundNodes * sizeof(SNodeData)) + 30;
+	wingMin	= 0;
+	wingSize	= 0;
+#else
+	midiCacheSize = 0;
+	wingMin	= wingMinK * 1024;
+	if (WING)
+		wingSize	= WINGSIZE;
+	else
+		wingSize	= 0;
+#endif
 
-	// only go after what was requested
-	if (lockableSize < limit)
-		limit = lockableSize;
+	totExternalBuffs = wAudioBuffSize
+							+ newCacheSize
+							+ midiCacheSize
+							+ wingSize
+							+ cursorBuffSize;
 
-	if (SHOWMEM) {
-		sprintf(mbuff,"start size:%d",limit);
-		MBox(mbuff,"");
+	// determine physical memory
+	physicalBytes = (BaseMem() + ExtendedMem()) * 1024;
+
+	// determine reserve requirements based on physical memory
+	if (physicalBytes < (4 * 1024 * 1024))
+		reserveMem = reserveMem4;
+	else if (physicalBytes < (8 * 1024 * 1024))
+		reserveMem = reserveMem8;
+	else 		  
+		reserveMem = reserveMem16;
+
+	// start with maximum for the memory manager
+	netMemAvail = sciMax;
+
+	// compute total required
+	grossMemAvail = netMemAvail + totExternalBuffs;
+
+	// how much is lockable?
+	lockableBytes = PageLockableBytes();
+
+	// deduct the reserve requirement
+	useableBytes = lockableBytes - reserveMem;
+
+	// don't try for more than useable
+	if (grossMemAvail > useableBytes)
+		grossMemAvail = useableBytes;
+
+	// see how much we can actually allocate
+	grossMemAvail = GetMemSize(grossMemAvail);
+
+	// compute new net
+	netMemAvail = grossMemAvail - totExternalBuffs;
+
+#ifdef WIN32S
+	if (WING) {
+		// do we have enough memory to run WinG?
+		if ((wingMin > netMemAvail) || (sciMin > (netMemAvail - WINGSIZE))) {
+			WING = FALSE;
+			netMemAvail += wingSize;
+			wingSize = 0;
+			if (SHOWMEM)
+				MBox("Not enough memory for WING","");
+		} else {
+			// load WinG
+			if (!WingInit(640,480)) {
+				WING = FALSE;
+				netMemAvail += wingSize;
+				wingSize = 0;
+				if (SHOWMEM)
+					MBox("Could not load WING","");
+			}
+		}	
 	}
 
-	// try to get it
-//	hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)limit);
-//	hGlobal = GlobalAlloc(GMEM_MOVEABLE, (UINT)limit);
-	hLocal = LocalAlloc(LMEM_MOVEABLE, (UINT)limit);
-//	if (!hGlobal) {
+	if (SHOWMEM) {
+		if (WING)
+			MBox("Using WinG","");
+		else
+			MBox("Not using WinG","");
+	}
+#endif
+
+	if (SHOWMEM) {
+		sprintf(errbuff, "physical:%10d"
+							"\nlockable:%10d"
+							"\n   reserve:%10d"
+							"\nuseable:%10d"
+							"\n\nused:"
+							"\n--manager: %10d"
+							"\n--new:          %10d"
+							"\n--audio:        %10d"
+							"\n--midi:          %10d"
+							"\n--wing:            %10d"
+							"\n--cursor:         %10d"
+							"\n\ntot used:    %10d",
+							physicalBytes,
+							lockableBytes,
+							reserveMem,
+							useableBytes,
+							netMemAvail,
+							newCacheSize,
+							wAudioBuffSize,
+							midiCacheSize,							
+							wingSize,
+							cursorBuffSize,
+								netMemAvail +
+								newCacheSize +
+								wAudioBuffSize +
+								midiCacheSize +
+								wingSize+
+								cursorBuffSize
+							);
+		MBox(errbuff,"Memory");
+	}
+
+	if (sciMin > netMemAvail) {
+		// If not enough memory, can't play.
+		sprintf(errbuff, "You need %d more bytes of available memory to "
+					"run under Windows.  If other applications are running, "
+					"you might try terminating them.",
+					sciMin - netMemAvail);
+		MBox(errbuff,"");  
+		exit(255);
+	}
+
+	// allocate for the MIDI cache
+	if (midiCacheSize)
+		midiCachePtr = (char far *)AllocWinMem(midiCacheSize, PAGELOCK);
+
+	// allocate for the memory manager
+#ifndef WIN32S
+	sysMemAddr = (char*)_nmalloc(netMemAvail + 100);
+	if (!sysMemAddr) {
+		sprintf(mbuff,"main alloc error - size:%d", netMemAvail);
+		MBox(mbuff,"");
+		return;
+	}
+#else
+	hLocal = LocalAlloc(LMEM_MOVEABLE | LMEM_ZEROINIT, (UINT)netMemAvail);
 	if (!hLocal) {
+		MBox("main alloc error","");
+		return;
+	}
+	sysMemAddr = (char *)LocalLock(hLocal);
+	if (!sysMemAddr) {
+		MBox("mem alloc error","");
+		return;
+	}
+#endif
+
+	// allocate for the "new" buffer
+	if (newCacheSize) {
+#ifndef WIN32S
+		newCacheAddr = (void *)_nmalloc(newCacheSize);
+		if (!newCacheAddr) {
+			sprintf(mbuff,"cache alloc error - size:%d", newCacheSize);
+			MBox(mbuff,"");
+			return;
+		}
+#else
+		newCacheAddr = (void *)AllocWinMem(newCacheSize, PAGELOCK);
+#endif
+		newState = NEW_MEM_CACHE_AVAIL;
+	}
+
+	// allocate the audio buffers
+#ifndef WIN32S
+	wAudioBuffAddr = (uchar*)_nmalloc(wAudioBuffSize);
+#else
+	wAudioBuffAddr = (uchar *)AllocWinMem(wAudioBuffSize, LOCKAUDIO);
+#endif
+	if (!wAudioBuffAddr) {
+		sprintf(mbuff,"audio alloc error - size:%d", wAudioBuffSize);
+		MBox(mbuff,"");
+		return;
+	}
+
+	// allocate the cursor buffers (local or global?)
+	if (cursorBuffSize) {
+#ifndef WIN32S
+		cursorBuffAddr = (uchar*)_nmalloc(cursorBuffSize);
+#else
+		cursorBuffAddr = (uchar *)AllocWinMem(cursorBuffSize, LOCKMAIN);
+#endif
+		if (!cursorBuffAddr) {
+			sprintf(mbuff,"cursor alloc error - size:%d", cursorBuffSize);
+			MBox(mbuff,"");
+			return;
+		}
+	}
+
+	sysMemAvail = netMemAvail;
+}
+
+int	GetMemSize(int limit)
+{
+int hiSize, loSize, currSize;
+#ifndef WIN32S
+char	*testAddr;
+#else
+HLOCAL	hTest;
+#endif
+
+#ifndef WIN32S
+	testAddr = (char*)_nmalloc(limit);
+	if (!testAddr) {
+		hiSize = limit;
+		loSize = 0;
+
+		while ((hiSize - loSize) > 1000) {
+			currSize = (hiSize + loSize) / 2;
+			testAddr = (char *)_nmalloc(currSize);
+			if (testAddr) {
+				_nfree(testAddr);
+				loSize = currSize;			
+			} else {
+				hiSize = currSize;
+			}
+		}
+		_nheapmin();
+		limit = loSize;
+	} else {
+	 	_nfree(testAddr);
+	}
+
+	_nheapmin();
+#else
+	// try to get it
+	hTest = LocalAlloc(LMEM_MOVEABLE, (UINT)limit);
+	if (!hTest) {
 		// if couldn't get it, do binary search
 		hiSize = limit;
 		loSize = 0;
 
 		while ((hiSize - loSize) > 1000) {
 			currSize = (hiSize + loSize) / 2;
-//			hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)currSize);
-//			hGlobal = GlobalAlloc(GMEM_MOVEABLE, (UINT)currSize);
-			hLocal = LocalAlloc(LMEM_MOVEABLE, (UINT)currSize);
-//			if (hGlobal) {
-			if (hLocal) {
-//				GlobalFree(hGlobal);
-				LocalFree(hLocal);
+			hTest = LocalAlloc(LMEM_MOVEABLE, (UINT)currSize);
+			if (hTest) {
+				LocalFree(hTest);
 				loSize = currSize;			
 			} else {
 				hiSize = currSize;
@@ -391,14 +400,10 @@ int hiSize, loSize, currSize, lockableSize;
 		}
 		limit = loSize;
 	} else {
-//		GlobalFree(hGlobal);
-		LocalFree(hLocal);
+		LocalFree(hTest);
 	}
+#endif
 
-	if (SHOWMEM) {
-		sprintf(mbuff,"end size:%d",limit);
-		MBox(mbuff,"");
-	}
 	return limit;
 }
 
@@ -518,5 +523,33 @@ void FreeWinMem(void *lpMem, int pageLock)
 	(* pfnUTProc)(Args, (DWORD)DLL_FREE_MEM, NULL);
 }
 #endif
+
+int BaseMem(void)
+{
+unsigned char e1, e2;
+
+	_disable();
+	outp(0x70,0x16);
+	e1 = inp(0x71);
+	outp(0x70,0x15);
+	e2 = inp(0x71);
+	_enable();
+
+	return (256 * e1) + e2;
+}
+
+int ExtendedMem(void)
+{
+unsigned char e1, e2;
+
+	_disable();
+	outp(0x70,0x18);
+	e1 = inp(0x71);
+	outp(0x70,0x17);
+	e2 = inp(0x71);
+	_enable();
+
+	return (256 * e1) + e2;
+}
 
 

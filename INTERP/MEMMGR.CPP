@@ -1666,6 +1666,15 @@ KMemoryInfo(argList)
 	}
 }
 
+SOL_Handle MemoryMgr::GetHandle(void* adr)
+{
+	SOL_Handle id;
+	for (id = mruList; id; id = desc[id].next)
+		if (desc[id].data == adr)
+			return id;
+	return 0;
+}
+
 #ifdef NOT_SHIPPING_VERSION
 
 int
@@ -1721,3 +1730,4 @@ Bool 			doThrashReport = False;
 Bool 			thrashReporting = True;
 int  			thrashDetectCount = 20;
 #endif
+

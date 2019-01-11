@@ -1,72 +1,33 @@
 // timew.cpp
 
-#include <dos.h>
 #define INCLUDE_MMSYSTEM_H
 #include "sciwin.hpp"
-
-#ifndef WIN32S
-#include "scidll.hpp"
-#else
-#define	W32SUT_32
-#include "scidllws.h"
-#include "winclass.hpp"
-#include "w32sut.h"
-#endif
 
 #include "mbox.hpp"
 #include	"sol.hpp"
 #include "memmgrw.hpp"
 #include "timew.hpp"
+#include "winthunk.hpp"
 
 static	Bool	timerEnabled = False;
 #ifndef WIN32S
 int far			*timeToCheck;
-HANDLE			hMylib32;			// kludge
-HINDIR			hWEP;
 #else
 int				*timeToCheck;
 #endif
 
-#ifndef WIN32S
-FARPROC	fp;
-#else
-typedef BOOL (WINAPI * PUTREGISTER) ( HANDLE     hModule,
-                                      LPCSTR     lpsz16BitDLL,
-                                      LPCSTR     lpszInitName,
-                                      LPCSTR     lpszProcName,
-                                      UT32PROC * ppfn32Thunk,
-                                      FARPROC    pfnUT32Callback,
-                                      LPVOID     lpBuff
-                                    );
-
-typedef VOID (WINAPI * PUTUNREGISTER) (HANDLE hModule);
-
-PUTREGISTER		pUTRegister = NULL;
-PUTUNREGISTER	pUTUnRegister = NULL;
-UT32PROC			pfnUTProc = NULL;
-HMODULE			hKernel32 = 0;
+#ifdef WIN32S
 static	DWORD			myArgs[2];
 #endif
 
 
 TimeMgrWin::TimeMgrWin()
 {
-#ifndef WIN32S
-HINDIR	hInitTimeMgr;
-
 	_disable();
-  hlib32 = LoadLibrary( "scidll.dll" );
-  hMylib32 = hlib32;		// kludge
-  fp = GetProcAddress( hlib32, "Win386LibEntry" );
 
-  hInitTimeMgr = GetIndirectFunctionHandle( fp, INDIR_WORD, INDIR_CDECL, INDIR_ENDLIST );
-  hTermTimeMgr = GetIndirectFunctionHandle( fp, INDIR_WORD, INDIR_CDECL, INDIR_ENDLIST );
-  hTickCount =   GetIndirectFunctionHandle( fp, INDIR_WORD, INDIR_CDECL, INDIR_ENDLIST );
-  hTickSet =     GetIndirectFunctionHandle( fp, INDIR_DWORD, INDIR_WORD, INDIR_ENDLIST );
-  hSetCheckTime = GetIndirectFunctionHandle( fp, INDIR_DWORD, INDIR_DWORD, INDIR_WORD, INDIR_WORD, INDIR_ENDLIST );
-  hWEP			= GetIndirectFunctionHandle(fp, INDIR_WORD, INDIR_ENDLIST );
+#ifndef WIN32S
 
-  lpTimerCallback = (FARPROC)InvokeIndirectFunction(hInitTimeMgr, DLL_INIT);
+	lpTimerCallback = (FARPROC)InvokeIndirectFunction(hInitTimeMgr, DLL_INIT);
 
 	timeToCheck = (int far *)AllocWinMem(8,PAGELOCK);
 	SetCheckTime(asyncCheckFreq, timeToCheck);
@@ -78,28 +39,15 @@ HINDIR	hInitTimeMgr;
 */
 	timeBeginPeriod (16);
 	EnableTimer();
-	_enable();
-#else
-BOOL	bResult;
 
-	_disable();
-	hKernel32 = LoadLibrary("Kernel32.dll");
-	pUTRegister = (PUTREGISTER)GetProcAddress(hKernel32, "UTRegister");
-	pUTUnRegister = (PUTUNREGISTER) GetProcAddress( hKernel32, "UTUnRegister" );
-	bResult = (*pUTRegister)(Main::hInstance,
-								"scidllws.dll",
-								NULL,
-								"DLLProc",
-								&pfnUTProc,
-								NULL, NULL);
-	if (!bResult)
-		MBox("DLL not initialized","");
+#else
 
 	timeToCheck = SetCheckTime(asyncCheckFreq);
 	timeBeginPeriod (16);
 	EnableTimer();
-	_enable();
+
 #endif
+	_enable();
 }
 
 TimeMgrWin::~TimeMgrWin()
@@ -109,11 +57,8 @@ TimeMgrWin::~TimeMgrWin()
 	timeEndPeriod (15);
 #ifndef WIN32S
 	FreeWinMem((void far *)timeToCheck,PAGELOCK);
-//	FreeLibrary( hlib32 );
 #else
 	EndCheckTime(timeToCheck);
-//	(*pUTUnRegister) (Main::hInstance);
-//	FreeLibrary(hKernel32);
 #endif
 	_enable();
 }
@@ -217,17 +162,4 @@ TimeMgrWin::EndCheckTime(int *addr)
 	_enable();
 }
 #endif
-
-void UnloadDll(void)
-{
-// All this Thunk stuff should be put in a separate module
-// No time right now. TM 11/8/94
-#ifndef WIN32S
-	InvokeIndirectFunction(hWEP, DLL_WEP);
-	FreeLibrary( hMylib32 );
-#else
-	(*pUTUnRegister) (Main::hInstance);
-	FreeLibrary(hKernel32);
-#endif
-}
 

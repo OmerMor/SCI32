@@ -445,11 +445,12 @@ AudRobot(RobotAudInfo buff)
 			return False;
 		sample[n].bytesToRead = rbot.len;
 		int ext = rbot.ext;
+		int rmax = rbot.max;
 		if (bits == 8)
 			FillRbotBuffer8(n);
 		else
 			FillRbotBuffer16(n);
-		if (ext > rbot.max)
+		if (ext > rmax)
 			return False;
 		if (rbot.floc == 2)
 			AudioPlay();
@@ -465,19 +466,20 @@ FillRbotBuffer8(int n)
 	rbot.cofs = 0;
 	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
 	rbot.len *= 2;
-	int loc = Max(rbot.min,rbot.hwm[rbot.channel]);
+	int loc = Max(rbot.min+rbot.channel,rbot.hwm[rbot.channel]);
+	int mx = rbot.max+rbot.channel;
 	if (rbot.floc < loc) {
 		rbot.cofs = (loc - rbot.floc) / 2;
 		rbot.len -= rbot.cofs;
 		rbot.floc = loc;
 	}
-	if (rbot.floc > rbot.max) {
-		rbot.len += (rbot.floc - rbot.max) / 2;
-		rbot.floc = rbot.max;
+	if (rbot.floc > mx) {
+		rbot.len += (rbot.floc - mx) / 2;
+		rbot.floc = mx;
 	}
-	if (rbot.ext > rbot.max) {
-		rbot.len -= (rbot.ext - rbot.max) / 2;
-		rbot.ext = rbot.max;
+	if (rbot.ext > mx) {
+		rbot.len -= (rbot.ext - mx) / 2;
+		rbot.ext = mx;
 	}
 
 	rbot.len /= 2;
@@ -532,19 +534,20 @@ FillRbotBuffer16(int n)
 	rbot.cofs = 0;
 	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
 	rbot.len *= 2;
-	int loc = Max(rbot.min,rbot.hwm[rbot.channel]);
+	int loc = Max(rbot.min+rbot.channel*2,rbot.hwm[rbot.channel]);
+	int mx = rbot.max+rbot.channel*2;
 	if (rbot.floc < loc) {
 		rbot.cofs = (loc - rbot.floc) / 2;
 		rbot.len -= rbot.cofs;
 		rbot.floc = loc;
 	}
-	if (rbot.floc > rbot.max) {
-		rbot.len += (rbot.floc - rbot.max) / 2;
-		rbot.floc = rbot.max;
+	if (rbot.floc > mx) {
+		rbot.len += (rbot.floc - mx) / 2;
+		rbot.floc = mx;
 	}
-	if (rbot.ext > rbot.max) {
-		rbot.len -= (rbot.ext - rbot.max) / 2;
-		rbot.ext = rbot.max;
+	if (rbot.ext > mx) {
+		rbot.len -= (rbot.ext - mx) / 2;
+		rbot.ext = mx;
 	}
 
 	int maxhwm = Max(rbot.hwm[0],rbot.hwm[1]);

@@ -52,7 +52,7 @@ KNetwork(argList)
 
 	if (!IPCisOpen()) {
       msgMgr->MonoStr("Opening communications");
-      if (!netMsgMgr) netMsgMgr = new NetMsgMgr;
+      if (!netMsgMgr) netMsgMgr = New NetMsgMgr;
 
       if ( INN_PreInit("innwci.drv", 16000) ) {
 			msgMgr->Fatal("INNWCI.DRV error");
@@ -456,3 +456,4 @@ void inn_mem_free( ulong mem_handle )
 	free( (ubyte *) mem_handle );
 // 	free( (ubyte *) mem_handle );
 }
+

@@ -267,8 +267,11 @@ KernelCall kernelCalls[] = {
 	Kernel(NewRoom),								// 142
 	Kernel(PreloadResource),					// 143
 	Kernel(Priority),								// 144
-	Kernel(MorphOn)								// 145
+	Kernel(MorphOn),								// 145
+	Kernel(PlayVMD),								// 146
+	Kernel(SetHotRectangles)						// 147
 };
 
 int	kernelMax = sizeof(kernelCalls) / sizeof(*kernelCalls);
 
+

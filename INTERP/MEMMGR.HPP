@@ -527,6 +527,8 @@ public:
 	
 #endif
 
+	SOL_Handle MemoryMgr::GetHandle(void* adr);
+
 protected:
 	unsigned			maxDescriptors;// Maximum number of handles
 	Descriptor*		desc;				// The handle array
@@ -627,3 +629,4 @@ extern int  		thrashDetectCount;
 #endif
 
 #endif  //MEMMGR_HPP
+

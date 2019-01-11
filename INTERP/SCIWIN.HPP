@@ -20,6 +20,7 @@ extern	int		vmapHeight;
 extern	BOOL		LOCKMAIN;
 extern	BOOL		LOCKAUDIO;
 extern	BOOL		SHOWMEM;
+extern	BOOL		SHOWNEWS;
 extern	BOOL		USEAUDIO;
 extern	BOOL		USEMIDI;
 extern	BOOL		DOPPCTEST;

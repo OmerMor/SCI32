@@ -50,7 +50,7 @@ Bool
 NetMsgMgr::Get(Net_Msg* msg)
 {
    if (IsAvail()) {
-      msgMgr->MonoStr("NetMsgMgr::Get Msg Is Avail\n");
+//      msgMgr->MonoStr("NetMsgMgr::Get Msg Is Avail\n");
       *msg = entries[head];
       Bump(head);
       return 1;
@@ -76,7 +76,7 @@ NetMsgMgr::IsAvail(void) const
 void
 NetMsgMgr::Post(Net_Msg* msg)
 {
-   msgMgr->MonoStr("NetMsgMgr::Get Msg Post\n");
+//   msgMgr->MonoStr("NetMsgMgr::Get Msg Post\n");
 	entries[tail] = *msg;
 
 	Bump(tail);

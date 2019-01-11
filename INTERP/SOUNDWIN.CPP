@@ -4,15 +4,9 @@
 // any of the sound functions may be called.
 
 #ifndef WIN32S
-#include "scidll.hpp"
 #include <i86.h>
-#include "sciwin.hpp"
-#else
-#define	W32SUT_32
-#include "scidllws.h"
-#include "sciwin.hpp"
-#include "w32sut.h"
 #endif
+#include "sciwin.hpp"
 
 #include <dos.h>
 #include <stdarg.h>
@@ -24,24 +18,11 @@
 #include "sound.hpp"
 #include "soundwin.hpp"
 #include "timew.hpp"
+#include "winthunk.hpp"
 
 #ifndef WIN32S
-extern	FARPROC fp;
-HINDIR	hDoSoundA;
-HINDIR	hDoSoundB;
-HINDIR	hDoSoundC;
-HINDIR	hDoSoundD;
-HINDIR	hDoSoundE;
-HINDIR	hDoSoundF;
-HINDIR	hDoSoundG;
-HINDIR	hSetMIDIType;
-HINDIR	hOpenSnd;
-HINDIR	hCloseSnd;
 WORD		mySeg;
-
 #else
-
-extern	UT32PROC	pfnUTProc;
 DWORD			Args[5];
 PVOID			TransList[5];
 #endif
@@ -53,47 +34,6 @@ void InitWinSound(void)
 #ifndef WIN32S
 	// Get current segment
 	mySeg = FP_SEG((int far *)&i);
-
-	_disable();
-
-  hDoSoundA	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundB	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundC	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundD	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundE	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundF	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hDoSoundG	= GetIndirectFunctionHandle(fp, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_DWORD, INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-
-  hSetMIDIType	= GetIndirectFunctionHandle(fp,
-													INDIR_WORD,
-													INDIR_WORD, INDIR_ENDLIST );
-  hOpenSnd	= GetIndirectFunctionHandle(fp,
-													INDIR_WORD, INDIR_ENDLIST );
-  hCloseSnd	= GetIndirectFunctionHandle(fp,
-													INDIR_WORD, INDIR_ENDLIST );
-	_enable();
 #endif
 }
 

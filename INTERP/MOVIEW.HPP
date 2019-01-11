@@ -40,6 +40,7 @@ enum avi_error {
 const WORD AVI_COMPLETED = 1;
 const WORD AVI_ESC_PRESSED = 2;
 const WORD	AVI_MOUSE_DOWN = 4;
+const WORD AVI_HOT_RECTANGLE = 8;
 
 enum avi_play_type {
 	PLAY_DEFAULT = 0,
