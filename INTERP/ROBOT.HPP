@@ -43,6 +43,8 @@ class Robot
 	void		CreateCel(uchar*, Bool usePalette = False);
 	void		CreateCel4(uchar*, int celCount, Bool usePalette = False);
 	void		Create1Cel4(uchar* video, int index, Bool usePalette);
+	void		CreateCel5(uchar* video, int celCount, Bool usePalette);
+	void		Create1Cel5(uchar* video, int index, Bool usePalette);
 	void		RLEDecode(uchar* dest, uchar* src);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount);
 	void		ExpandData(uchar* dest, const uchar* src, int starty);
@@ -51,6 +53,7 @@ class Robot
 	void		DoVersion2();
 	void		DoVersion3();
 	void		DoVersion4();
+	void		DoVersion5();
 
 	ScreenItem*		robotSi[SiArraySize];
 	int				siCount;

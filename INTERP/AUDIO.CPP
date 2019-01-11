@@ -39,7 +39,6 @@ union {
 	char far *ptr;
 } DACBuffer;
 
-const unsigned	AUDMODNUM	= 65535U;
 const	unsigned DAC_ARGS_IN	= 5;
 const unsigned MAXSAMPLES = 5;
 const unsigned MAXVOLUME = 127;
@@ -196,7 +195,7 @@ KDoAudio(argList)
 			}
 			n = activeSamples;
 			if (argCount < 6) {
-				sample[n].module = AUDMODNUM;
+				sample[n].module = SFXMODNUM;
 				sample[n].num = arg(2);
 				if (argCount >= 3 && arg(3) != 1)
 					sample[n].loop = arg(3);
@@ -306,7 +305,7 @@ KDoAudio(argList)
 			argCount = 2;
 			n = FindSampleN(args,0,tag);
 			argCount = saveCount;
-			if (n < 0 || n >= activeSamples || sample[n].module != AUDMODNUM)
+			if (n < 0 || n >= activeSamples || sample[n].module != SFXMODNUM)
 				break;
 			if (sample[n].volume == arg(3))
 				break;
@@ -378,7 +377,7 @@ FindSampleN(argList,int argn,int tag)
 
 	if (argCount - 1 - argn < 5) {
 		for (n = 0; n < activeSamples; n++) {
-			if (sample[n].num == arg(2+argn) && sample[n].module == AUDMODNUM) {
+			if (sample[n].num == arg(2+argn) && sample[n].module == SFXMODNUM) {
 				if (tag && tag != sample[n].tag)
 					continue;
 				return n;
@@ -494,12 +493,12 @@ FillRbotBuffer8(int n)
 			ofs = rbot.hwm[1-rbot.channel] % (rbot.blen * 2);
 			if (ofs >= ext) {
 				len = rbot.blen * 2 - ofs;
-				Silence((char far *)&rbot.id[ofs/2],len,bits);
+				Silence((char far *)&rbot.id[ofs/2],len/2,bits);
 				ofs = (1-rbot.channel)?2:0;
 			}
 			len = ext - ofs;
 			if (len > 0)
-				Silence((char far *)&rbot.id[ofs/2],len,bits);
+				Silence((char far *)&rbot.id[ofs/2],len/2,bits);
 		}
 		ofs = rbot.hwm[rbot.channel] % (rbot.blen * 2);
 		if (ofs >= ext) {
@@ -610,7 +609,7 @@ AudioSelect(int n)
 		sample[n].scrambled = False;
 		sample[n].compressed = True;
 
-	} else if (sample[n].module == AUDMODNUM) {
+	} else if (sample[n].module == SFXMODNUM) {
 
 		// Search for AUD/WAV resource:
 		pathName[0] = '\0';
@@ -845,9 +844,9 @@ FindAudEntry(ResNum id)
 	if (sfxVolFD == -1)
 		return -1;
 
-	if (!resMgr->Check(MemResMap, AUDMODNUM))
+	if (!resMgr->Check(MemResMap, SFXMODNUM))
 		return -1;
-	map = resMgr->Get(MemResMap, AUDMODNUM);
+	map = resMgr->Get(MemResMap, SFXMODNUM);
 
 	offset = 0;
 	for (entry = (ResAudEntry *)*map; entry->id != (ushort)-1; ++entry) {
@@ -1533,7 +1532,7 @@ InitAudioDriver()
 	audioInstalled = True;
 	
 #ifdef DEBUG
-//if (configMgr->Get(configMgr->PlayAudio))
+//	if (configMgr->Get(configMgr->PlayAudio))
 //		DACPlay();
 #endif
 
@@ -1560,7 +1559,7 @@ InitAudioVols()
 	/* Open optional Audio sound effects Volume */
 	if (sfxVolFD != -1) {
 		Close(sfxVolFD);
-		resMgr->Release(MemResMap,65535);
+		resMgr->Release(MemResMap,SFXMODNUM);
 	}
 	strcpy(pathName, configMgr->Get("ressfx",0));
 	if (strlen(pathName)) {
@@ -1600,7 +1599,7 @@ DACPlay()
 		sample[0].sequ = GetBase36(&str[11],1);
 	} else if (strlen(str)) {
 		sample[0].num = atoi(str);
-		sample[0].module = AUDMODNUM;
+		sample[0].module = SFXMODNUM;
 	}
 	sample[0].distortion = 0;
 	sample[0].volume = MAXVOLUME;

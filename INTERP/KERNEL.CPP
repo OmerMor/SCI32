@@ -54,7 +54,7 @@ KernelCall kernelCalls[] = {
 	Kernel(Lock),
 	Kernel(ResCheck),
 	Kernel(Purge),
-	Dummy,						
+	Kernel(SetLanguage),
 	Dummy,
 	Dummy,
 

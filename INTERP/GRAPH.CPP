@@ -1026,10 +1026,17 @@ KDeleteMagnify(argList)
 			delete ptr;
 		}
 	}
-	ScreenItem* si = New ScreenItem(id);
 
-	// add the screen item
-	graphMgr->AddScreenItem(si);
+	ObjectID magID(id.GetProperty(s_client));
+	id->ClearInSIList();
+
+	int planeId = magID.GetIndexedProperty(actPlaneID);
+
+	ScreenItem* si = graphMgr->NextScreen()->GetScreenItem(planeId,id);
+	if (si == NULL)
+      // ignore
+      return;
+	graphMgr->DeleteScreenItem(si,planeId);
 }
 
 void

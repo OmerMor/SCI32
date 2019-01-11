@@ -41,6 +41,7 @@ MemID 			alternateMap;
 int				altDirNum;
 int				discNum = -1;
 char				discPath[MaxPath+1];
+char				langPath[MaxPath+1];
 int				preVolLength;
 int				resVolFD;
 int				resVolFDPre;
@@ -662,6 +663,7 @@ ResourceMgr::InitResourceMgr()
 	}
 	BuildPatchTables();
 	LoadResMaps(0);
+	InitAudioVols();
 }
 
 void
@@ -700,6 +702,7 @@ ResourceMgr::CheckDiscNum(uint num)
 		BuildPatchTables();
 		if (LoadResMaps(num))
 			discNum = num;
+		InitAudioVols();
 	}
 }
 
@@ -825,7 +828,6 @@ ResourceMgr::LoadResMaps(uint volNum)
 			altDirNum = dirNum;
 		break;
 	}
-	InitAudioVols();
 	return True;
 }
 
@@ -1088,7 +1090,65 @@ ResourceMgr::SplitChunk(ResTag& resTagH)
 	free(headers);
 }
 
+void
+ResourceMgr::SetLanguage(char* langDir)
+{
+	char		path[MaxPath + 1];
+	static	int saveFD = -1;
+
+	// Flush MAP resources
+	while (resources[MemResMap].curSize > 0) {
+		ResTag* array = *resources[MemResMap].id;
+		resMgr->Release(MemResMap,array[0].resNum);
+	}
+
+	if (strlen(langDir) == 0) {
+		if (strlen(langPath)) {
+			langPath[0] = '\0';
+			if (audVolFD != -1)
+				::Close(audVolFD);
+			audVolFD = saveFD;
+			saveFD = -1;
+		}
+		pm.acc = True;
+		return;
+	}
+
+	strcpy(path, configMgr->Get("resaud",0));
+	if (strlen(path)) {
+		char* cp = &path[strlen(path)-1];
+		if (*cp != ':' && *cp != '\\')
+			strcat(path,"\\");
+	}
+	strcat(path,langDir);
+	int n = strlen(path);
+	strcat(path,"\\");
+	strcat(path,AUDVOLNAME);
+	int fd = ::Open(path, O_RDONLY);
+	if (fd == -1) {
+		pm.acc = False;
+	} else {
+		path[n] = '\0';
+		strcpy(langPath,path);
+		if (saveFD == -1)
+			saveFD = audVolFD;
+		else if (audVolFD != -1)
+			Close(audVolFD);
+		audVolFD = fd;
+		pm.acc = True;
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
+
+void
+KSetLanguage(argList)
+{
+	if (argCount < 1)
+		resMgr->SetLanguage("");		
+	else
+		resMgr->SetLanguage(*(TextID) arg(1));
+}
 
 void
 KPreloadResource(argList)

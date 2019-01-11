@@ -154,7 +154,7 @@ Robot::DoRobot()
 	if (frameNum == lastFrameNum)
 		return;
 
-	if (version == 4  &&  hasAudio)  {
+	if (version >= 4  &&  hasAudio)  {
 		uchar scratch[20];
 		for (long tmp = lastFrameNum + canSkip + 1; tmp < frameNum; tmp += canSkip + 1)  {
 			LSeek(fd, recordPosArray[tmp] + videoSizeArray[tmp], SEEK_SET);
@@ -175,8 +175,10 @@ Robot::DoRobot()
 		DoVersion2();
 	else if (version == 3)
 		DoVersion3();
-	else
+	else if (version == 4)
 		DoVersion4();
+	else
+		DoVersion5();
 
 	audioList.SubmitDriverMax();
 
@@ -332,6 +334,58 @@ Robot::DoVersion4()
 
 
 
+
+void
+Robot::DoVersion5()
+{
+	int oldSiCount = siCount;
+	ushort videoSize = videoSizeArray[frameNum];
+	uchar* scratch = New uchar[videoSize];
+	Read(fd, scratch, videoSize);
+	siCount = * (short*) scratch;
+	CreateCel5(scratch + 2, siCount, True);	// HOOK  firstFrame);
+
+	for (int i = 0; i < siCount; i++)  {
+		if (!robotSi[i])  {
+			robotSi[i] = New ScreenItem(planeId, Bitmap(bmHandle[i]));
+			robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+			if (priority[i] == -1)
+				robotSi[i]->SetFloatPriority();
+			else
+				robotSi[i]->SetPriority(priority[i]);
+			graphMgr->AddScreenItem(robotSi[i]);
+		}
+		else  {
+			robotSi[i]->bitmap = bmHandle[i];
+			robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+			if (priority[i] == -1)
+				robotSi[i]->SetFloatPriority();
+			else
+				robotSi[i]->SetPriority(priority[i]);
+			graphMgr->UpdateScreenItem(robotSi[i]);
+		}
+	}
+
+	for (i = siCount; i < oldSiCount; i++)  {
+		graphMgr->DeleteScreenItem(robotSi[i]);
+		robotSi[i] = NULL;
+		bmHandle[i].Free();
+	}
+
+	if (hasAudio)  {
+		//  Get audio header
+		//  Audio pad **************************************************
+		Read(fd, scratch, 8);
+		long audCount = *((long*) &scratch[4]);
+		long audPos = *((long*) scratch);
+
+		audioList.AddBlock(audPos, audCount);
+		Read(fd, audioList.LastBlockAddr(), audCount);
+	}
+	delete[] scratch;
+}
+
+
 void
 Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 {
@@ -348,7 +402,6 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 			priority[i] = newPri;
 	}
 
-
 	frameNum = frame;
 	Pause();
 
@@ -358,14 +411,40 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 			DoVersion2();
 		else if (version == 3)
 			DoVersion3();
-		else
+		else if (version == 4)
 			DoVersion4();
+		else
+			DoVersion5();
 	}
 	else  {
 		//  In case xoff, yoff was changed this call
 		for (int i = 0; i < siCount; i++)  {
-	 		x1[i] = fileX1[i] + xoff;
-			y1[i] = fileY1[i] + yoff;
+			if (!accessType)  {
+		 		x1[i] = fileX1[i] + xoff;
+				y1[i] = fileY1[i] + yoff;
+			}
+			else  {
+				CelHeader* celHeader = (CelHeader*) *bmHandle[i];
+				xsize = celHeader->xDim;
+				ysize = celHeader->yDim;
+
+				int highResX1 = fileX1[i] + ((xoff * 63) / 32);
+				int highResY1 = fileY1[i] + ((yoff * 9) / 4);
+				int highResY2 = highResY1 + ysize - 1;
+
+				int lowResX1 = (highResX1 * 32) / 63;
+				int lowResY1 = (highResY1 * 4) / 9;
+				int lowResY2 = (highResY2 * 4) / 9;
+
+				int xorg = (highResX1 - ((lowResX1 * 63) / 32)) * -1;
+				int yorg = ((lowResY2 * 9) / 4) - highResY1;
+				celHeader->xHot = xorg;
+				celHeader->yHot = yorg;
+				x1[i] = lowResX1;
+				y1[i] = lowResY2;
+			}
+
+
 			if (!robotSi[i])  {
 				robotSi[i] = New ScreenItem(planeId, Bitmap(bmHandle[i]));
 				robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
@@ -389,34 +468,7 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 
 	lastFrameNum = frameNum;
 }
-/*
-	xsize = vh->xsize;
-	ysize = vh->ysize;
-	int xorg, yorg;
 
-	if (accessType == 1)  {
-		int highResX1 = vh->x1 + ((xoff * 63) / 32);
-		int highResY1 = vh->y1 + ((yoff * 9) / 4);
-		int highResY2 = highResY1 + ysize - 1;
-	
-		int lowResX1 = (highResX1 * 32) / 63;
-		int lowResY1 = (highResY1 * 4) / 9;
-		int lowResY2 = (highResY2 * 4) / 9;
-
-		xorg = (highResX1 - ((lowResX1 * 63) / 32)) * -1;
-		yorg = ((lowResY2 * 9) / 4) - highResY1;
-		x1[index] = lowResX1;
-		y1[index] = lowResY2;
-	}
-	else  {
-		xorg = vh->xoff;
-		yorg = vh->yoff;
-		fileX1[index] = vh->x1;
-		fileY1[index] = vh->y1;
-		x1[index] = fileX1[index] + xoff;
-		y1[index] = fileY1[index] + yoff;
-	}
-*/
 
 void
 Robot::KillRobot()
@@ -583,6 +635,8 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 		yorg = ((lowResY2 * 9) / 4) - highResY1;
 		x1[index] = lowResX1;
 		y1[index] = lowResY2;
+		fileX1[index] = vh->x1;
+		fileY1[index] = vh->y1;
 	}
 	else  {
 		xorg = vh->xoff;
@@ -632,10 +686,7 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 		OffsetData(ptr, PALSHIFT);
 
 	if (vertScaleFactor != 100)  {
-		int startY = 0;
-		if (accessType == 1)
-			startY = vh->y1;
-		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr, startY);
+		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr, 0);
 		temp.Free();
 	}
 
@@ -644,6 +695,98 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 	}
 }
 
+void
+Robot::CreateCel5(uchar* video, int celCount, Bool usePalette)
+{
+	for (int i = 0; i < celCount; i++)  {
+//		msgMgr->Mono("Cel #%d\n", i);
+		Create1Cel5(video, i, usePalette);
+		VideoHeader4* vh = (VideoHeader4*) video;
+		int size = vh->size;
+		video += sizeof(VideoHeader4);
+		video += size;
+	}
+}
+
+
+void
+Robot::Create1Cel5(uchar* video, int index, Bool usePalette)
+{
+	VideoHeader4* vh = (VideoHeader4*) video;
+	video += sizeof(VideoHeader4);
+	vertScaleFactor = vh->vertScaleFactor;
+
+	xsize = vh->xsize;
+	ysize = vh->ysize;
+	int xorg, yorg;
+
+	int highResX1 = vh->x1 + ((xoff * 63) / 32);
+	int highResY1 = vh->y1 + ((yoff * 9) / 4);
+	int highResY2 = highResY1 + ysize - 1;
+
+	int lowResX1 = (highResX1 * 32) / 63;
+	int lowResY1 = (highResY1 * 4) / 9;
+	int lowResY2 = (highResY2 * 4) / 9;
+
+	xorg = (highResX1 - ((lowResX1 * 63) / 32)) * -1;
+	yorg = ((lowResY2 * 9) / 4) - highResY1;
+	x1[index] = lowResX1;
+	y1[index] = lowResY2;
+	fileX1[index] = vh->x1;
+	fileY1[index] = vh->y1;
+
+	bmHandle[index].Free();
+	bmHandle[index].Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
+	BuildHeader(bmHandle[index], xsize, ysize, 255, xorg, yorg, xRes, yRes, usePalette);
+
+	MemID temp;
+	uchar* destBuff = NULL;
+	if (vertScaleFactor == 100)
+		destBuff = (uchar*) *bmHandle[index] + CELHEADERSIZE;
+	else  {
+		temp.Get(MemBitmap, xsize * ((ysize * vertScaleFactor) / 100));
+ 		destBuff = (uchar*) *temp;
+	}
+
+	//  Loop through proper number of sub-blocks
+	uchar* ptr = destBuff;
+	for (int i = 0; i < vh->checksum; i++)  {
+		long	cmpSize = * (long*) &video[0];
+		long	destSize = * (long*) &video[4];
+		short compType = * (short*) &video[8];
+		video += 10;
+
+		switch (compType)  {
+			case LZ_COMP:
+				LZDecode(destBuff, video, cmpSize);
+				break;
+
+			case UNCOMP:
+				memcpy(destBuff, video, destSize);
+				break;
+				
+			default:
+				msgMgr->Fatal("Unknown compression type!");
+				break;
+		}
+		
+		video += cmpSize;
+		destBuff += destSize;
+	}
+
+
+	if (WING)
+		OffsetData(ptr, PALSHIFT);
+
+	if (vertScaleFactor != 100)  {
+		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr, 0);
+		temp.Free();
+	}
+
+	if (usePalette)  {
+		memcpy((uchar*) *bmHandle[index] + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
+	}
+}
 
 
 void
@@ -674,7 +817,7 @@ _Packed	struct AudPrimerHdr
 
 	Read(fd, buffer, 4);
 	Read(fd, &version, 2);
-	if (version != 4)  {
+	if (version < 4)  {
 		Read(fd, &asize, 2);
 		Read(fd, &vsize1, 2);
 		Read(fd, &vsize2, 2);
@@ -724,7 +867,7 @@ _Packed	struct AudPrimerHdr
 	if (strcmp(buffer, "SOL"))	
 		msgMgr->Fatal("Resource is not Robot type!");
 
-	if (!(version == 2  ||  version == 3  ||  version == 4))
+	if (!(version == 2  ||  version == 3  ||  version == 4 ||  version == 5))
 		msgMgr->Fatal("Unsupported version of Robot resource");
 
 	if (!hasAudio)  {
@@ -764,7 +907,7 @@ _Packed	struct AudPrimerHdr
 
 	Read(fd, videoSizeArray, sizeof(*videoSizeArray) * frameCount);
 	ushort* tempSize = New ushort[frameCount];
-	if (version != 4)
+	if (version < 4)
 		LSeek(fd, 8 * frameCount, SEEK_CUR);
 	else
 		Read(fd, tempSize, sizeof(ushort) * frameCount);
@@ -780,7 +923,7 @@ _Packed	struct AudPrimerHdr
 		LSeek(fd, 2048 - remain, SEEK_CUR);
 	fileDataStart = LSeek(fd, 0, SEEK_CUR);
 
-	if (version == 4)  {
+	if (version >= 4)  {
 		long total = fileDataStart;
 		recordPosArray[0] = total;
 		for (int i = 0; i < frameCount - 1; i++)  {
@@ -1083,7 +1226,7 @@ KRobot(argList)
 void
 Robot::SeekFrame(int frame)
 {
-	if (version != 4)  {
+	if (version < 4)  {
 		//  Calculate where frame is in file and seek there
 		int oddCount = frame >> 1;
 		int evenCount = oddCount;

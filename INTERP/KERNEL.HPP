@@ -38,6 +38,7 @@ void	KMarkMemory(argList);
 void	KPreloadResource(argList);
 void	KNewRoom(argList);
 void  KLoadChunk(argList);
+void	KSetLanguage(argList);
 
 //	Object management.
 void	KClone(argList);

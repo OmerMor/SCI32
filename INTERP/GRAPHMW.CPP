@@ -21,8 +21,6 @@ _Packed struct {
 		WORD	colorix [MAXPALETTE];
 		} bi;
 
-static	HDC		hdcMem;
-
 #ifdef WIN32S
 // WinG stuff
 
@@ -75,8 +73,6 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 		for (int i = 0; i < MAXPALETTE; i++)
 			bi.colorix [i] = i;
 
-		hdcMem = CreateCompatibleDC (hMyDC);
-
 #ifdef WIN32S
 	} else {
 		buffer.start = (uchar*)pBits;
@@ -102,12 +98,10 @@ GraphicsMgrWin::~GraphicsMgrWin()
 #ifndef WIN32S
 	vmapID.Free();
 	delete cursor;
-	DeleteDC(hdcMem);
 #else
 	if (!WING) {
 		vmapID.Free();
 		delete cursor;
-		DeleteDC(hdcMem);
 	} else {
 		delete cursor;
 		WingTerm();

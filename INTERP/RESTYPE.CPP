@@ -124,6 +124,24 @@ SOL_ResType::Open(ResNum num, char* path)
 	MemType	type;
 	int		hdrLength;
 
+	// check the language directory for MAP resources
+	if (langPath[0] && GetFileType() == MemResMap && num != SFXMODNUM) {
+		MakeName(nameBuf, langPath, num);
+		if ((fd = ::Open(nameBuf, O_BINARY | O_RDONLY)) != -1) {
+			if (path)
+				strcpy(path, nameBuf);
+			Read(&type, 1);
+			ConfirmType((MemType)(type & 0xff));
+			resOffset = SeekToData();
+			resLength = GetFileSize() - resOffset;
+#ifdef DEBUG	
+		   if (tracking)
+				rmResList->Add(GetType(), num, resLength);
+#endif
+			return fd;
+		}
+	}
+
 	// check patch table and alternate-resource volume
 	int dirNum = FindPatchEntry(num);
 	int dirNum36 = FindPatch36Entry(path);

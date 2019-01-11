@@ -71,6 +71,15 @@ Test()
 	while (True)
 	{
 		graphMgr->FrameOut();
+		SOL_Event event;
+		while (!kbhit())  {
+			if (eventMgr->Get(&event))  {
+				if (event.type == SOL_Event::MouseDown)  {
+					graphMgr->GRobot().DisplayFrame(1, event.where.x, event.where.y);
+					graphMgr->FrameOut();
+				}
+			}
+		}
 //		AsyncEventCheck();
 		if (graphMgr->RobotStatus() == ROBOT_FINAL)  {
 
@@ -95,7 +104,6 @@ Test()
 			}
 		}
 	}
-
 	graphMgr->DeletePlane(defaultPlane);
 	graphMgr->DeletePlane(backPlane);
 }

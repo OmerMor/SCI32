@@ -1127,7 +1127,7 @@ EditClass::Show(int pri)
 	si = New ScreenItem(windowPlane->Id(),(Bitmap) BM,pt,scaleInfo);
 
 	graphMgr->AddScreenItem(si);
-	graphMgr->FrameOut();
+	graphMgr->FrameOut(False);
 }
 
 
@@ -1144,7 +1144,7 @@ EditClass::Hide(Bool frameOut)
 //	}
 	graphMgr->DeletePlane(windowPlane);
 	if (frameOut)
-  		graphMgr->FrameOut();
+  		graphMgr->FrameOut(False);
 }
 
 void
@@ -1451,7 +1451,7 @@ EditClass::EditText(SOL_Event& evt)
 		}
 	}
    graphMgr->UpdateScreenItem(si);
-	graphMgr->FrameOut();
+	graphMgr->FrameOut(False);
    return changed;
 }
 
@@ -1646,15 +1646,15 @@ EditClass::Highlight(int col)
 
 	SOL_Rect r(textBox);
 
-	xRes = fntMgr->GetXRes();
-	yRes = fntMgr->GetYRes();
-	r.B.x = (r.B.x * xRes) / LOWRESX;
-	r.B.y = (r.B.y * yRes) / LOWRESY;
-	editBMWidth = (editBMWidth * xRes) / LOWRESX;
+//	xRes = fntMgr->GetXRes();
+//	yRes = fntMgr->GetYRes();
+//	r.B.x = (r.B.x * xRes) / LOWRESX;
+//	r.B.y = (r.B.y * yRes) / LOWRESY;
+//	editBMWidth = (editBMWidth * xRes) / LOWRESX;
 
 	r.Inset(-2,-2);
-//	r.B.x--;
-//	r.B.y--;
+	r.B.x--;
+	r.B.y--;
 	SOL_Line line1(r.A.x, r.A.y, r.B.x, r.A.y);
 	line1.DrawThin(hiColor,SOL_Line::tSolid,0,BM,editBMWidth);
 	SOL_Line line2(r.B.x, r.A.y, r.B.x, r.B.y);
@@ -1671,7 +1671,7 @@ EditClass::Highlight(int col)
 
    if (visible) {
 		graphMgr->UpdateScreenItem(si);
-		graphMgr->FrameOut();
+		graphMgr->FrameOut(False);
 	}
 }
 
@@ -1814,12 +1814,6 @@ MsgBox(char* title, char* fmt, ...)
 	vsprintf(buf, fmt, args);
 	va_end(args);
 
-/*
-	const width = 150;
-	const x = (320 - width) / 2;
-	const y = (200 - 10) / 2;
-	DebugWindow(buf, title, width, SOL_Point(x, y), True, &escape);
-*/
 
 	if (graphMgr)
 		graphMgr->GCursor().Hide();

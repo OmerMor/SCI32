@@ -62,6 +62,7 @@ public:
 
 	MemID		DecompBuffer(int requestedSize = 0);
 	MemID		decompWorkBuffer;
+	void		SetLanguage(char*);
 	void 		SplitChunk(ResTag& resTagH);
 	MemType	GetExtType(char*);
 
@@ -114,5 +115,6 @@ extern MemID			resPatches;
 extern MemID			resPatches36;
 extern int				altDirNum;
 extern int				discNum;
+extern char				langPath[];
 
 #endif  //RESOURCE_HPP

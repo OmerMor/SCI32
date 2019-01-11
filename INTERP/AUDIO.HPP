@@ -155,5 +155,6 @@ Bool	AudRobot(RobotAudInfo);
 #define	INT_HBUFFSIZE	(30*1024)
 #define	INT_MAXHBSIZE	(31*1024)
 
+const unsigned	SFXMODNUM = 65535U;
 #endif
 
