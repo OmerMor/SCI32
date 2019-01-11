@@ -1519,15 +1519,8 @@ InitAudioDriver()
 	if (bitsMax == 8)
 		DACHbufferSize /= 2;
 
-	DACArgsIn[1] = DACHbufferSize;
-	DACArgsIn[2] = (int)MergeBuffers;
-	if (CallDAC(DAC_SET_BUFF,2)) {
-		msgMgr->Alert(SrcLoc, Msg_NoAudio);
-		FreeAudioDrv();
+	if (!GetDACBuffer())
 		return False;
-	}
-	DACBuffer.adr.sel = CallDAC(DAC_GET_BUFF_SEL,0);
-	DACBuffer.adr.ofsOrig = CallDAC(DAC_GET_BUFF_OFS,0);
 
 	audioInstalled = True;
 	
@@ -1547,7 +1540,22 @@ AdjustAudBuffSizes(unsigned *audioSize, unsigned *DACSize)
 
 	*audioSize = ((*audioSize + 1023) / 1024) * 1024;
 	*DACSize   = ((*DACSize + 1023) / 1024) * 1024;
-	*DACSize   = *audioSize/(*audioSize/(*DACSize));
+	*DACSize   = *audioSize/((*audioSize/(*DACSize)+1)&0xfffffffe);
+}
+
+Bool
+GetDACBuffer()
+{
+	DACArgsIn[1] = DACHbufferSize;
+	DACArgsIn[2] = (int)MergeBuffers;
+	if (CallDAC(DAC_SET_BUFF,2)) {
+		msgMgr->Alert(SrcLoc, Msg_NoAudio);
+		FreeAudioDrv();
+		return False;
+	}
+	DACBuffer.adr.sel = CallDAC(DAC_GET_BUFF_SEL,0);
+	DACBuffer.adr.ofsOrig = CallDAC(DAC_GET_BUFF_OFS,0);
+	return True;
 }
 
 void

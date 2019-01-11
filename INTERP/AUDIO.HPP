@@ -21,6 +21,7 @@ void Conv8To16(void *, int);
 void Conv11KTo22K(void *, int, char);
 void CopyEOS(void *, void *, int, char);
 void DupeChannel(void *, int, int, char);
+Bool GetDACBuffer(void);
 }
 
 #pragma aux (PushArgs) Merge;
@@ -72,7 +73,8 @@ enum	audioFuncs {
 
 // Codes to be sent to the audio driver.
 enum	audioCodes {
-	DAC_INIT = 2,
+	DAC_RELEASE_MEM = 1,
+	DAC_INIT,
 	DAC_CONTINUE,
 	DAC_TERMINATE,
 	DAC_PLAY,

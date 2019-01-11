@@ -144,6 +144,11 @@ struct SCI_Point {
 	SCIWord	y;
 };
 
+struct SCI_Rect {
+	SCI_Point	ul;	// upper left
+	SCI_Point	lr; // lower right
+};
+
 inline SCI_Point&
 SCI_Point::operator=(const SCI_Point& p)
 {
@@ -231,3 +236,4 @@ SCI_Point::operator!=(const SCI_Point& p) const
 }
 
 #endif
+

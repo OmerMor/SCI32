@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <direct.h>
 
 #include "sol.hpp"
 #include "sci.hpp"
@@ -20,63 +19,17 @@
 #include "audio.hpp"
 #include "event.hpp"
 
-const robotCount = 11;
-static robotNumList[] = { 1802, 1804, 1807, 2522, 2923, 4180, 4236,
-								  7290, 7291, 7302, 7313 };
-
-const dirCount = 7;
-static char* dirstr[] = {
-  "e:\\ver45",
-  "e:\\v5x8k",
-  "e:\\v5x31k",
-  "e:\\v5x60k",
-  "e:\\300x10",
-  "e:\\300x10a",
-  "e:\\300x10b"
-};
-
-
-
-struct Data
-{
-	int tickCount;
-	int framesSkipped;
-	int maxSkipped;
-};
-
-
-
-class RobotTest
-{
-	public:
-	RobotTest(int iterCount, int robotNum, int planeID);
-	~RobotTest();
-
-	Bool	DoTest();
-	void	ResetAllTests();
-
-	int	AverageTime();
-	int	MaxTime();
-	int	MinTime();
-
-	int	AverageSkip();
-	int	MaxSkip();
-	int	MinSkip();
-
-	int	AverageSkipRun();
-	int	MaxSkipRun();
-	int	MinSkipRun();
-
-
-	Data* data;
-	int	maxArraySize;
-	int	arrayIndex;
-	int	planeID;
-	int	robotNum;
-	int	frameCount;
-};
-
-
+/*
+struct {
+	ushort	count;
+	ushort	func;
+	ushort	arg2;
+	ushort	arg3;
+	ushort	arg4;
+	ushort	arg5;
+	ushort	arg6;
+} static audArgs;
+*/
 
 void
 Test()
@@ -101,210 +54,60 @@ Test()
 	backPlane->SetColor(0);
 	backPlane->SetPriority(0);
 	graphMgr->AddPlane(backPlane);
+
 	graphMgr->FrameOut();
-	int fd = Creat("c:\\results.txt", 0);
-	char buffer[200];
-
-	RobotTest* robotList[50];
-	for (int i = 0; i < robotCount; i++)
-		robotList[i] = New RobotTest(10, robotNumList[i], defaultPlaneID);
-
-	for (int j = 0; j < dirCount; j++)  {
-		chdir(dirstr[j]);
-		sprintf(buffer, "Directory: %s%c%c", dirstr[j], 0xd, 0xa);
-		Write(fd, buffer, strlen(buffer));
-
-		for (int q = 0; q < 3; q++)  {
-			for (i = 0; i < robotCount; i++)  {
-				robotList[i]->DoTest();
-				if (kbhit()) {
-					int ch = toupper(getch());
-					if (ch == 'Q')  {
-						break;		  // quit
-					}
-				}
-			}
-		}
-
-		for (i = 0; i < robotCount; i++)  {
-			int frameCount = robotList[i]->frameCount;
-			sprintf(buffer, "%d  skip: %d %d%%  \tspan: %d %d%% %c%c", robotNumList[i],
-				robotList[i]->AverageSkip(),
-				(robotList[i]->AverageSkip() * 100) / frameCount,
-				robotList[i]->AverageSkipRun(),
-				(robotList[i]->AverageSkipRun() * 100) / frameCount,
-				0xd, 0xa);
-			Write(fd, buffer, strlen(buffer));
-			robotList[i]->ResetAllTests();
-		}
-	}
-
-	Close(fd);
-
-	for (i = 0; i < robotCount; i++)
-		delete robotList[i];
-
-	graphMgr->DeletePlane(defaultPlane);
-	graphMgr->DeletePlane(backPlane);
-}
-
-
-
-RobotTest::RobotTest(int iterCount, int robotNum, int planeID) :
- robotNum(robotNum),
- planeID(planeID)
-
-{
-	maxArraySize = iterCount;
-	data = New Data[maxArraySize];
-	arrayIndex = 0;
-	frameCount = 0;
-}
-
-
-RobotTest::~RobotTest()
-{
-	delete data;
-}
-
-void
-RobotTest::ResetAllTests()
-{
-	arrayIndex = 0;
-}
-
-int
-RobotTest::AverageTime()
-{
-	int total = 0;
-	if (arrayIndex)  {
-		for (int i = 0; i < arrayIndex; i++)
-			total += data[i].tickCount;
-		total /= arrayIndex;
-	}
-	return total;
-}
-
-int
-RobotTest::MaxTime()
-{
-	int maxTime = data[0].tickCount;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].tickCount > maxTime)
-			maxTime = data[i].tickCount;
-
-	return maxTime;
-}
-
-int
-RobotTest::MinTime()
-{
-	int minTime = data[0].tickCount;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].tickCount < minTime)
-			minTime = data[i].tickCount;
-
-	return minTime;
-}
-
-int
-RobotTest::AverageSkip()
-{
-	int total = 0;
-	if (arrayIndex)  {
-		for (int i = 0; i < arrayIndex; i++)
-			total += data[i].framesSkipped;
-		total /= arrayIndex;
-	}
-	return total;
-}
-
-int
-RobotTest::MaxSkip()
-{
-	int maxSkip = data[0].framesSkipped;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].framesSkipped > maxSkip)
-			maxSkip = data[i].framesSkipped;
-
-	return maxSkip;
-}
-
-int
-RobotTest::MinSkip()
-{
-	int minSkip = data[0].framesSkipped;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].framesSkipped < minSkip)
-			minSkip = data[i].framesSkipped;
-
-	return minSkip;
-}
-
-int
-RobotTest::AverageSkipRun()
-{
-	int total = 0;
-	if (arrayIndex)  {
-		for (int i = 0; i < arrayIndex; i++)
-			total += data[i].maxSkipped;
-		total /= arrayIndex;
-	}
-	return total;
-}
-
-int
-RobotTest::MaxSkipRun()
-{
-	int maxSkip = data[0].maxSkipped;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].maxSkipped > maxSkip)
-			maxSkip = data[i].maxSkipped;
-
-	return maxSkip;
-}
-
-int
-RobotTest::MinSkipRun()
-{
-	int minSkip = data[0].maxSkipped;
-	for (int i = 1; i < arrayIndex; i++)
-		if (data[i].maxSkipped < minSkip)
-			minSkip = data[i].maxSkipped;
-
-	return minSkip;
-}
-
-Bool
-RobotTest::DoTest()
-{
-	graphMgr->InitRobot(robotNum, planeID, -1, 1, 1);
+	graphMgr->InitRobot(robotNum, defaultPlaneID, -1, 1, 1);
 	graphMgr->GRobot().Resume();
+
+///	audArgs.count = 4;
+///	audArgs.func = WPLAY;
+///	audArgs.arg2 = 111;
+///	audArgs.arg3 = 0;
+///	KDoAudio ((kArgs) &audArgs);
+
+
 	long startTick = timeMgr->GetTickCount();
 
 	while (True)
 	{
 		graphMgr->FrameOut();
+//		SOL_Event event;
+//		while (!kbhit())  {
+//			if (eventMgr->Get(&event))  {
+//				if (event.type == SOL_Event::MouseDown)  {
+//					graphMgr->GRobot().DisplayFrame(1, event.where.x, event.where.y);
+//					graphMgr->FrameOut();
+//				}
+//			}
+//		}
+//		AsyncEventCheck();
 		if (graphMgr->RobotStatus() == ROBOT_FINAL)  {
-			data[arrayIndex].tickCount = timeMgr->GetTickCount() - startTick;
-			data[arrayIndex].framesSkipped = graphMgr->GRobot().FramesSkipped();
-			data[arrayIndex].maxSkipped = graphMgr->GRobot().MaxFramesSeqSkipped();
 
-			arrayIndex++;
-			frameCount = graphMgr->GRobot().FrameCount();
+			msgMgr->Mono("Video Done!  TickCount is: %d\n", timeMgr->GetTickCount());
+			msgMgr->Alert("Time was: %d  Skipped: %d  Total: %d  Max Skip: %d\n", timeMgr->GetTickCount() - startTick,
+			   graphMgr->GRobot().FramesSkipped(),
+				graphMgr->GRobot().FrameCount(),
+				graphMgr->GRobot().MaxFramesSeqSkipped());
 			graphMgr->KillRobot();
 			graphMgr->FrameOut();
-			return True;
+
+			graphMgr->InitRobot(robotNum, defaultPlaneID, -1, 1, 1);
+			graphMgr->GRobot().Resume();
+			startTick = timeMgr->GetTickCount();
 		}
 
 		if (kbhit()) {
 			int ch = toupper(getch());
 			if (ch == 'Q')  {
 				graphMgr->KillRobot();
-				graphMgr->FrameOut();
-				return False;
+				break;		  // quit
 			}
 		}
 	}
+	graphMgr->DeletePlane(defaultPlane);
+	graphMgr->DeletePlane(backPlane);
 }
+
+
+
 

@@ -24,14 +24,15 @@ const robotCount = 11;
 static robotNumList[] = { 1802, 1804, 1807, 2522, 2923, 4180, 4236,
 								  7290, 7291, 7302, 7313 };
 
-const dirCount = 6;
+const dirCount = 7;
 static char* dirstr[] = {
-  "e:\\260x10",
-  "e:\\260x10a",
-  "e:\\260x10b",
-  "e:\\300x10",
-  "e:\\300x10a",
-  "e:\\300x10b"
+  "f:\\ver45",
+  "f:\\v5x8k",
+  "f:\\v5x31k",
+  "f:\\v5x60k",
+  "f:\\300x10",
+  "f:\\300x10a",
+  "f:\\300x10b"
 };
 
 
