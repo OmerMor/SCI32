@@ -11,8 +11,17 @@ struct MathMgr : Saveable {
 	void	SaveRestore(SaveGame*, Bool save);
 } extern mathMgr;
 
-#define Sign(t)	((t) > 0 ? 1 : (t) < 0 ? -1 : 0)
-#define Abs(t)		((t) < 0 ? -(t) : (t))
+template<class T>
+inline T Sign(T t)
+{
+	return t > 0 ? 1 : t < 0 ? -1 : 0;
+}
+
+template<class T>
+inline T Abs(T t)
+{
+	return t < 0 ? (T) -t : t;
+}
 
 /*	n will be under 1000
 	n*TrigScale must be less than largest long int (2,000,000,000)

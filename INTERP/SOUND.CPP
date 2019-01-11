@@ -31,6 +31,19 @@
 #include	"sound.hpp"
 #include "debug.hpp"
 
+struct SoundID : ID<Sound, MemSound> {
+	SoundID() {}
+	SoundID(const MemID& id) : ID<Sound, MemSound>(id) {}
+	SoundID(const SoundID& id) : ID<Sound, MemSound>((MemID&) id) {}
+	SoundID(SOL_Handle h) : ID<Sound, MemSound>(h) {}
+
+	void
+	Get()
+	{
+		ID<Sound, MemSound>::Get(sizeof(Sound), LOCKEDSAVE);
+	}
+};
+
 Bool					kernelCall = False;
 Bool					soundInstalled = False;
 int					numberOfVoices;

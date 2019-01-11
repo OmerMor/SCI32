@@ -13,7 +13,6 @@
 #include "heapleak.hpp"
 #include "mouse.hpp"
 #include "msg.hpp"
-#include "newroom.hpp"
 #include "plane.hpp"
 #include "pmachine.hpp"
 #include "resource.hpp"
@@ -49,7 +48,6 @@ SCI::Init(int argc, char* argv[])
 
 	resMgr			= MakeResourceMgr();
 	eventMgr			= MakeEventMgr();
-	rmResList->NewRoom(0);
 	graphMgr			= MakeGraphicsMgr();
 	fontMgr			= MakeFontMgr();
 	InitPalette();
@@ -108,6 +106,7 @@ SCI::Run(int argc, char* argv[])
 		resMgr->ExtractResources();
 	else
 #endif
+//	pm.Run();
 	Test();
 }
 

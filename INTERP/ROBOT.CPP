@@ -1,5 +1,9 @@
-#include <io.h>
 #include "sol.hpp"
+
+#ifndef MACINTOSH
+	#include <io.h>
+#endif
+
 #include "robot.hpp"
 #include "dos.hpp"
 #include "criterr.hpp"
@@ -30,6 +34,19 @@ _Packed struct VideoHeader
 	short	size;
 };
 
+_Packed struct VideoHeader4
+{
+	short	celCount;
+	uchar	compressionType;
+	uchar	vertScaleFactor;
+	short	xsize, ysize;
+	short	xoff, yoff;
+	short	x1, y1;
+	short	size;
+	short	checksum;
+	long	unused;
+};
+
 enum CompType {LZ_COMP, RLE_COMP, UNCOMP};
 
 
@@ -44,9 +61,8 @@ Robot::Robot(int resNum, long planeId, int priority, int xoff, int yoff) :
 	hunkPalette = NULL;
 	robotSi = NULL;
 	videoSizeArray = NULL;
+	recordPosArray = NULL;
 	firstFrame = True;
-	framesSkipped = 0;
-	maxSkips = 0;
 	lastFrameNum = -1;
 	status = ROBOT_UNUSED;
 	lzScratch = New char[SCRATCHRAM_SIZE];
@@ -69,11 +85,14 @@ Robot::Robot(int resNum, long planeId, int priority, int xoff, int yoff) :
 Robot::~Robot()
 {
 	delete[] videoSizeArray;
+	delete[]	recordPosArray;
 	delete[] lzScratch;
 	delete[] cueTimeList;
 	delete[] cueValueList;
 	delete hunkPalette;
+#ifndef MACINTOSH
 	bmHandle.Free();
+#endif
 	if (fd)
 		Close(fd);
 
@@ -82,9 +101,6 @@ Robot::~Robot()
 
 	if (hasAudio)
 		StopAudioNow();
-
-	msgMgr->Alert("%d out of %d frames skipped\n", framesSkipped, frameCount);
-	msgMgr->Alert("max skipped: %d\n", maxSkips);
 }
 
 
@@ -115,14 +131,10 @@ Robot::DoRobot()
 	if (status != ROBOT_PLAYING)
 		return;
 
-	if (firstFrame)  {
+	if (firstFrame)
 		frameNum = 0;
-		framesSkipped = 0;
-		maxSkips = 0;
-	}
 	else  {
 		frameNum = (timeMgr->GetTickCount() + delayTime.PredictedTicks() - robotStartTime) / 6;
-//		frameNum = (timeMgr->GetTickCount() - robotStartTime) / 6;
 	}
 
 	//  If last frame already shown, set final flag and return
@@ -138,22 +150,16 @@ Robot::DoRobot()
 	if (frameNum == lastFrameNum)
 		return;
 
-	if (!firstFrame)  {
-		int skips = frameNum - (lastFrameNum + 1);
-		if (skips)  {
-			framesSkipped += skips;
-			if (maxSkips < skips)
-				maxSkips = skips;
-		}
-	}		
-
 	audioList.SubmitDriverMax();
-	delayTime.StartTiming();
+//	delayTime.StartTiming();
 	SeekFrame(frameNum);
 	if (version == 2)
 		DoVersion2();
-	else
+	else if (version == 3)
 		DoVersion3();
+	else
+		DoVersion4();
+
 	audioList.SubmitDriverMax();
 
 	//  Set flag, return ok
@@ -233,6 +239,39 @@ Robot::DoVersion3()
 	delete[] scratch;
 }
 
+void
+Robot::DoVersion4()
+{
+	long videoSize = videoSizeArray[frameNum];
+	uchar* scratch = New uchar[videoSize];
+	Read(fd, scratch, videoSize);
+	CreateCel4(scratch, True);	// HOOK  firstFrame);
+
+	if (!robotSi)  {
+		robotSi = New ScreenItem(planeId, Bitmap(bmHandle));
+		robotSi->pos = SOL_Point(x1, y1);
+		robotSi->z = priority;
+		graphMgr->AddScreenItem(robotSi);
+	}
+	else  {
+		robotSi->bitmap = bmHandle;
+		robotSi->pos = SOL_Point(x1, y1);
+		robotSi->z = priority;
+		graphMgr->UpdateScreenItem(robotSi);
+	}
+
+	if (hasAudio)  {
+		//  Get audio header
+		//  Audio pad **************************************************
+		Read(fd, scratch, 8);
+		long audCount = *((long*) &scratch[4]);
+		long audPos = *((long*) scratch);
+
+		audioList.AddBlock(audPos, audCount);
+		Read(fd, audioList.LastBlockAddr(), audCount);
+	}
+	delete[] scratch;
+}
 
 
 
@@ -258,8 +297,10 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 		SeekFrame(frameNum);
 		if (version == 2)
 			DoVersion2();
-		else
+		else if (version == 3)
 			DoVersion3();
+		else
+			DoVersion4();
 	}
 	else  {
 		//  In case xoff, yoff was changed this call
@@ -325,16 +366,18 @@ Robot::FrameNowVisible()
 	}
 
 	if (status == ROBOT_PLAYING)  {
-		delayTime.EndTiming();
+//		delayTime.EndTiming();
 
 		audioList.SubmitDriverMax();
+		
+#ifndef MACINTOSH
 		long ticks = timeMgr->GetTickCount() + 3;
 		while (timeMgr->GetTickCount() < ticks) {}
+#endif
 //		msgMgr->Mono("Frame: %d \n", frameNum / 10);
 //		msgMgr->Mono("Frame: %d  Time: %d\n", frameNum, (timeMgr->GetTickCount() - robotStartTime) / 6);
 //		msgMgr->Dump("Frame: %d  Time: %d\n", frameNum, (robotStartTime) / 6);
 	}
-
 }
 
 long
@@ -411,6 +454,60 @@ Robot::CreateCel(uchar* video, Bool usePalette)
 	}
 }
 
+void
+Robot::CreateCel4(uchar* video, Bool usePalette)
+{
+	VideoHeader4* vh = (VideoHeader4*) video;
+	compressType = vh->compressionType;
+	vertScaleFactor = vh->vertScaleFactor;
+	fileX1 = vh->x1;
+	fileY1 = vh->y1;
+	x1 = fileX1 + xoff;
+	y1 = fileY1 + yoff;
+	xsize = vh->xsize;
+	ysize = vh->ysize;
+
+	if (vh->celCount != 1)
+		msgMgr->Fatal("Robot has %d cels in record!\n", (int) vh->celCount);
+
+	bmHandle.Free();
+	bmHandle.Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
+	BuildHeader(bmHandle, xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
+
+	MemID temp;
+	uchar* ptr = NULL;
+	if (vertScaleFactor == 100)
+		ptr = (uchar*) *bmHandle + CELHEADERSIZE;
+	else  {
+		temp.Get(MemBitmap, xsize * ((ysize * vertScaleFactor) / 100));
+ 		ptr = (uchar*) *temp;
+	}
+
+	switch (compressType)  {
+		case RLE_COMP:
+			RLEDecode(ptr, video + sizeof(VideoHeader4));
+			break;
+	
+		case LZ_COMP:
+			LZDecode(ptr, video + sizeof(VideoHeader4), vh->size);
+			break;
+
+		case UNCOMP:
+			memcpy(ptr, video + sizeof(VideoHeader4), vh->xsize * vh->ysize);
+			break;
+	}
+	if (WING)
+		OffsetData(ptr, PALSHIFT);
+
+	if (vertScaleFactor != 100)  {
+		ExpandData((uchar*) *bmHandle + CELHEADERSIZE, ptr);
+		temp.Free();
+	}
+
+	if (usePalette)  {
+		memcpy((uchar*) *bmHandle + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
+	}
+}
 
 
 void
@@ -418,7 +515,7 @@ Robot::Init()
 {
 	uchar type, scrap;
 	char buffer[4];
-	char junk[8];
+	char junk[32];
 	short fcount, asize, vsize1, vsize2;
 	ushort palSize, audPrimerSize;
 	char palFlag, audFlag;
@@ -444,18 +541,45 @@ _Packed	struct AudPrimerHdr
 	Read(fd, &scrap, 1);
 	Read(fd, buffer, 4);
 	Read(fd, &version, 2);
-	Read(fd, &asize, 2);
-	Read(fd, &vsize1, 2);
-	Read(fd, &vsize2, 2);
-	Read(fd, &fcount, 2);
-	Read(fd, &palSize, 2);
-	Read(fd, &audPrimerSize, 2);
-	Read(fd, &xRes, 2);
-	Read(fd, &yRes, 2);
-	Read(fd, &palFlag, 1);
-	Read(fd, &audFlag, 1);
-	Read(fd, junk, 8);
-
+	if (version != 4)  {
+		Read(fd, &asize, 2);
+		Read(fd, &vsize1, 2);
+		Read(fd, &vsize2, 2);
+		Read(fd, &fcount, 2);
+		Read(fd, &palSize, 2);
+		Read(fd, &audPrimerSize, 2);
+		Read(fd, &xRes, 2);
+		Read(fd, &yRes, 2);
+		Read(fd, &palFlag, 1);
+		Read(fd, &audFlag, 1);
+		Read(fd, junk, 8);
+	}
+	else {
+		Read(fd, &asize, 2);
+		Read(fd, &audPadSize, 2);
+		Read(fd, junk, 2);
+		Read(fd, &fcount, 2);
+		Read(fd, &palSize, 2);
+		Read(fd, &audPrimerSize, 2);
+		Read(fd, &xRes, 2);
+		Read(fd, &yRes, 2);
+		Read(fd, &palFlag, 1);
+		Read(fd, &audFlag, 1);
+		Read(fd, junk, 2);			//  cueCount, frameRate
+		Read(fd, &frameRate, 2);
+		Read(fd, junk, 2);			//  cueCount, frameRate
+		Read(fd, &safeFrameSkipAudio, 2);
+		Read(fd, &maxCelsPerFrame, 2);
+		Read(fd, &xsize0, 2);
+		Read(fd, &ysize0, 2);
+		Read(fd, &xsize1, 2);
+		Read(fd, &ysize1, 2);
+		Read(fd, &xsize2, 2);
+		Read(fd, &ysize2, 2);
+		Read(fd, &xsize3, 2);
+		Read(fd, &ysize3, 2);
+		Read(fd, junk, 8);
+	}
 	if (!xRes)
 		xRes = graphMgr->NextScreen()->Xdim();
 	if (!yRes)
@@ -470,7 +594,7 @@ _Packed	struct AudPrimerHdr
 	if (type != 0x3d  ||  strcmp(buffer, "SOL"))	
 		msgMgr->Fatal("Resource is not Robot type!");
 
-	if (!(version == 2  ||  version == 3))
+	if (!(version == 2  ||  version == 3  ||  version == 4))
 		msgMgr->Fatal("Unsupported version of Robot resource");
 
 	if (!hasAudio)  {
@@ -505,9 +629,17 @@ _Packed	struct AudPrimerHdr
 	delete[] videoSizeArray;
 	videoSizeArray = New ushort[frameCount];
 
+	delete[] recordPosArray;
+	recordPosArray = New ulong[frameCount];
+
 	Read(fd, videoSizeArray, sizeof(*videoSizeArray) * frameCount);
-	LSeek(fd, 8 * frameCount, SEEK_CUR);
-	if (version == 3)  {
+	short* tempSize = New short[frameCount];
+	if (version != 4)
+		LSeek(fd, 8 * frameCount, SEEK_CUR);
+	else
+		Read(fd, tempSize, sizeof(ushort) * frameCount);
+
+	if (version >= 3)  {
 		Read(fd, cueTimeList, sizeof(*cueTimeList) * 256);
 		Read(fd, cueValueList, sizeof(*cueValueList) * 256);
 	}
@@ -517,6 +649,17 @@ _Packed	struct AudPrimerHdr
 	if (remain)
 		LSeek(fd, 2048 - remain, SEEK_CUR);
 	fileDataStart = LSeek(fd, 0, SEEK_CUR);
+
+	if (version == 4)  {
+		long total = fileDataStart;
+		recordPosArray[0] = total;
+		for (int i = 0; i < frameCount - 1; i++)  {
+			total += tempSize[i];
+			recordPosArray[i + 1] = total;
+		}
+	}
+
+	delete tempSize;
 	AudioPause(-1);
 }
 
@@ -569,15 +712,25 @@ Robot::LZDecode(uchar* dest, uchar* src, ulong srcCount)
 	int xdim = xsize;
 	int ydim = (ysize * vertScaleFactor) / 100;
 	ulong destCount = xdim * ydim;
+#ifdef MACINTOSH
+	//KGN Initcompress(lzScratch);
+
+	int result = 0; //KGN Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
+
+#else
 	Initcompress(lzScratch);
 
 	int result = Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
-
+#endif
 //	if (srcCount  ||  result != 1)
 //		msgMgr->Fatal(Msg_CompressSource);
 
 	srcCount = 0;
+#ifdef MACINTOSH
+	result = 0; //KGN Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
+#else
 	result = Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
+#endif
 
 	if (destCount > 1)
 		msgMgr->Fatal(Msg_CompressDestination);
@@ -754,21 +907,27 @@ KRobot(argList)
 void
 Robot::SeekFrame(int frame)
 {
-	//  Calculate where frame is in file and seek there
-	int oddCount = frame >> 1;
-	int evenCount = oddCount;
-	if (frame & 1)
-		evenCount++;
+	if (version != 4)  {
+		//  Calculate where frame is in file and seek there
+		int oddCount = frame >> 1;
+		int evenCount = oddCount;
+		if (frame & 1)
+			evenCount++;
 
-	int evenSize = (audioSize + vPadSize[0]) * evenCount;
-	int oddSize = (audioSize + vPadSize[1]) * oddCount;
-	long posStart = fileDataStart + oddSize + evenSize;
-	LSeek(fd, posStart, SEEK_SET);
+		int evenSize = (audioSize + vPadSize[0]) * evenCount;
+		int oddSize = (audioSize + vPadSize[1]) * oddCount;
+		long posStart = fileDataStart + oddSize + evenSize;
+		LSeek(fd, posStart, SEEK_SET);
+	}
+	else  {
+	// ***************************************************************
+	}
 }
 
 int
 Robot::Open(ResNum num)
 {
+#ifndef MACINTOSH
 	int	fd;
 	char	nameBuf[MaxPath + 1];
 
@@ -784,6 +943,7 @@ Robot::Open(ResNum num)
 				return fd;
 		}
 	}
+#endif
 	return -1;
 }
 
@@ -815,29 +975,39 @@ Robot::MakeName(char* buf, char* fileSpec, char* rootName)
 		fileSpec = fullName;
 	}
 	
+#ifndef MACINTOSH
 	//	get the drive, directory and extension
 	_splitpath(fileSpec, drive, dir, 0, ext);
 	
 	//	and add the name and extension
 	_makepath(buf, drive, dir, rootName, "rbt");
+#endif
 }
 
 void
 Robot::StopAudio()
 {
+#ifndef MACINTOSH
 	AudRobot(RobotAudInfo(NULL, -1, -1));
+#endif
 }
 
 void
 Robot::StopAudioNow()
 {
+#ifndef MACINTOSH
 	AudRobot(RobotAudInfo(NULL, 0, 0));
+#endif
 }
 
 Robot::AudioList::AudioBlock::AudioBlock(int pos, int size) : pos(pos), size(size)
 {
+#ifdef MACINTOSH
+	memid.Get(MemResAudio, size);		//  ????? not discardable ????
+#else
 	memid.Get(MemResAudio, size);
 	memid.SetNotDiscardable();
+#endif
 }
 
 
@@ -850,7 +1020,11 @@ Bool
 Robot::AudioList::AudioBlock::Submit()
 {
 //	msgMgr->Mono("pos: %d  len: %d\n", pos*2, size);
+#ifdef MACINTOSH
+	return 0; //KGN AudRobot(RobotAudInfo((char*) *memid, size, pos*2));
+#else
 	return AudRobot(RobotAudInfo((char*) *memid, size, pos*2));
+#endif
 }
 		
 uchar*
@@ -927,7 +1101,9 @@ Robot::AudioList::SubmitDriverMax()
 {
 	while (blockCount)  {
 		if (!array[oldestBlockIndex]->Submit())  {
+#ifndef MACINTOSH
 			msgMgr->Mono(".");
+#endif
 			return;
 		}
 
@@ -938,7 +1114,9 @@ Robot::AudioList::SubmitDriverMax()
 			oldestBlockIndex = 0;
 
 		blockCount--;
+#ifndef MACINTOSH
 		msgMgr->Mono("_");
+#endif
 	}
 }
 

@@ -61,7 +61,7 @@ _Packed struct ViewHeader
 	uchar	version;
 	uchar	futureExpansion;
 };
-FakeTemplateID(ViewHeaderID, ViewHeader, MemViewHeader)
+typedef ID<ViewHeader, MemViewHeader>	ViewHeaderID;
 
 _Packed struct LoopHeader
 {
@@ -379,4 +379,5 @@ Bitmap::operator!=(const Bitmap& src) const
 }
 
 #endif
+
 

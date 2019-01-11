@@ -68,9 +68,7 @@ SOL_ResType::Load(ResTag& tag, Bool lock)
 	} else if (volEntryHeader.compressUsed == 0x20) {
 		if(volEntryHeader.resId != tag.resNum)
 			msgMgr->Fatal(SrcLoc,Msg_ResourceData);
-		tag.id.SetNotDiscardable();
 		Decompress(tag);
-		tag.id.SetDiscardable();
 	} else {
 		if(volEntryHeader.resId != tag.resNum)
 			msgMgr->Fatal(SrcLoc,Msg_ResourceData);

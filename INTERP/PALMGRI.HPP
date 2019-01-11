@@ -21,8 +21,6 @@ class PaletteMgrIndex : public PaletteMgr
 	void	Submit(HunkPalette&); 
 	void	Submit(const SOLPalette&);
 	Bool	UpdateForFrame();
-	Bool	UpdateFFrame();
-
 
 
 	void	SetCycle(int begin, int end, int direction = 1, int ticks = 0);

@@ -16,7 +16,6 @@ bannerOpt= -Q
 debugObjs = &
 	graphmd.obd &
 	graphmgr.obd &
-	screen.obd &
 	robot.obd &
 	test.obd &
 	hotkey.obj
@@ -113,6 +112,7 @@ objects = &
 	savegame.obj &
 	sci.obj &
 	scid.obj &
+	screen.obj &
 	script.obj &
 	select.obj &
 	sendstac.obj &

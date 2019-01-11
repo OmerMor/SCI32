@@ -35,15 +35,17 @@ class Robot
 	void		SeekFrame(int frame);
 	void		OffsetData(uchar*, char offset);
 	void		CreateCel(uchar*, Bool usePalette = False);
+	void		CreateCel4(uchar*, Bool usePalette = False);
 	void		RLEDecode(uchar* dest, uchar* src);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount);
 	void		ExpandData(uchar* dest, const uchar* src);
 	void		DoVersion2();
 	void		DoVersion3();
-
+	void		DoVersion4();
 
 	ScreenItem*		robotSi;
 	ushort*			videoSizeArray;
+	ulong*			recordPosArray;
 	char*				lzScratch;
 	void*				hunkPalette;
 	int				audioSize;
@@ -71,14 +73,18 @@ class Robot
 	ushort*			cueValueList;
 	short				version;
 	
+	short				audPadSize;
+	short				frameRate;
+	short				safeFrameSkipAudio;
+	short				maxCelsPerFrame;
+	short				xsize0, ysize0, xsize1, ysize1, xsize2, ysize2;
+	short				xsize3, ysize3;
 
 	MemID				bmHandle;
 	int				compressType;
 	int				vertScaleFactor;
 	int				x1, y1;
 	int				xsize, ysize;
-	int				framesSkipped;
-	int				maxSkips;
 
 
 	class AudioList  {
@@ -143,5 +149,4 @@ class Robot
 };
 
 #endif
-
 

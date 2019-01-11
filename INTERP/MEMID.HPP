@@ -112,61 +112,71 @@ protected:
 	SOL_Handle	handle;
 };
 
-// this garbage simulates templates
+template <class T, MemType type>
+struct ID : MemID {
+	ID() {}
+	ID(const MemID& id) : MemID(id) {}
+	ID(SOL_Handle h) : MemID(h) {}
 
-#define FakeTemplateID(name, T, type)\
-struct name : MemID {\
-	name##() {}\
-	name##(const MemID& id) : MemID(id) {}\
-	name##(SOL_Handle h) : MemID(h) {}\
-\
-	void\
-	Get()\
-	{\
-		MemID::Get(type, sizeof(T));\
-		new(handle) T;\
-	}\
-\
-	void\
-	Get(size_t size, MemAttrs attrs = MOVEABLE, unsigned num = 0,\
-			MemClient* client = 0, char initChar = 0,\
-			ReservedHandle h = IllegalHandle)\
-	{\
-		MemID::Get(type, size, attrs, num, client, initChar, h);\
-	}\
-\
-	void\
-	Get(size_t size, ReservedHandle h, MemAttrs attrs = 0)\
-	{\
-		MemID::Get(type, size, attrs | PERSIST, 0, 0, 0, h);\
-	}\
-\
-	void\
-	Get(MemID id, size_t ofs, size_t size)\
-	{\
-		MemID::Get(type, id, ofs, size);\
-	}\
-\
-	T*\
-	Lock() const\
-	{\
-		return (T*) MemID::Lock();\
-	}\
-\
-	T*\
-	Unlock() const\
-	{\
-		return (T*) MemID::Unlock();\
-	}\
-\
-	T*\
-	Realloc(size_t size) const\
-	{\
-		return (T*) MemID::Realloc(size);\
-	}\
-\
-	T* operator *() const	{ return (T*) MemID::operator*(); }\
-	T*	operator->() const	{ return (T*) MemID::operator*(); }\
+	void
+	Get()
+	{
+		MemID::Get(type, sizeof(T));
+		new(handle) T;
+	}
+
+	void
+	Get(size_t size, MemAttrs attrs = MOVEABLE, unsigned num = 0,
+			MemClient* client = 0, char initChar = 0,
+			ReservedHandle h = IllegalHandle)
+	{
+		MemID::Get(type, size, attrs, num, client, initChar, h);
+	}
+
+	void
+	Get(size_t size, ReservedHandle h, MemAttrs attrs = 0)
+	{
+		MemID::Get(type, size, attrs | PERSIST, 0, 0, 0, h);
+	}
+
+	void
+	Get(MemID id, size_t ofs, size_t size)
+	{
+		MemID::Get(type, id, ofs, size);
+	}
+
+	T*
+	Lock() const
+	{
+		return (T*) MemID::Lock();
+	}
+
+	T*
+	Unlock() const
+	{
+		return (T*) MemID::Unlock();
+	}
+
+	void
+	Free()
+	{
+		if (handle) {
+#if 0
+			//	WATCOM 9.5 and 9.5a won't allow this:  gives error 252
+			((T*) memMgr->GetAddr(handle))->~T();
+#endif
+			MemID::Free();
+		}
+	}
+	
+	T*
+	Realloc(size_t size) const
+	{
+		return (T*) MemID::Realloc(size);
+	}
+
+	T* operator *() const	{ return (T*) MemID::operator*(); }
+	T*	operator->() const	{ return (T*) MemID::operator*(); }
 };
 
 inline void*

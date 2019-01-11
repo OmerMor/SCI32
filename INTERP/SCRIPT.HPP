@@ -35,7 +35,7 @@ _Packed struct ScriptHeap {
 	Int16		vars;			// beginning of variables
 };
 
-FakeTemplateID(ScriptHeapID, ScriptHeap, MemResHeap)
+typedef ID<ScriptHeap, MemResHeap> ScriptHeapID;
 
 // struct of script hunk resource file
 _Packed struct ScriptHunk {
@@ -46,7 +46,7 @@ _Packed struct ScriptHunk {
 	UInt16	dispatches;	// beginning of dispatch table
 };
 
-FakeTemplateID(ScriptHunkID, ScriptHunk, MemResHunk)
+typedef ID<ScriptHunk, MemResHunk> ScriptHunkID;
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -61,11 +61,10 @@ struct DispatchTbl {
 	//	followed by variable number of DispatchEntrys
 };
 
-FakeTemplateID(FakeDispatchTblID, DispatchTbl, MemDispatchTbl)
-struct DispatchTblID : FakeDispatchTblID
+struct DispatchTblID : ID<DispatchTbl, MemDispatchTbl>
 {
 	DispatchTblID() {}
-	DispatchTblID(const MemID& id) : FakeDispatchTblID(id) {}
+	DispatchTblID(const MemID& id) : ID<DispatchTbl, MemDispatchTbl>(id) {}
 	DispatchEntry&	operator[](int s)
 		{ return ((DispatchEntry*) (**this + 1))[s]; }
 };
@@ -77,11 +76,10 @@ struct ScriptEntry {
 	MemID	id;
 };
 
-FakeTemplateID(FakeScriptEntryID, ScriptEntry, MemScriptEntry)
-struct ScriptEntryID : FakeScriptEntryID
+struct ScriptEntryID : ID<ScriptEntry, MemScriptEntry>
 {
 	ScriptEntryID() {}
-	ScriptEntryID(const MemID& id) : FakeScriptEntryID(id) {}
+	ScriptEntryID(const MemID& id) : ID<ScriptEntry, MemScriptEntry>(id) {}
 	ScriptEntry& operator[](int s) { return (**this)[s]; }
 };
 
@@ -92,11 +90,10 @@ struct Variable
 	Property	var;
 };
 
-FakeTemplateID(FakeVariableID, Variable, MemVariables)
-struct VariableID : FakeVariableID
+struct VariableID : ID<Variable, MemVariables>
 {
 	VariableID() {}
-	VariableID(const MemID& id) : FakeVariableID(id) {}
+	VariableID(const MemID& id) : ID<Variable, MemVariables>(id) {}
 	Property&	operator[](int s) { return (**this)[s].var; }
 };
 
@@ -119,7 +116,7 @@ struct Script : SOL_Node
 	size_t			codeOffset;	//	offset of code from beginning of .SCR
 };
 
-FakeTemplateID(ScriptID, Script, MemScript)
+typedef ID<Script, MemScript> ScriptID;
 
 ////////////////////////////////////////////////////////////////////////
 

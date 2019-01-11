@@ -33,14 +33,13 @@ struct ScrollEntry {
 	int 		mode;
 };
 
-FakeTemplateID(FakeScrollEntryID, ScrollEntry,MemWindowEntry)
-class ScrollEntryID : public FakeScrollEntryID
+class ScrollEntryID : public ID<ScrollEntry,MemWindowEntry>
 {
    public:
 	ScrollEntryID() {}
-	ScrollEntryID(MemID& id) : FakeScrollEntryID(id) {}
-	ScrollEntryID(const ScrollEntryID& id) : FakeScrollEntryID((MemID&) id) {}
-	ScrollEntryID(SOL_Handle h) : FakeScrollEntryID(h) {}
+	ScrollEntryID(MemID& id) : ID<ScrollEntry, MemWindowEntry>(id) {}
+	ScrollEntryID(const ScrollEntryID& id) : ID<ScrollEntry, MemWindowEntry>((MemID&) id) {}
+	ScrollEntryID(SOL_Handle h) : ID<ScrollEntry, MemWindowEntry>(h) {}
 
 
 	void
@@ -48,24 +47,24 @@ class ScrollEntryID : public FakeScrollEntryID
 			MemClient* client = 0, char initChar = 0,
 			ReservedHandle h = IllegalHandle)
 	{
-		FakeScrollEntryID::Get(size * sizeof(ScrollEntry), attrs, num, client, initChar, h);
+		ID<ScrollEntry, MemWindowEntry>::Get(size * sizeof(ScrollEntry), attrs, num, client, initChar, h);
 	}
 
 	void
 	Get(size_t size, ReservedHandle h, MemAttrs attrs = 0)
 	{
-		FakeScrollEntryID::Get(size * sizeof(ScrollEntry), h, attrs);
+		ID<ScrollEntry, MemWindowEntry>::Get(size * sizeof(ScrollEntry), h, attrs);
 	}
 
 	void
 	Get(MemID id, size_t ofs, size_t size)
 	{
-		FakeScrollEntryID::Get(id, ofs, size * sizeof(ScrollEntry));
+		ID<ScrollEntry, MemWindowEntry>::Get(id, ofs, size * sizeof(ScrollEntry));
 	}
 
 	ScrollEntry& operator[](size_t s) const
 	{
-		return *(ScrollEntry*)(&FakeScrollEntryID::operator[](s * sizeof(ScrollEntry)));
+		return *(ScrollEntry*)(&ID<ScrollEntry, MemWindowEntry>::operator[](s * sizeof(ScrollEntry)));
 	}
 
 };
@@ -261,14 +260,13 @@ class ScrollWindow : public SOL_Window
 };
 
 // Create ScrollWindowID Class for scroll window
-FakeTemplateID(FakeScrollWindowID, ScrollWindow, MemWindow)
-class ScrollWindowID : public FakeScrollWindowID
+class ScrollWindowID : public ID<ScrollWindow,MemWindow>
 {
 	public:
 	ScrollWindowID() {}
-	ScrollWindowID(const MemID& id) : FakeScrollWindowID(id) {}
-	ScrollWindowID(const ScrollWindowID& id) : FakeScrollWindowID((MemID&) id) {}
-	ScrollWindowID(SOL_Handle h) : FakeScrollWindowID(h) {}
+	ScrollWindowID(const MemID& id) : ID<ScrollWindow, MemWindow>(id) {}
+	ScrollWindowID(const ScrollWindowID& id) : ID<ScrollWindow, MemWindow>((MemID&) id) {}
+	ScrollWindowID(SOL_Handle h) : ID<ScrollWindow, MemWindow>(h) {}
 
 	void Get(SOL_Rect& theWindow,
 				SOL_Point thePos,

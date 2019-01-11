@@ -75,20 +75,6 @@ struct Sound : SOL_Node {
 	SNodeData	sData;			//copy of DLL's node data for save/restore
 };
 
-FakeTemplateID(FakeSoundID, Sound, MemSound)
-struct SoundID : FakeSoundID {
-	SoundID() {}
-	SoundID(const MemID& id) : FakeSoundID(id) {}
-	SoundID(const SoundID& id) : FakeSoundID((MemID&) id) {}
-	SoundID(SOL_Handle h) : FakeSoundID(h) {}
-
-	void
-	Get()
-	{
-		FakeSoundID::Get(sizeof(Sound), LOCKEDSAVE);
-	}
-};
-
 enum {
 	MASTERVOL,
 	SOUNDON,

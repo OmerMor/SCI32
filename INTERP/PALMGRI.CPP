@@ -626,17 +626,6 @@ PaletteMgrIndex::SaveRestore(SaveGame* saveGame, Bool save)
 	}
 }
 
-Bool
-PaletteMgrIndex::UpdateFFrame()
-{
-	for (int i = 0; i < MaxColors; i++) 
-		next[i] = source[i];
-
-	needUpdate = False;
-
-	Bool paletteChanged = (current != next);
-   return(graphMgr->GRemapper().RemapAllTables(paletteChanged));
-}
 
 
 Bool

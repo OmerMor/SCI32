@@ -57,11 +57,10 @@ Bool	loadingDiskCursor = False;
 Bool	unLoadingDiskCursor = False;
 #endif
 
-FakeTemplateID(FakeResTagID, ResTag, MemResourceList)
-struct ResTagID : FakeResTagID
+struct ResTagID : ID<ResTag, MemResourceList>
 {
 	ResTagID() {}
-	ResTagID(MemID& id) : FakeResTagID(id) {}
+	ResTagID(MemID& id) : ID<ResTag, MemResourceList>(id) {}
 	ResTag&	operator[](int s) { return (**this)[s]; }
 };
 
@@ -773,7 +772,6 @@ ResourceMgr::LoadResMaps(uint volNum)
 			altDirNum = dirNum;
 		break;
 	}
-	InitAudioVols();
 	return True;
 }
 

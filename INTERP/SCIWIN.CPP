@@ -24,8 +24,6 @@
 #include "sound.hpp"
 #include "soundwin.hpp"
 #include "timew.hpp"
-#include "mmsystem.h"
-#include "moview.hpp"
 
 int scimain (int argc, PSTR argv[]);
 
@@ -882,10 +880,6 @@ struct {
 						break;
 				}
 			return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
-
-		case MM_MCINOTIFY:
-			AviNotify(wParam,lParam);
-			break;
 
 		case WM_PAINT:                                  /* re-paint client area */
 			hPaintDC = BeginPaint (hWnd, &ps);
