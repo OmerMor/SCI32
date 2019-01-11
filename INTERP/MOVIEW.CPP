@@ -37,7 +37,6 @@
 
 void	InitMovie(void);
 void	closeWaveDev(void);
-short movieType;	   
 static BOOL	movieInit = FALSE;
 static Plane * moviePlane;
 static char movieName[_MAX_PATH];

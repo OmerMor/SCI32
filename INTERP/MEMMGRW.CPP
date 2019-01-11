@@ -36,6 +36,7 @@ extern	uchar *wAudioBuffAddr;
 extern	uchar *cursorBuffAddr;
 extern	int	maxCursorSize;
 extern	char far *midiCachePtr;
+extern	void	FreeWinDlls(void);
 
 int	sysMemAvail;
 char	*sysMemAddr;
@@ -95,6 +96,7 @@ MemoryMgrWin::~MemoryMgrWin()
 #endif
 
 	EndThunk();
+	FreeWinDlls();
 }
 
 
@@ -122,9 +124,6 @@ void	GetWindowsMemory(void)
 int sciMin, sciMax;
 int grossMemAvail, netMemAvail;
 int reserveMem;
-int reserveMem4;
-int reserveMem8;
-int reserveMem16;
 int wingMin;
 int wingSize;
 int physicalBytes;
@@ -143,9 +142,6 @@ char		errbuff[300];
 	// compute size in bytes of all required buffers
 	wAudioBuffSize = DACSize;
 	reserveMem		= reserveK * 1024;
-	reserveMem4		= reserveK4 * 1024;
-	reserveMem8		= reserveK8 * 1024;
-	reserveMem16	= reserveK16 * 1024;
 	sciMin			= sciMinK * 1024;
 	sciMax			= sciMaxK * 1024;
 	newCacheSize	=	cacheSize1 * (sizeof(Bool) + sizeof(void *)) +
@@ -180,14 +176,6 @@ char		errbuff[300];
 
 	// determine physical memory
 	physicalBytes = (BaseMem() + ExtendedMem()) * 1024;
-
-	// determine reserve requirements based on physical memory
-	if (physicalBytes < (4 * 1024 * 1024))
-		reserveMem = reserveMem4;
-	else if (physicalBytes < (8 * 1024 * 1024))
-		reserveMem = reserveMem8;
-	else 		  
-		reserveMem = reserveMem16;
 
 	// start with maximum for the memory manager
 	netMemAvail = sciMax;

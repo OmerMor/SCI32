@@ -38,6 +38,7 @@ class MouseDOS : public SOL_Mouse
 	static	SOL_Rect		restrict;
 	static	Bool			useMouse;
 	static	Bool			isSwift;
+	static	Bool			entered;
 	static	SOL_Point	pos, posScale;
 	static	short			zaxis;
 	static	short			pitch;

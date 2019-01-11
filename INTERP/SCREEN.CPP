@@ -9,7 +9,7 @@
 #include "screen.hpp"
 
 void
-Screen::AbortPlane(Plane* plane)
+Screen::AbortPlane(const Plane* plane)
 {
 	int index = planes.Search(plane->Id());
 	if (index == -1)
@@ -38,7 +38,7 @@ Screen::AddPlane(Plane* plane)
 }
 
 int
-Screen::AddPic(long planeID,int thePic,SOL_Point& thePoint,int mirror)
+Screen::AddPic(long planeID, int thePic, const SOL_Point& thePoint, int mirror)
 {
 	int index = planes.Search(planeID);
 	if (index == -1)
@@ -119,7 +119,7 @@ void Screen::ClearForRestoreGame()
 #endif
 
 void
-Screen::PlaneRect(int planeID,SOL_Rect& planeRect)
+Screen::PlaneRect(int planeID,SOL_Rect& planeRect) const
 {
 	int index = planes.Search(planeID);
 	if (index == -1)
@@ -128,7 +128,7 @@ Screen::PlaneRect(int planeID,SOL_Rect& planeRect)
 }
 
 int
-Screen::TopScreenItem(int planeID)
+Screen::TopScreenItem(int planeID) const
 {
 	int index = planes.Search(planeID);
 	if (index == -1)
@@ -137,16 +137,7 @@ Screen::TopScreenItem(int planeID)
 }
 
 void
-Screen::NowSeen(int id,int planeID,SOL_Rect& nowSeen)
-{
-	int index = planes.Search(planeID);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,planeID);
-	planes[index].NowSeen(id,nowSeen);
-}
-
-void
-Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[],SOL_Rect& dirtyRect)
+Screen::CalcLists(Screen& last, DrawList* drawLists[], RectList* eraseLists[], const SOL_Rect& dirtyRect)
 {
 	/*
 	If a plane moves, then nextPlane must be intersected with the
@@ -566,3 +557,4 @@ Screen::GetPlane(int planeId)
 		return NULL;
 	return &planes[index];
 }
+

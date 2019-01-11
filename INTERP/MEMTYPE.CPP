@@ -404,36 +404,32 @@ MemoryMgr::MakeMemIDListStr(int start, int* end, int count)
 	return buf;
 }
 
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
+	void
+	MemoryMgr::ThrashReport()
+	{
+		// Thrashing detection report 
 
-void
-MemoryMgr::ThrashReport()
-{
-	// Thrashing detection report 
+		TextID	buf;
 
-	TextID	buf;
+		doThrashReport = False;
 
-	doThrashReport = False;
+		for (int i=0;i<ThrashListSize;++i) {
+			if (thrashArray[i].count == 0)
+				break;
+			//	resource
+			buf.AddF("count = %d  resource = %8u.%s\n",
+						thrashArray[i].count,
+						thrashArray[i].resNumber,
+						memTypes.GetMemTypeStr(thrashArray[i].type));
+		}
 
-	for (int i=0;i<ThrashListSize;++i) {
-		if (thrashArray[i].count == 0)
-			break;
-		//	resource
-		buf.AddF("count = %d  resource = %8u.%s\n",
-					thrashArray[i].count,
-					thrashArray[i].resNumber,
-					memTypes.GetMemTypeStr(thrashArray[i].type));
+		const width = 100 * XSCALE;
+		EventWindow	* debugWindow =
+			DebugWindow(*buf,"Thrashing Report",width,SOL_Point((SCIRESX - 1 - width)/2,50*YSCALE),True);
+
+		buf.Free();
+
+		delete debugWindow;
 	}
-
-	const width = 100 * XSCALE;
-	EventWindow	* debugWindow =
-		DebugWindow(*buf,"Thrashing Report",width,SOL_Point((SCIRESX - 1 - width)/2,50*YSCALE),True);
-
-	buf.Free();
-
-	delete debugWindow;
-}
-
 #endif
-
-

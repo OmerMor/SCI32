@@ -27,6 +27,7 @@
 const char CTRL_CHAR	= '|';
 
 #define SYSTEMFONT ((ushort) -1)
+extern ushort		systemFont;
 
 class FontHeader
 {
@@ -41,7 +42,10 @@ class FontMgr
 {
 	public:
 
-	FontMgr(ushort theFont = SYSTEMFONT) {font = theFont+1;BuildFontTable(theFont);}
+	FontMgr(ushort theFont = systemFont) {
+		font = theFont+1;	// if font==theFont BuildFontTable just returns
+		BuildFontTable(theFont);
+	}
 
 	MemID BuildFBM
 		(

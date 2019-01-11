@@ -34,6 +34,7 @@ SOL_Rect		MouseDOS::restrict;
 Bool			MouseDOS::useMouse = True;
 Bool			MouseDOS::isSwift = False;
 Bool			MouseDOS::exists = False;
+Bool			MouseDOS::entered = False;
 uchar*		MouseDOS::stackBuff = NULL;
 SOL_Point	MouseDOS::pos;
 short			MouseDOS::zaxis = 0;
@@ -60,7 +61,8 @@ MouseDOS::MouseDOS(Bool)
 		ClearRestrictRect();
 	}
 	else
-		msgMgr->Fatal(Msg_NoMouseDriver);
+		msgMgr->Fatal("\nNo mouse drivers was found in DOS.\n"
+						  "Please rerun INSTALL and read the README file for more help.");
 }
 
 
@@ -228,6 +230,7 @@ MouseDOS::Setup(SOL_Cursor& cur)
 void
 MouseDOS::SetPos(const SOL_Point& p)
 {
+	entered = True;
 	pos = p;
 	pos.x = pos.x * Ratio(graphMgr->Xdim(), SCIRESX);
 	pos.y = pos.y * Ratio(graphMgr->Ydim(), SCIRESY);
@@ -237,6 +240,7 @@ MouseDOS::SetPos(const SOL_Point& p)
 		if (cursor)
 			cursor->DeviceMovedTo(pos);
 	}
+	entered = False;
 } 
 
 
@@ -271,14 +275,13 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 
 #pragma aux HndlMouse parm [EAX] [EBX] [ECX] [EDX] [ESI] [EDI]
 	static int status;
-	static Bool entered = False;
 	static SOL_Point p1;
 	static short rawx, rawy, lastrawx, lastrawy, lastposx, lastposy;
 
-	if (entered)
+	if (MouseDOS::entered)
 		return;
 
-	entered = True;
+	MouseDOS::entered = True;
 	status = eax;
 	MouseDOS::buttonState = ebx;
 	rawx = (short) esi;
@@ -372,7 +375,8 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 
 	RestoreStack(0);
 	SetES(es);
-	entered = False;
+	MouseDOS::entered = False;
 }
 #pragma on (check_stack)
+
 

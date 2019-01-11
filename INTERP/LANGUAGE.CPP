@@ -31,7 +31,8 @@ InitLanguage()
 			case SPANISH:
 			case ITALIAN:
 			case PORTUGUESE:
-				pm.game.SetProperty(s_printLang, language);
+//BEW CHANGED				pm.game.SetProperty(s_printLang, language);
+				pmGameSetProp(s_printLang, language);
 				return;
 		}
 

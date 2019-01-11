@@ -18,7 +18,8 @@
 
 #include "VMDLIBS.HPP"
 #include "VMD.HPP"
-
+#include "resource.hpp"
+#include "dos.hpp"
 
 //----------------------------------------------------------------------
 
@@ -297,6 +298,8 @@ IT_OpenCache(char * Name,LONG mode)
   strcpy(str,Name);
   Clip(str);
 
+  int handle = GXopen(Name,O_RDONLY);
+
   if (!SpMode)
   for (i=0;i!=i_NbCache;i++)
   {
@@ -325,7 +328,7 @@ IT_OpenCache(char * Name,LONG mode)
       {
 			if (!(i_Cache[i].Used & CACHE_VDUPLICATE))
 			{
-	  			i_Cache[i].h=GXopen(Name,O_RDONLY);
+	  			i_Cache[i].h= handle;
 	  			i_Cache[i].Loop->Cpos=0L;
 	  			if (i_Cache[i].h==-1)
 				{
@@ -345,7 +348,7 @@ IT_OpenCache(char * Name,LONG mode)
 	    			if (!i_Cache[i].Normal->Cached[j])
 	    			{
 	      			i_Cache[i].Writing=UNKNOW;
-	      			i_Cache[i].h=GXopen(Name,O_RDONLY);
+	      			i_Cache[i].h= handle;
 	      			if (i_Cache[i].h==-1)
 	      			{
 							i_Cache[i].Used=FALSE;
@@ -363,7 +366,7 @@ IT_OpenCache(char * Name,LONG mode)
   {
     WORD h;
 
-    h=GXopen(Name,O_RDONLY);
+    h = handle;
     if (h==-1)
     {
       if (!IMD_check)
@@ -376,10 +379,11 @@ IT_OpenCache(char * Name,LONG mode)
 			return(-1);
 		}
     }
-    GXclose(h);
+    // GXclose(h);
   }
 
-  Sreal = GXfilesize(Name);
+  // Sreal = GXfilesize(Name);
+  Sreal = FileLength(handle);
   S = Sreal;
   if (!i_LoopingCache)
   {
@@ -391,7 +395,7 @@ IT_OpenCache(char * Name,LONG mode)
     if (S > i_LoopingCache*1024L)
     	S = i_LoopingCache*1024;
     if ((memMgr->FreeMemory()/1024 - 200 - S/1024) < i_LoopFreeMem)
-      return(GXopen(Name,O_RDONLY));
+      return handle;
   }
   else
   {
@@ -399,10 +403,10 @@ IT_OpenCache(char * Name,LONG mode)
     {
       if (i_SizeMax)
 			if (S/1024L>i_SizeMax)
-	  			return(GXopen(Name,O_RDONLY));
+	  			return handle;
       if (i_SizeTotal)
 			if (SizeUsed+S/1024L>i_SizeTotal)
-	  			return(GXopen(Name,O_RDONLY));
+	  			return handle;
     }
   }
 
@@ -447,11 +451,11 @@ IT_OpenCache(char * Name,LONG mode)
   if (!i_Cache[n].Data)
   {
     i_Cache[n].Size=0;
-    return(GXopen(Name,O_RDONLY));
+    return handle;
   }
 
   SizeUsed+=S/1024;
-  i_Cache[n].h=GXopen(Name,O_RDONLY);
+  i_Cache[n].h= handle;
   if (i_Cache[i].h==-1)
   {
   	 msgMgr->Alert(SrcLoc,"VMD error %d -> Open Cache %s",302,Name);
@@ -866,3 +870,4 @@ WORD GetNextPictCached(void* ptr)
       return(i);
   return(-1);
 }
+

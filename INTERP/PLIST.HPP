@@ -21,13 +21,14 @@ class PlaneList
 	//  Const Methods
 	int	Length() const								{return length;}
 	int	Search(long id) const;				//  ID BASED
-	int	TopPlane();
-	int	TopSCIPlane();
+	int	TopPlane() const;
+	int	TopSCIPlane() const;
+	const Plane& operator[](int index) const	{return *planeArray[index];}
 
 	//  Normal methods
 	Plane& operator[](int index) 					{return *planeArray[index];}
 	Plane* Pointer(int index)						{return planeArray[index];}
-	int	Add(Plane*);
+	int	Add(Plane*);				//   cant be const
 	void	Delete(int index);
 	void	Clear();
 	void	Sort();
@@ -39,3 +40,4 @@ class PlaneList
 
 
 #endif
+

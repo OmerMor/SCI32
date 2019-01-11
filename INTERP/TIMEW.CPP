@@ -3,11 +3,11 @@
 #define INCLUDE_MMSYSTEM_H
 #include "sciwin.hpp"
 
-#include "mbox.hpp"
 #include	"sol.hpp"
 #include "memmgrw.hpp"
 #include "timew.hpp"
 #include "winthunk.hpp"
+#include "mbox.hpp"
 
 static	Bool	timerEnabled = False;
 #ifndef WIN32S

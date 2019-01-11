@@ -50,7 +50,7 @@ ViewDelayIMD(IMD * Imd)
 	else
 	 	if (ans != VMD_END)
   			Imd->TimeOut++;
-	if ((Imd->TimeOut > 5) && Imd->Pos<Imd->NbPict) {
+	if ((Imd->TimeOut > 5) && (Imd->Pos < Imd->NbPict)) {
   		ans |= VMD_TIMEOUT;
  		Imd->TimeOut = 0;
 	}

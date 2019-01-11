@@ -79,3 +79,18 @@ SOL_Rect::Split(SOL_Rect& super,SOL_Rect* rectangles)
 	}
 	return (i);
 }
+
+
+
+
+Bool
+SOL_Rect::IsWithin(int xdim, int ydim) const
+{
+	if (A.x < 0  ||  A.y < 0)
+		return False;
+
+	if (B.x >= xdim  ||  B.y >= ydim)
+		return False;
+
+	return True;
+}

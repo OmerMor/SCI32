@@ -220,7 +220,7 @@ KFileIO(argList)
 		}
 
 		case FileValidPath:
-			CheckValidPath(*(TextID) arg(2));
+			pm.acc = CheckValidPath(*(TextID) arg(2));
 			break;
 	}
 
@@ -300,6 +300,23 @@ AddSlash(char* dir)
 	if (len && lastChar != '\\' && lastChar != '/' && lastChar != ':')
 		strcat(dir, "\\");
 	return dir;
+}
+
+char*
+FullPath(char* dest, const char* fileName)
+{
+	//	adds current directory to filename
+	//	only works with bare filename, without path or drive components
+	//	WATCOM's _fullpath() is buggy:  gets correct drive but incorrect path
+	
+	//	if it already has a directory or drive component, just leave it alone
+	if (strchr(fileName, ':') || strchr(fileName, '\\'))
+		return strcpy(dest, fileName);
+	
+	getcwd(dest, _MAX_PATH);
+	AddSlash(dest);
+	strcat(dest, fileName);
+	return dest;
 }
 
 int
@@ -511,10 +528,18 @@ ExistsDriveAB(int drive)
 	if (regs.w.ax & 0xC0)
 		return True;
 
+#ifndef WINDOWS
 	//	if only one, see whether it's currently A: or B:
 	Bool driveIsA = !*(char*) 0x504;
-
 	return driveIsA && drive == 0;
+#else
+	// The above test does not work in Windows, and I (kk) can't find
+	// a reliable way to do it. The situation is also very unlikely to occur.
+	if(drive == 99)
+		return False;	// get around the parameter "drive" not used warning
+	return True;
+#endif
+
 #else
 	MBox("ExistsDriveAB called","");
 	drive = drive;
@@ -668,30 +693,11 @@ CheckFreeSpace(int func, const char* path)
 {
 	//	CheckFreeSpace functions
 	enum {
-		NONE,
 		SAVEGAMESIZE,
 		FREESPACE,
 		ENOUGHSPACETOSAVE
 	};
 	
-	/* 
-	   If only path argument {
-			See if there is enough free space on the
-	      disk in 'path' to save a game.
-	   } else {
-	      If func = SAVEGAMESIZE {
-	         Return the amount of space needed to save
-	         the game in K
-	      }
-	      If func = FREESPACE {
-	         Return the amount of free space in K up 
-	         to 32Meg
-			}
-	      IF func = ENOUGHSPACETOSAVE {
-				Return whether there is enough space to save in path
-	   	}
-	   }
-	*/
 	ulong	freeSpace;
 
 	// Find out how much space there is.
@@ -699,32 +705,26 @@ CheckFreeSpace(int func, const char* path)
 		freeSpace = RGetFreeSpace(ToLower(*path));
 	else
 		freeSpace = RGetFreeSpace(0);
+		
+   switch (func)  {
+	   case SAVEGAMESIZE:
+         // Return the amount of space  in K needed to save the game 
+			return (saveGame->Length() +1023) / 1024L;
 
-	if (func == NONE)
-      // Return Boolean, there is enough free space on the disk in 'path' to
-      //	save a game.
-		return freeSpace > saveGame->Length();
+	   case FREESPACE:
+         // Return the amount of free space in K up to 32Meg
+         freeSpace = freeSpace / 1024L;
+			return freeSpace > 32767L ? 32767 : freeSpace;
 
-   else
-	   switch (func)  {
-		   case SAVEGAMESIZE:
-            // Return the amount of space  in K needed to save the game 
-				return (saveGame->Length() +1023) / 1024L;
-
-		   case FREESPACE:
-            // Return the amount of free space in K up to 32Meg
-	         freeSpace = freeSpace / 1024L;
-				return freeSpace > 32767L ? 32767 : freeSpace;
-
-			case ENOUGHSPACETOSAVE:
-				// Return Boolean, there is enough free space on the disk in 'path'
-				//	to save a game.
-				return freeSpace > saveGame->Length();
-			
-			default:
-				assert(!"Invalid CheckFreeSpace function");
-				return 0;
-		}
+		case ENOUGHSPACETOSAVE:
+			// Return Boolean, there is enough free space on the disk in 'path'
+			//	to save a game.
+			return freeSpace > saveGame->Length();
+		
+		default:
+			assert(!"Invalid CheckFreeSpace function");
+			return 0;
+	}
 }
 
 static Bool

@@ -131,7 +131,7 @@ PlaneList::Sort()
 }
 
 int
-PlaneList::TopPlane()
+PlaneList::TopPlane() const
 {
 	if (length)
 		return planeArray[length-1]->Priority();
@@ -141,7 +141,7 @@ PlaneList::TopPlane()
 
 
 int
-PlaneList::TopSCIPlane()
+PlaneList::TopSCIPlane() const
 {
    // This method returns the highest priority
    // for a non_Window plane (Window planes begin

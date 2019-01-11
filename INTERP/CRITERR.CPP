@@ -4,5 +4,8 @@
 
 #include "criterr.hpp"
 
-CritErrHandler*	critErrHandler;
-
+CritErrHandler::~CritErrHandler()
+{
+}
+
+CritErrHandler* critErrHandler;

@@ -7,13 +7,17 @@ class Ratio
 	Ratio()							:	numer(1), denom(1) {}
 	Ratio(int num)					:  numer(num), denom(1) {}
 	Ratio(int num, int denom)	:	numer(num), denom(denom) {}
-	Ratio(const Ratio& src); // :	numer(src.numer), denom(src.denom) {}
+	Ratio(const Ratio&);
 
-	void	Normalize();
 	Bool	IsOne() const				{return numer == denom;}
 	Bool	operator==(const Ratio&) const;
 	Bool	operator!=(const Ratio&) const;
-	Ratio	operator*(const Ratio& r) const;
+	Ratio	operator*(const Ratio&) const;
+	#ifdef DEBUG
+	Bool	Assert() const;
+	#endif
+
+	void	Normalize();
 
 	int	numer;
 	int	denom;
@@ -27,15 +31,6 @@ Ratio::operator*(const Ratio& r) const
 	r2.denom = denom * r.denom;
 	return r2;
 }
-
-/*
-inline
-Ratio::Ratio(const Ratio& src)
-{
-	numer = src.numer;
-	denom = src.denom;
-}
-*/
 
 inline int
 operator/(int i, const Ratio& r)
@@ -85,4 +80,3 @@ operator^(const Ratio& ratio, int i)
 }
 
 #endif
-

@@ -90,7 +90,7 @@ IrisOutEffect(PlaneShowStyle* style)
 	int x,y,l,m,width,height,modx,mody;
 	int x_l,x_r,y_t,y_b;
 	x = style->divisions;
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
  	SOL_Rect	B(0,0,x-1,x-1);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
@@ -190,7 +190,7 @@ IrisInEffect(PlaneShowStyle* style)
 	int x_l,y_t;
 
 	x = style->divisions;
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -289,7 +289,7 @@ VShutterInEffect(PlaneShowStyle* style)
 
 	int x,l,m,n,width,height,mody;
 	x = style->divisions;
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -382,7 +382,7 @@ VShutterOutEffect(PlaneShowStyle* style)
 
 	int x,l,m,n,height,width,mody;
 	x = style->divisions;
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();	
 
 	
@@ -476,7 +476,7 @@ HShutterOutEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x-1,x-1);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -564,7 +564,7 @@ HShutterInEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x,x);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -657,7 +657,7 @@ WipeLeftEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x-1,x-1);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -722,7 +722,7 @@ WipeRightEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x-1,x-1); 
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -785,7 +785,7 @@ WipeDownEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x-1,x-1);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -852,7 +852,7 @@ WipeUpEffect(PlaneShowStyle* style)
  	SOL_Rect	B(0,0,x-1,x-1);
 	// Since SOL_Rect includes all points specified, this is an x by x rect
 
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -930,7 +930,7 @@ PixelDissolveEffect(PlaneShowStyle* style)
 	int x = style->divisions;
 	int width,height,org_width,org_height;
 	int row,col;
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	Plane*  p =	graphMgr->VisiblePlane(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 
 	org_width  = (r.B.x - r.A.x + 1);

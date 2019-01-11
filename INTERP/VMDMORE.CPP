@@ -23,7 +23,7 @@
 void *
 GetMem(size_t size)
 {
-	const int VMDHandlesChunk = 10;
+	const int VMDHandlesChunk = 20;
 
 	int attributes = MemResVMD + MARKEDMEMORY + LOCKED;
 	if (size & RAZ_MEM)
@@ -54,7 +54,7 @@ GetMem(size_t size)
 	{
 		// Need to increase the handles save area
 		VMDHandlesCount += VMDHandlesChunk;
-		memMgr->Realloc(VMDHandlesID,VMDHandlesChunk*sizeof(SOL_Handle));
+		memMgr->Realloc(VMDHandlesID,VMDHandlesCount*sizeof(SOL_Handle));
 		VMDHandlesPtr = (SOL_Handle*) memMgr->GetAddr(VMDHandlesID);
 	}
 	VMDHandlesPtr[i] = handle;

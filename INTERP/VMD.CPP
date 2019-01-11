@@ -155,38 +155,9 @@ OpenIMD(char *str,COK_BITMAP *bmp,LONG pal)
   LONG 			fp;
 //  UBYTE *DataB;
   UBYTE far*	DataB;
-  int 			l;
 
-  if (X_OpenVIG)
-  {
-    l=strlen(str);
-    if (l>4)
-    {
-      if (str[l-4]=='.')
-      if (str[l-3]=='V')
-      if (str[l-2]=='I')
-      if (str[l-1]=='G')
-	return(X_OpenVIG(str,bmp));
-    }
-  }
   DeltaSynchro=0;
-  if (!IMD_get)
-  {
-    char *ptr;
-
-    ptr=getenv("_IMD_");
-    if (!ptr)
-      IMD_path[0]=0;
-    else
-      strcpy(IMD_path,ptr);
-    IMD_get=TRUE;
-  }
-  strcpy(nom2,IMD_path);
-  strcat(nom2,str);
-  for (i=0;nom2[i]!='.' && nom2[i];i++);
-  if (!nom2[i])
-    strcat(nom2,".VMD");
-
+  strcpy(nom2,str);
 
   if (CachePresent && (pal & VMD_CACHE))
   {
@@ -420,9 +391,6 @@ OpenIMD(char *str,COK_BITMAP *bmp,LONG pal)
   return(Imd);
 }
 
-
-
-
 void
 CloseIMD(IMD * Imd)
 {
@@ -510,7 +478,7 @@ WaitSync(IMD *Imd,WORD w)
     if (dv>Imd->NbBuffer/4)
     {
       if (Imd->SoundInfo & VMD_SOUND_SOUNDFIRST)
-	SkipNext=TRUE;
+			SkipNext=TRUE;
       else
       {
 	Imd->S.CurrentBuffer+=dv+1;
@@ -546,11 +514,11 @@ ViewIMD(IMD *Imd,WORD n)
 	 }
 #ifdef __TRACE__
   PRINTF("View frame : %d, Timer = %ld, SoundPos = %ld, CurrentBuffer = %d, TotalBuffers = %d\n",
-  	n,
-  	ReadTimer(), 
-  	IMDSoundPos(Imd),
-  	(WORD) Imd->S.CurrentBuffer,
-  	Imd->S.TotalBuffers);
+  			n,
+  			ReadTimer(), 
+  			IMDSoundPos(Imd),
+  			(WORD) Imd->S.CurrentBuffer,
+  			Imd->S.TotalBuffers);
 #endif
   InViewIMD=TRUE;
   h=Imd->h;
@@ -563,106 +531,125 @@ ViewIMD(IMD *Imd,WORD n)
   }
   Ans|=VMD_NULL;
   if (n)
-  if (!(Imd->SoundInfo & VMD_DECAL1) || n!=1)
   {
-    WORD n2=n;
+   LONG 	Tb;
+   LONG 	d;
+	LONG 	Delta;
+   WORD 	n2 = n;
 
-    if (Imd->SoundInfo & VMD_DECAL1)
-      n2--;
-    if (SoundTrack && !(Imd->OpenInfo & VMD_NOTRACK))
-    {
-      LONG d;
-      LONG Tb;
+   if (Imd->SoundInfo & VMD_DECAL1)
+   	n2--;
 
-      if (Imd->SoundInfo & VMD_NOWAIT)
-      {
+  	// Is there sound and are we behind?
+	if ((Imd->Type & VMD_SOUND) && RefSoundFrequence && Imd->S.Sound.Start)
 	{
-	  LONG Delta;
-
-	  if ((Imd->Type & VMD_SOUND) && RefSoundFrequence && Imd->S.Sound.Start)
-	  {
-	    Tb=GetSoundPos(FALSE)-(ULONG)Imd->StartCount;
-	    if (SoundTrack && Imd->Freq<20000)
-	      Tb=Tb*100L/(LONG)(RefSoundFrequence/10);
-	    else
-	      Tb=Tb*100L/(LONG)(Imd->Freq/10);
-	    Delta=ReadTimer()-Imd->StartTime-Tb;
-	    if (Delta<0L)
-	      Delta=0;
-	    if (Delta>150L)
-	      Imd->ToAddTime=TRUE;
-	    else
-	    if (Delta<60)
-	      Imd->ToAddTime=FALSE;
-	    if (Imd->ToAddTime)
-	      Imd->StartTime++;
-	    Tb=ReadTimer()-Imd->StartTime;
-	  }
-	  else
-	    Tb=ReadTimer()-Imd->StartTime;
-	}
-	if (Imd->Type & VMD_SOUND)
-	{
-	  if (n2>500)
-	    d=(LONG)n2*100L*(LONG)Imd->Bytes/(LONG)(Imd->Freq/10);
-	  else
-	    d=(LONG)n2*1000L*(LONG)Imd->Bytes/(LONG)Imd->Freq;
-	  if (Tb<d)
-	    Waiting=TRUE;
+		Tb=GetSoundPos(FALSE)-(ULONG)Imd->StartCount;
+		if (SoundTrack && Imd->Freq<20000)
+			Tb=Tb*100L/(LONG)(RefSoundFrequence/10);
+		else
+			Tb=Tb*100L/(LONG)(Imd->Freq/10);
+		Delta=ReadTimer()-Imd->StartTime-Tb;
+		if (Delta<0L)
+			Delta=0;
+		if (Delta>150L)
+			Imd->ToAddTime=TRUE;
+		else
+		if (Delta<60)
+			Imd->ToAddTime=FALSE;
+		if (Imd->ToAddTime)
+			Imd->StartTime++;
+		Tb=ReadTimer()-Imd->StartTime;
 	}
 	else
 	{
-	  d=(LONG)n2*1000L/(LONG)Imd->Freq;
-	  if (Tb<d)
-	    Waiting=TRUE;
+		Tb=ReadTimer()-Imd->StartTime;
 	}
-      }
-    }
-    else
-    {
-      if (Imd->Type & VMD_SOUND)
-      {
-	if (Imd->OpenInfo & VMD_SOUND)
-	if (IMDinProcess)
-	  if (WaitSync(Imd,Imd->SoundInfo & VMD_NOWAIT))
-	    Waiting=TRUE;
-      }
-      else
-      {
-	LONG d;
-
-	if (Imd->SoundInfo & VMD_NOWAIT)
+	if (Imd->Type & VMD_SOUND)
 	{
-	  if (i_InsertPict==TRUE)
-	  {
-	    DeltaSynchro+=i_InsertPict;
-	    i_InsertPict=UNKNOW;
-	  }
-
-	if(!Imd->Freq)	// kk
-		Imd->Freq = 10;
-
-	  d=Imd->StartTime+(LONG)(n2+DeltaSynchro)*1000L/(LONG)Imd->Freq;
-	  if (ReadTimer()<d)
-	    Waiting=TRUE;
+		if (n2>500)
+			d=(LONG)n2*100L*(LONG)Imd->Bytes/(LONG)(Imd->Freq/10);
+		else
+			d=(LONG)n2*1000L*(LONG)Imd->Bytes/(LONG)Imd->Freq;
 	}
-      }
-    }
-#ifdef  __TRACE__
-    if (Waiting)
-      printf("Wait\n");
-    else
-      printf("Play\n");
-#endif
-    if (Waiting)
-    {
-      if (CachePresent)
-	if (Imd->OpenInfo & VMD_CACHE)
-	  if (Imd->OpenInfo & VMD_PRELOAD)
-	    X_LoadCache(Imd,1);
-      InViewIMD=FALSE;
-      return(VMD_WAITING);
-    }
+	else
+	{
+		d=(LONG)n2*1000L/(LONG)Imd->Freq;
+	}
+
+	if (Imd->Type & VMD_SOUND)
+	{
+		// If we are behind skip outputing to video
+		if (Tb > (d + vmdBehind)) {
+			Ans |= VMD_BEHIND;
+		}
+	}
+
+  	if (!(Imd->SoundInfo & VMD_DECAL1) || n!=1)
+  	{
+    	if (SoundTrack && !(Imd->OpenInfo & VMD_NOTRACK))
+    	{
+      	if (Imd->SoundInfo & VMD_NOWAIT)
+      	{
+				if (Imd->Type & VMD_SOUND)
+				{
+	  				if ((Tb + vmdAhead) < d)
+					{
+	    				Waiting=TRUE;
+					}
+				}
+				else
+				{
+	  				if ((Tb + vmdAhead) < d)
+	    				Waiting=TRUE;
+				}
+      	}
+    	}
+    	else
+    	{
+      	if (Imd->Type & VMD_SOUND)
+      	{
+				if (Imd->OpenInfo & VMD_SOUND)
+					if (IMDinProcess)
+	  					if (WaitSync(Imd,Imd->SoundInfo & VMD_NOWAIT))
+	    					Waiting=TRUE;
+      	}
+      	else
+      	{
+				LONG d;
+
+				if (Imd->SoundInfo & VMD_NOWAIT)
+				{
+	  				if (i_InsertPict==TRUE)
+	  				{
+	    				DeltaSynchro+=i_InsertPict;
+	    				i_InsertPict=UNKNOW;
+	  				}
+
+					if(!Imd->Freq)	// kk
+						Imd->Freq = 10;
+
+	  				d=Imd->StartTime+(LONG)(n2+DeltaSynchro)*1000L/(LONG)Imd->Freq;
+	  				if ((ReadTimer() + vmdAhead) < d)
+	    				Waiting=TRUE;
+				}
+      	}
+    	}
+		#ifdef  __TRACE__
+    		if (Waiting)
+				msgMgr->Mono("Waiting ");
+    		else
+				msgMgr->Mono("Play ");
+		#endif
+    	if (Waiting)
+    	{
+      	if (CachePresent)
+				if (Imd->OpenInfo & VMD_CACHE)
+	  				if (Imd->OpenInfo & VMD_PRELOAD)
+	   				X_LoadCache(Imd,1);
+      	InViewIMD=FALSE;
+      	return(VMD_WAITING);
+    	}
+  	}
   }
 
   if (i_InsertPict==UNKNOW)
@@ -678,8 +665,8 @@ ViewIMD(IMD *Imd,WORD n)
       if (!Imd->S.Zero[Imd->S.CurrentBuffer])
       {
 //far	memset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
-	_fmemset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
-	Imd->S.Zero[Imd->S.CurrentBuffer]=TRUE;
+			_fmemset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
+			Imd->S.Zero[Imd->S.CurrentBuffer]=TRUE;
       }
       Imd->S.LastPtr=Imd->S.Buffer[Imd->S.CurrentBuffer];
       Imd->S.LastSize=Imd->Bytes;
@@ -710,13 +697,13 @@ ViewIMD(IMD *Imd,WORD n)
   IMD_X1=-1;
 
   if (Imd->Bmp && (n==0))
-  	{
+  {
 		// Palette
-    	if (Imd->TempPal)
-      	memcpy(Imd->TempPal,Imd->Pal,768);
-    	if (!(Imd->Type & VMD_NOPAL2) && (Imd->Type & VMD_PAL))
-      	AssignColorsPtr(0,255,0,Imd->Pal);
-  	}
+  	 if (Imd->TempPal)
+    	memcpy(Imd->TempPal,Imd->Pal,768);
+  	 if (!(Imd->Type & VMD_NOPAL2) && (Imd->Type & VMD_PAL))
+   	AssignColorsPtr(0,255,0,Imd->Pal);
+  }
   if (!n)
     Ans|=VMD_PAL;
   for (bl=0;bl!=Imd->NbTrack && BlocInfo->Type;bl++,BlocInfo++)
@@ -725,342 +712,345 @@ ViewIMD(IMD *Imd,WORD n)
 
     switch(BlocInfo->Type)
     {
-
-
-//		  +-----------------------+
-//		  +	Datas Bulles        +
-//		  +-----------------------+
       case BULLE_BLOCK:
-	i_InsertBulle=BlocInfo->More.Bulle.Bulle;
-	strncpy(i_InsertFileDAT,BlocInfo->More.Bulle.Name_DAT,8);
-	i_InsertFileDAT[8]=0;
-	Ans|=VMD_BULLE;
-	Proceed=TRUE;
-	break;
+			//		  +-----------------------+
+			//		  +	Datas Bulles        +
+			//		  +-----------------------+
+			i_InsertBulle=BlocInfo->More.Bulle.Bulle;
+			strncpy(i_InsertFileDAT,BlocInfo->More.Bulle.Name_DAT,8);
+			i_InsertFileDAT[8]=0;
+			Ans|=VMD_BULLE;
+			Proceed=TRUE;
+			break;
 
-
-//		  +-----------------------+
-//		  +	Datas Graphiques    +
-//		  +-----------------------+
       case GRAPH_BLOCK:
-      {
-	WORD X,Y,SizeX,SizeY;
-	UBYTE *OldPtr=IMD_ptr;
-	LONG Size;
-	WORD IX1,IY1,IX2,IY2;
-	LONG T;
+      	{
+			//		  +-----------------------+
+			//		  +	Datas Graphiques    +
+			//		  +-----------------------+
+			WORD 		X,Y,SizeX,SizeY;
+			UBYTE*	OldPtr=IMD_ptr;
+			LONG 		Size;
+			WORD 		IX1,IY1,IX2,IY2;
+			LONG 		T;
 
-	if (SkipNext) {
-	  break;
-}
+			if (SkipNext)
+	  			break;
 
-	if (!Imd->Bmp)
-	  break;
-	Proceed=TRUE;
-	Ans&=~VMD_NULL;
-	X=Imd->X;
-	Y=Imd->Y;
-	SizeX=Imd->SizeX;
-	SizeY=Imd->SizeY;
-	Ans|=BlocInfo->More.Pict.Mode;
-	IX1=Imd->X=BlocInfo->More.Pict.X1;
-	IY1=Imd->Y=BlocInfo->More.Pict.Y1;
-	IX2=Imd->SizeX=BlocInfo->More.Pict.X2-Imd->X+1;
-	IY2=Imd->SizeY=BlocInfo->More.Pict.Y2-Imd->Y+1;
-	IX2+=IX1-1;
-	IY2+=IY1-1;
-	if (IMD_X1==-1)
-	{
-	  IMD_X1=IX1;
-	  IMD_X2=IX2;
-	  IMD_Y1=IY1;
-	  IMD_Y2=IY2;
-	}
-	else
-	{
-	  if (IX1<IMD_X1)
-	    IMD_X1=IX1;
-	  if (IX2>IMD_X2)
-	    IMD_X2=IX2;
-	  if (IY1<IMD_Y1)
-	    IMD_Y1=IY1;
-	  if (IY2>IMD_Y2)
-	    IMD_Y2=IY2;
-	}
+			if (!Imd->Bmp)
+	  			break;
+			Proceed=TRUE;
+			Ans&=~VMD_NULL;
+			X=Imd->X;
+			Y=Imd->Y;
+			SizeX=Imd->SizeX;
+			SizeY=Imd->SizeY;
+			Ans|=BlocInfo->More.Pict.Mode;
+			IX1=Imd->X=BlocInfo->More.Pict.X1;
+			IY1=Imd->Y=BlocInfo->More.Pict.Y1;
+			IX2=Imd->SizeX=BlocInfo->More.Pict.X2-Imd->X+1;
+			IY2=Imd->SizeY=BlocInfo->More.Pict.Y2-Imd->Y+1;
+			IX2+=IX1-1;
+			IY2+=IY1-1;
+			if (IMD_X1==-1)
+			{
+	  			IMD_X1=IX1;
+	  			IMD_X2=IX2;
+	  			IMD_Y1=IY1;
+	  			IMD_Y2=IY2;
+			}
+			else
+			{
+	  			if (IX1<IMD_X1)
+	    			IMD_X1=IX1;
+	  			if (IX2>IMD_X2)
+	    			IMD_X2=IX2;
+	  			if (IY1<IMD_Y1)
+	    			IMD_Y1=IY1;
+	  			if (IY2>IMD_Y2)
+	    			IMD_Y2=IY2;
+			}
 
-	IMDread(n,h,IMD_ptr,Size=BlocInfo->Size);
+			IMDread(n,h,IMD_ptr,Size=BlocInfo->Size);
 
-	i_LastSize=Size;
-	if (i_CheckCPU)
-	  T=ReadTimer();
-	if (BlocInfo->More.Pict.Mode & VMD_PAL)
-	{
-	  WORD c1,c2;
-	  BOOL decal=FALSE;
+			i_LastSize=Size;
+			if (i_CheckCPU)
+	  			T=ReadTimer();
+			if (BlocInfo->More.Pict.Mode & VMD_PAL)
+			{
+	  			WORD c1,c2;
+	  			BOOL decal=FALSE;
 
-	  c1=IMD_ptr[0];
-	  c2=IMD_ptr[1];
-	  IMD_ptr+=2;
-	  if (Imd->TempPal)
-	  {
-	    WORD i;
+	  			c1=IMD_ptr[0];
+	  			c2=IMD_ptr[1];
+	  			IMD_ptr+=2;
+	  			if (Imd->TempPal)
+	  			{
+	    			WORD i;
 
-	    if ((Imd->OpenInfo & 1) && c1==0 && c2==255)
-	    {
-	      decal=TRUE;
-	      for (i=0;i!=256;i++)
-	      {
-		if ((Imd->TempPal[i * 3]!=IMD_ptr[i*3]) ||
-		    (Imd->TempPal[i * 3 + 1] !=IMD_ptr[i*3+1]) ||
-		    (Imd->TempPal[i * 3 + 2] !=IMD_ptr[i*3+2]))
-		  break;
-	      }
-	      c1=i;
-	      if (c1!=256)
-	      {
-		for (i=255;i>c1;i--)
-		{
-		  if ((Imd->TempPal[i * 3] !=IMD_ptr[i*3]) ||
-		      (Imd->TempPal[i * 3 + 1] !=IMD_ptr[i*3+1]) ||
-		      (Imd->TempPal[i * 3 + 2] !=IMD_ptr[i*3+2]))
-		    break;
-		}
-		c2=i;
-	      }
-	      else
-		c2=256;
-	      if (c1!=c2)
-		memcpy(Imd->TempPal +c1,IMD_ptr+c1*3,(c2-c1+1)*3);
-	    }
-	    else
-	      memcpy(Imd->TempPal+c1,IMD_ptr,(c2-c1+1)*3);
-	  }
-	  i_NeedAssignC1=c1;
-	  i_NeedAssignC2=c2;
-	  if (!(Imd->Type & VMD_NOPAL2))
-	  {
-	    WORD m;
-	    UBYTE *ptr=IMD_ptr;
+	    			if ((Imd->OpenInfo & 1) && c1==0 && c2==255)
+	    			{
+	      			decal=TRUE;
+	      			for (i=0;i!=256;i++)
+	      			{
+							if ((Imd->TempPal[i * 3]!=IMD_ptr[i*3])			||
+		   					(Imd->TempPal[i * 3 + 1] != IMD_ptr[i*3+1])	||
+		   					(Imd->TempPal[i * 3 + 2] != IMD_ptr[i*3+2]))
 
-	    for (m=c1;m<=c2;m++)
-	      Video_R[m]=Video_V[m]=Video_B[m]=0;
-	    AssignColors(c1,c2);
-	    NeedAssignPal=TRUE;
-	    if (decal)
-	      ptr+=c1*3;
-	    for (m=c1;m<=c2;m++)
-	    {
-	      Video_R[m]=*ptr++;
-	      Video_V[m]=*ptr++;
-	      Video_B[m]=*ptr++;
-	    }
-	  }
-	  if (decal)
-	  {
-	    IMD_ptr+=768;
-	    Size-=768+2;
-	  }
-	  else
-	  {
-	    IMD_ptr+=(c2-c1+1)*3;
-	    Size-=(c2-c1+1)*3+2;
-	  }
-	  Ans|=VMD_PAL;
-	}
-	if (Size)
-	{
-	  if (Imd->Y+Imd->SizeY>Imd->Bmp->SizeY)
-	    Imd->SizeY=Imd->Bmp->SizeY-Imd->Y;
-	  if (Imd->SizeY>0)
-	  {
-	  	DoIMD_VESA(Imd);
-	  }
-	}
-	if (i_CheckCPU)
-	  i_CPU+=ReadTimer()-T;
-	Imd->X=X;
-	Imd->Y=Y;
-	Imd->SizeX=SizeX;
-	Imd->SizeY=SizeY;
-	IMD_ptr=OldPtr;
-	break;
-      }
+		  						break;
+	      			}
+	      			c1=i;
+	      			if (c1!=256)
+	      			{
+							for (i=255;i>c1;i--)
+							{
+		  						if ((Imd->TempPal[i * 3] != IMD_ptr[i*3])			||
+		   						(Imd->TempPal[i * 3 + 1] != IMD_ptr[i*3+1])	||
+		   						(Imd->TempPal[i * 3 + 2] != IMD_ptr[i*3+2]))
 
+		   						break;
+							}
+							c2=i;
+	      			}
+	      			else
+							c2=256;
+	      			if (c1 != c2)
+							memcpy(Imd->TempPal +c1,IMD_ptr+c1*3,(c2-c1+1)*3);
+	    			}
+	    			else
+	      			memcpy(Imd->TempPal+c1,IMD_ptr,(c2-c1+1)*3);
+	  			}
+	  			i_NeedAssignC1=c1;
+	  			i_NeedAssignC2=c2;
+	  			if (!(Imd->Type & VMD_NOPAL2))
+	  			{
+	    			WORD m;
+	    			UBYTE *ptr=IMD_ptr;
 
-//		  +-----------------------+
-//		  +	Datas Track         +
-//		  +-----------------------+
+// HOOK
+// This should eventually be:
+// change restricted palette to black
+// put out a frame
+// then change palette to correct palette
+// (this is what the flag NeeAssignPal	is trying to do
+// but the two palette changes come together with no frame
+// between the palette changes)
+//	    			for (m=c1;m<=c2;m++)
+//	      			Video_R[m]=Video_V[m]=Video_B[m]=0;
+//	    			AssignColors(c1,c2);
+	    			NeedAssignPal=TRUE;
+	    			if (decal)
+	      			ptr+=c1*3;
+	    			for (m=c1;m<=c2;m++)
+	    			{
+	      			Video_R[m]=*ptr++;
+	      			Video_V[m]=*ptr++;
+	      			Video_B[m]=*ptr++;
+	    			}
+	  			}
+	  			if (decal)
+	  			{
+	    			IMD_ptr+=768;
+	    			Size-=768+2;
+	  			}
+	  			else
+	  			{
+	    			IMD_ptr+=(c2-c1+1)*3;
+	    			Size-=(c2-c1+1)*3+2;
+	  			}
+	  			Ans|=VMD_PAL;
+			}
+			if (Size)
+			{
+	  			if (Imd->Y+Imd->SizeY>Imd->Bmp->SizeY)
+	    			Imd->SizeY=Imd->Bmp->SizeY-Imd->Y;
+	  			if (Imd->SizeY>0)
+	  				DoIMD_VESA(Imd);
+			}
+			if (i_CheckCPU)
+	  			i_CPU+=ReadTimer()-T;
+			Imd->X=X;
+			Imd->Y=Y;
+			Imd->SizeX=SizeX;
+			Imd->SizeY=SizeY;
+			IMD_ptr=OldPtr;
+			break;
+      	}
+
       case DATA_BLOCK:
-	if (!DataInstall)
-	  break;
-	if (!(Imd->OpenInfo & VMD_DATA))
-	  break;
-	Proceed=X_DataMerge(n,h,BlocInfo);
-	if (Proceed)
-	{
-	  WORD i;
-	  BLOCINFO  *BlocInfo;
-	  WORD bl;
+			//		  +-----------------------+
+			//		  +	Datas Track         +
+			//		  +-----------------------+
+			if (!DataInstall)
+	  			break;
+			if (!(Imd->OpenInfo & VMD_DATA))
+	  			break;
+			Proceed=X_DataMerge(n,h,BlocInfo);
+			if (Proceed)
+			{
+	  			WORD 			i;
+	  			BLOCINFO*	BlocInfo;
+	  			WORD 			bl;
 
-	  NextDataPict=32000;
-	  for (i=n+1;i<Imd->NbPict;i++)
-	  {
-	    BlocInfo=&Imd->BlocInfo[i*Imd->NbTrack];
-	    for (bl=0;bl!=Imd->NbTrack && BlocInfo->Type;bl++,BlocInfo++)
-	    {
-	      if (BlocInfo->Type==DATA_BLOCK)
-	      {
-		NextDataPict=i;
-		break;
-	      }
-	    }
-	    if (NextDataPict!=32000)
-	      break;
-	  }
-	}
-	break;
+	  			NextDataPict=32000;
+	  			for (i=n+1;i<Imd->NbPict;i++)
+	  			{
+	    			BlocInfo=&Imd->BlocInfo[i*Imd->NbTrack];
+	    			for (bl=0;bl!=Imd->NbTrack && BlocInfo->Type;bl++,BlocInfo++)
+	    			{
+	      			if (BlocInfo->Type==DATA_BLOCK)
+	      			{
+							NextDataPict=i;
+							break;
+	      			}
+	    			}
+	    			if (NextDataPict!=32000)
+	      			break;
+	  			}
+			}
+			break;
 
-//		  +-----------------------+
-//		  +	Datas Sonores		  +
-//		  +-----------------------+
       case SND_BLOCK:
-      {
-	if (!Imd->S.Sound.Start)
-	  break;
-	Proceed=TRUE;
-	switch(BlocInfo->More.Sound.Mode)
-	{
-	  case SILENT_SOUND:
-	    if (!Imd->S.Zero[Imd->S.CurrentBuffer])
-	    {
-//far	      memset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
-	      _fmemset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
-	      Imd->S.Zero[Imd->S.CurrentBuffer]=TRUE;
-	    }
-	    Imd->S.LastPtr=Imd->S.Buffer[Imd->S.CurrentBuffer];
-	    Imd->S.LastSize=Imd->Bytes;
-	    break;
-	  case CURRENT_SOUND:
-	    Imd->S.Zero[Imd->S.CurrentBuffer]=FALSE;
-	    if (Imd->FixedParams & (VMD_11K+VMD_8BITS))
-	    {
-//	      UBYTE *p,*p2;
-	      UBYTE far *p;
-	      UBYTE *p2;
-	      WORD j;
+			//		  +-----------------------+
+			//		  +	Datas Sonores		  +
+			//		  +-----------------------+
+      	{
+			if (!Imd->S.Sound.Start)
+	  		break;
+			Proceed=TRUE;
+			switch(BlocInfo->More.Sound.Mode)
+			{
+	  		case SILENT_SOUND:
+	    		if (!Imd->S.Zero[Imd->S.CurrentBuffer])
+	    		{
+//far	      	memset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
+	      		_fmemset(Imd->S.Buffer[Imd->S.CurrentBuffer],128,Imd->Bytes);
+	      		Imd->S.Zero[Imd->S.CurrentBuffer]=TRUE;
+	    		}
+	    		Imd->S.LastPtr=Imd->S.Buffer[Imd->S.CurrentBuffer];
+	    		Imd->S.LastSize=Imd->Bytes;
+	    		break;
+	  		case CURRENT_SOUND:
+	    		Imd->S.Zero[Imd->S.CurrentBuffer]=FALSE;
+	    		if (Imd->FixedParams & (VMD_11K+VMD_8BITS))
+	    		{
+//	      		UBYTE *p,*p2;
+	      		UBYTE far *p;
+	      		UBYTE *p2;
+	      		WORD j;
 
-	      IMDread(n,h,i_TempResample,Imd->S.oBytes);
-	      p=Imd->S.Buffer[Imd->S.CurrentBuffer];
-	      p2=i_TempResample;
-	      if ((Imd->FixedParams & VMD_11K) &&
-		  (Imd->FixedParams & VMD_8BITS))
-	      {
-		for (j=0;j!=Imd->Bytes;j++,p2+=4)
-		  *p++=*p2;
-	      }
-	      else
-	      {
-		for (j=0;j!=Imd->Bytes;j++,p2+=2)
-		  *p++=*p2;
-	      }
-	    }
-	    else
-//far	      IMDread(n,h,Imd->S.Buffer[Imd->S.CurrentBuffer],Imd->Bytes);
-	      _fIMDread(n,h,Imd->S.Buffer[Imd->S.CurrentBuffer],Imd->Bytes);
-	    Imd->S.LastPtr=Imd->S.Buffer[Imd->S.CurrentBuffer];
-	    Imd->S.LastSize=Imd->Bytes;
-	    break;
-	  case START_SOUND:
-	  {
-	    ULONG Pack;
-	    WORD i,d;
+	      		IMDread(n,h,i_TempResample,Imd->S.oBytes);
+	      		p = Imd->S.Buffer[Imd->S.CurrentBuffer];
+	      		p2 = i_TempResample;
+	      		if ((Imd->FixedParams & VMD_11K) 	&&
+		  				(Imd->FixedParams & VMD_8BITS))
+	      		{
+						for (j=0;j!=Imd->Bytes;j++,p2+=4)
+		  					*p++=*p2;
+	      		}
+	      		else
+	      		{
+						for (j=0;j!=Imd->Bytes;j++,p2+=2)
+		  				*p++=*p2;
+	      		}
+	    		}
+	    		else
+//far	      	IMDread(n,h,Imd->S.Buffer[Imd->S.CurrentBuffer],Imd->Bytes);
+	      		_fIMDread(n,h,Imd->S.Buffer[Imd->S.CurrentBuffer],Imd->Bytes);
+	    		Imd->S.LastPtr=Imd->S.Buffer[Imd->S.CurrentBuffer];
+	    		Imd->S.LastSize=Imd->Bytes;
+	    		break;
+	  		case START_SOUND:
+				{
+	    		ULONG Pack;
+	    		WORD 	i,d;
 
-	    if (Imd->OpenInfo & VMD_SOUND)
-	    {
-	      if (SoundTrack && !(Imd->OpenInfo & VMD_NOTRACK))
-	      {
-		if (Imd->S.Track!=9)
-		{
-		  X_StopSound(Imd->S.Track,0);
-		  IMDinProcess--;
-		  if (IMDinProcess==FALSE)
-		    IMDinProcess=TRUE;
-		}
-	      }
-	      else
-	      {
-		GXstopSound(0);
-		IMDinProcess=TRUE;
-	      }
-	      LaunchSound=TRUE;
-	    }
-	    SkipNext=FALSE;
-	    IMDread(n,h,&Pack,4);
-	    if (Imd->SoundInfo & VMD_SOUND_DECAL1)
-	      d=1;
-	    else
-	      d=0;
-	    if (Imd->SoundInfo & VMD_DECAL1)
-	    {
-//far	      IMDread(n,h,Imd->S.Buffer[0],Imd->Bytes);
-	      _fIMDread(n,h,Imd->S.Buffer[0],Imd->Bytes);
-	      d++;
-	    }
-	    for (i=0;i!=Imd->NbBuffer-d;i++)
-	    {
-	      Imd->S.Zero[i]=FALSE;
-	      if (Pack & 1)
-//far		memset(Imd->S.Buffer[i],128,Imd->Bytes);
-		_fmemset(Imd->S.Buffer[i],128,Imd->Bytes);
-	      else
-	      {
-		if (Imd->FixedParams & (VMD_11K+VMD_8BITS))
-		{
-//		  UBYTE *p,*p2;
-		  UBYTE far *p;
-		  UBYTE *p2;
-		  WORD j;
+	    		if (Imd->OpenInfo & VMD_SOUND)
+	    		{
+	      		if (SoundTrack && !(Imd->OpenInfo & VMD_NOTRACK))
+	      		{
+						if (Imd->S.Track!=9)
+						{
+		  					X_StopSound(Imd->S.Track,0);
+		  					IMDinProcess--;
+		  					if (IMDinProcess==FALSE)
+		   					IMDinProcess=TRUE;
+						}
+	      		}
+	      		else
+	      		{
+						GXstopSound(0);
+						IMDinProcess=TRUE;
+	      		}
+	      		LaunchSound=TRUE;
+	    		}
+	    		SkipNext=FALSE;
+	    		IMDread(n,h,&Pack,4);
+	    		if (Imd->SoundInfo & VMD_SOUND_DECAL1)
+	      		d=1;
+	    		else
+	      		d=0;
+	    		if (Imd->SoundInfo & VMD_DECAL1)
+	    		{
+//far	   		IMDread(n,h,Imd->S.Buffer[0],Imd->Bytes);
+	      		_fIMDread(n,h,Imd->S.Buffer[0],Imd->Bytes);
+	      		d++;
+	    		}
+	    		for (i=0;i!=Imd->NbBuffer-d;i++)
+	    		{
+	      		Imd->S.Zero[i]=FALSE;
+	      		if (Pack & 1)
+//far					memset(Imd->S.Buffer[i],128,Imd->Bytes);
+						_fmemset(Imd->S.Buffer[i],128,Imd->Bytes);
+	      		else
+	      		{
+						if (Imd->FixedParams & (VMD_11K+VMD_8BITS))
+						{
+//		  					UBYTE *p,*p2;
+		  					UBYTE far *p;
+		  					UBYTE *p2;
+		  					WORD j;
 
-		  IMDread(n,h,i_TempResample,Imd->S.oBytes);
-		  p=Imd->S.Buffer[i];
-		  p2=i_TempResample;
-		  if ((Imd->FixedParams & VMD_11K) &&
-		      (Imd->FixedParams & VMD_8BITS))
-		  {
-		    for (j=0;j!=Imd->Bytes;j++,p2+=4)
-		      *p++=*p2;
-		  }
-		  else
-		  {
-		    for (j=0;j!=Imd->Bytes;j++,p2+=2)
-		      *p++=*p2;
-		  }
-		}
-		else
-//far		  IMDread(n,h,Imd->S.Buffer[i],Imd->Bytes);
-		  _fIMDread(n,h,Imd->S.Buffer[i],Imd->Bytes);
-	      }
-	      Pack>>=1;
-	    }
-	    Imd->S.LastPtr=Imd->S.Buffer[0];
-	    Imd->S.LastSize=Imd->Bytes*(Imd->NbBuffer-d);
-	    Imd->S.CurrentBuffer=Imd->NbBuffer-1-d;
-	    LastWhere=-1;
-	    Imd->S.TotalBuffers=Imd->S.CurrentBuffer;
-	    break;
-	  }
-	}
-	break;
-      }
+		  					IMDread(n,h,i_TempResample,Imd->S.oBytes);
+		  					p = Imd->S.Buffer[i];
+		  					p2 = i_TempResample;
+		  					if ((Imd->FixedParams & VMD_11K)		&&
+		   					(Imd->FixedParams & VMD_8BITS))
+		  					{
+		   					for (j=0;j!=Imd->Bytes;j++,p2+=4)
+		   						*p++=*p2;
+		  					}
+		  					else
+		  					{
+		   					for (j=0;j!=Imd->Bytes;j++,p2+=2)
+		   						*p++=*p2;
+		  					}
+						}
+						else
+//far						IMDread(n,h,Imd->S.Buffer[i],Imd->Bytes);
+		  					_fIMDread(n,h,Imd->S.Buffer[i],Imd->Bytes);
+	      		}
+	      		Pack>>=1;
+	    		}
+	    		Imd->S.LastPtr=Imd->S.Buffer[0];
+	    		Imd->S.LastSize=Imd->Bytes*(Imd->NbBuffer-d);
+	    		Imd->S.CurrentBuffer=Imd->NbBuffer-1-d;
+	    		LastWhere=-1;
+	    		Imd->S.TotalBuffers=Imd->S.CurrentBuffer;
+	    		break;
+	  			}
+			}
+			break;
+      	}
     }
     if (!Proceed)
     {
-      if (BlocInfo->Size)
+    	if (BlocInfo->Size)
       {
-	if (CachePresent)
-	  X_SeekCache(h,BlocInfo->Size,SEEK_CUR);
-	else
-	  GXlseek(h,BlocInfo->Size,SEEK_CUR);
+			if (CachePresent)
+	  			X_SeekCache(h,BlocInfo->Size,SEEK_CUR);
+			else
+	  			GXlseek(h,BlocInfo->Size,SEEK_CUR);
       }
     }
   }
@@ -1081,7 +1071,7 @@ ViewIMD(IMD *Imd,WORD n)
       LaunchSound=TRUE;
       Imd->S.CurrentBuffer=Imd->NbBuffer-1;
       if (Imd->SoundInfo & VMD_SOUND_DECAL1)
-	Imd->S.CurrentBuffer--;
+			Imd->S.CurrentBuffer--;
       LastWhere=-1;
       Imd->S.TotalBuffers=Imd->S.CurrentBuffer;
     }
@@ -1091,24 +1081,24 @@ ViewIMD(IMD *Imd,WORD n)
     {
       if (SoundTrack && !(Imd->OpenInfo & VMD_NOTRACK))
       {
-	NextTrackImd=Imd;
-	NextTrackLevel=Imd->S.Level;
-	if (!n)
-	{
-	  Imd->StartTime=ReadTimer();
-	  OkTime=TRUE;
-	}
-	Imd->S.Track=X_StartSound(999,&Imd->S.Sound,0,0);
-	Imd->StartCount=i_TrackSoundStart;
-	Imd->ToAddTime=FALSE;
-	IMDinProcess++;
+			NextTrackImd=Imd;
+			NextTrackLevel=Imd->S.Level;
+			if (!n)
+			{
+	  			Imd->StartTime=ReadTimer();
+	  			OkTime=TRUE;
+			}
+			Imd->S.Track=X_StartSound(999,&Imd->S.Sound,0,0);
+			Imd->StartCount=i_TrackSoundStart;
+			Imd->ToAddTime=FALSE;
+			IMDinProcess++;
       }
       else
       {
-//	GXstartSound(&Imd->S.Sound,0,0);
-	GXstartSound(&Imd->S.Sound,0,Imd->Freq);
-	if (SoundInProcess)
-	  IMDinProcess=UNKNOW;
+//			GXstartSound(&Imd->S.Sound,0,0);
+			GXstartSound(&Imd->S.Sound,0,Imd->Freq);
+			if (SoundInProcess)
+	  			IMDinProcess=UNKNOW;
       }
     }
     if (n==Imd->NbPict-1 && (!SoundTrack || (Imd->OpenInfo & VMD_NOTRACK)))
@@ -1148,8 +1138,6 @@ ViewIMD(IMD *Imd,WORD n)
 #endif
   return(Ans);
 }
-
-
 
 BLOCINFO*
 GetActiveTrack(IMD *Imd,WORD n,WORD mode)

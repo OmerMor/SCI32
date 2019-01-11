@@ -29,6 +29,7 @@ SNodeData far *nodeBuffPtr[NUMSOUNDNODES];
 
 char	far	*midiBuffPtr[NUMMIDIBUFFS];
 BOOL			midiBuffInUse[NUMMIDIBUFFS];
+int			midiBuffContents[NUMMIDIBUFFS];
 
 #endif
 
@@ -138,13 +139,17 @@ void  FreeSNodeData(Sound *sn)
 		}
 
 	_disable();
+
 	FreeWinMem((void far *)(sn->sDataPtr), PAGELOCK);
+
 	_enable();
 
 #else
 
 	_disable();
+
 	FreeWinMem((void *)(sn->sDataPtr), PAGELOCK);
+
 	_enable();
 #endif
 }
@@ -153,10 +158,12 @@ void	AllocMidiData(Sound *sn, int size)
 {
 #ifndef WIN32S
 char far *lpMem;
+int	i;
 
-	for (int i = 0; i < NUMMIDIBUFFS; i++) {
+	for (i = 0; i < NUMMIDIBUFFS; i++) {
 		if ((size < midiBuffSize[i]) && (!midiBuffInUse[i])) {
 			midiBuffInUse[i] = TRUE;
+			midiBuffContents[i] = size;
 			(sn->sDataPtr)->sMidiPtr32 = midiBuffPtr[i];
 			_fmemcpy(midiBuffPtr[i], (void __far *)(sn->sPointer), size);
 			return;
@@ -166,19 +173,33 @@ char far *lpMem;
 #ifdef DEBUG
 	sprintf(mbuff,"midi cache overflow:%d",size);
 	SciDisplay(mbuff);
+	for (i = 0; i < NUMMIDIBUFFS; i++) {
+		if (midiBuffSize[i]) {
+			if (midiBuffInUse[i])
+				sprintf(mbuff,"buff%d %d:%d",i,midiBuffSize[i],midiBuffContents[i]);
+			else
+				sprintf(mbuff,"buff%d %d:%d",i,midiBuffSize[i],0);
+			SciDisplay(mbuff);
+		}
+	}
 #endif
 
 	_disable();
+
 	lpMem = (char far *)AllocWinMem(size, PAGELOCK);
+
 	(sn->sDataPtr)->sMidiPtr32 = (char far *)lpMem;
 	_fmemcpy((char far *)lpMem, (void __far *)(sn->sPointer), size);
+
 	_enable();
 
 #else
 
 	_disable();
+
 	(sn->sDataPtr)->sMidiPtr32 = (char *)AllocWinMem(size, PAGELOCK);
 	memcpy((sn->sDataPtr)->sMidiPtr32, sn->sPointer, size);
+
 	_enable();
 #endif
 }
@@ -198,13 +219,17 @@ char far *lpMem;
 	}
 
 	_disable();
+
 	FreeWinMem((void far *)lpMem, PAGELOCK);
+
 	_enable();
 
 #else
 
 	_disable();
+
 	FreeWinMem((void *)(sn->sDataPtr)->sMidiPtr32, PAGELOCK);
+
 	_enable();
 #endif
 }

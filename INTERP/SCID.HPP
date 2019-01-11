@@ -28,6 +28,7 @@ struct SCIDOS : SCIIBM {
 	TimeMgr*			 	MakeTimeMgr();
 	ErrorMgr*       	MakeErrorMgr();
 };
+void		EndVESA();
 
 #endif
 

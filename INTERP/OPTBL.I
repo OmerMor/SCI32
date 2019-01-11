@@ -1,0 +1,475 @@
+;; OPTBL.I
+;; 
+;; PMachine opcode jump table declaration
+;;
+;; Author: Stephen Nichols
+;;
+
+opTbl	label	dword
+	dword	OP_bnot				;00
+	dword	BadOp					;01
+	dword	OP_add				;02
+	dword	BadOp					;03
+	dword	OP_sub				;04
+	dword	BadOp					;05
+	dword	OP_mul				;06
+	dword	BadOp					;07
+	dword	OP_div				;08
+	dword	BadOp					;09
+	dword	OP_mod				;0A
+	dword	BadOp					;0B
+	dword	OP_shr				;0C
+	dword	BadOp					;0D
+	dword	OP_shl				;0E
+	dword	BadOp					;0F
+	dword	OP_xor				;10
+	dword	BadOp					;11
+	dword	OP_and				;12
+	dword	BadOp					;13
+	dword	OP_or					;14
+	dword	BadOp					;15
+	dword	OP_neg				;16
+	dword	BadOp					;17
+	dword	OP_not				;18
+	dword	BadOp					;19
+	dword	OP_eq					;1A
+	dword	BadOp					;1B
+	dword	OP_ne					;1C
+	dword	BadOp					;1D
+	dword	OP_gt					;1E
+	dword	BadOp					;1F
+	dword	OP_ge					;20
+	dword	BadOp					;21
+	dword	OP_lt					;22
+	dword	BadOp					;23
+	dword	OP_le					;24
+	dword	BadOp					;25
+	dword	OP_ugt				;26
+	dword	BadOp					;27
+	dword	OP_uge				;28
+	dword	BadOp					;29
+	dword	OP_ult				;2A
+	dword	BadOp					;2B
+	dword	OP_ule				;2C
+	dword	BadOp					;2D
+	dword	OP_bt_word			;2E
+	dword	OP_bt_byte			;2F
+	dword	OP_bnt_word			;30
+	dword	OP_bnt_byte			;31
+	dword	OP_jmp_word			;32
+	dword	OP_jmp_byte			;33
+	dword	OP_loadi_word		;34
+	dword	OP_loadi_byte		;35
+	dword	OP_push				;36
+	dword	BadOp					;37
+	dword	OP_pushi_word		;38
+	dword	OP_pushi_byte		;39
+	dword	OP_toss				;3A
+	dword	BadOp					;3B
+	dword	OP_dup				;3C
+	dword	BadOp					;3D
+	dword	OP_link_word		;3E
+	dword	OP_link_byte		;3F
+	dword	OP_call_word		;40
+	dword	OP_call_byte		;41
+	dword	OP_callk_word		;42
+	dword	OP_callk_byte		;43
+	dword	OP_callb_word		;44
+	dword	OP_callb_byte		;45
+	dword	OP_calle_word		;46
+	dword	OP_calle_byte		;47
+	dword	OP_ret				;48
+	dword	BadOp					;49
+	dword	OP_send_byte		;4A
+	dword	BadOp					;4B
+	dword	BadOp					;4C
+	dword	BadOp					;4D
+	dword	BadOp					;4E
+	dword	BadOp					;4F
+	dword	OP_class_word		;50
+	dword	OP_class_byte		;51
+	dword	BadOp					;52
+	dword	BadOp					;53
+	dword	OP_self				;54
+	dword	OP_self				;55
+	dword	OP_super_word		;56
+	dword	OP_super_byte		;57
+	dword	BadOp					;58
+	dword	OP_rest_byte		;59
+	dword	OP_lea_word			;5A
+	dword	OP_lea_byte			;5B
+	dword	OP_selfID			;5C
+	dword	BadOp					;5D
+	dword	BadOp					;5E
+	dword	BadOp					;5F
+	dword	OP_pprev				;60
+	dword	BadOp					;61
+	dword	OP_pToa_word		;62		;load prop to acc
+	dword	OP_pToa_byte		;63		;load prop to acc
+	dword	OP_aTop_word		;64		;store acc to prop
+	dword	OP_aTop_byte		;65		;store acc to prop
+	dword	OP_pTos_word		;66		;load prop to stack
+	dword	OP_pTos_byte		;67		;load prop to stack
+	dword	OP_sTop_word		;68		;store stack to prop
+	dword	OP_sTop_byte		;69		;store stack to prop
+	dword	OP_ipToa_word		;6A		;inc prop
+	dword	OP_ipToa_byte		;6B		;inc prop
+	dword	OP_dpToa_word		;6C		;dec prop
+	dword	OP_dpToa_byte		;6D		;dec prop
+	dword	OP_ipTos_word		;6E		;inc prop to stack
+	dword	OP_ipTos_byte		;6F		;inc prop to stack
+	dword	OP_dpTos_word		;70		;dec prop to stack
+	dword	OP_dpTos_byte		;71		;dec prop to stack
+	dword	OP_lofsa				;72
+	dword	BadOp					;73
+	dword	OP_lofss				;74
+	dword	BadOp					;75
+	dword	OP_push0				;76
+	dword	BadOp					;77
+	dword	OP_push1				;78
+	dword	BadOp					;79
+	dword	OP_push2				;7A
+	dword	BadOp					;7B
+	dword	OP_pushSelf			;7C
+	dword	OP_filename			;7D
+	dword	OP_linenum			;7E
+	dword	BadOp					;7F
+	dword	OP_lag_word			;80
+	dword	OP_lag_byte			;81
+	dword	OP_lal_word			;82
+	dword	OP_lal_byte			;83
+	dword	OP_lat_word			;84
+	dword	OP_lat_byte			;85
+	dword	OP_lap_word			;86
+	dword	OP_lap_byte			;87
+	dword	OP_lsg_word			;88
+	dword	OP_lsg_byte			;89
+	dword	OP_lsl_word			;8A
+	dword	OP_lsl_byte			;8B
+	dword	OP_lst_word			;8C
+	dword	OP_lst_byte			;8D
+	dword	OP_lsp_word			;8E
+	dword	OP_lsp_byte			;8F
+	dword	OP_lagi_word		;90
+	dword	OP_lagi_byte		;91
+	dword	OP_lali_word		;92
+	dword	OP_lali_byte		;93
+	dword	OP_lati_word		;94
+	dword	OP_lati_byte		;95
+	dword	OP_lapi_word		;96
+	dword	OP_lapi_byte		;97
+	dword	OP_lsgi_word		;98
+	dword	OP_lsgi_byte		;99
+	dword	OP_lsli_word		;9A
+	dword	OP_lsli_byte		;9B
+	dword	OP_lsti_word		;9C
+	dword	OP_lsti_byte		;9D
+	dword	OP_lspi_word		;9E
+	dword	OP_lspi_byte		;9F
+	dword	OP_sag_word			;A0
+	dword	OP_sag_byte			;A1
+	dword	OP_sal_word			;A2
+	dword	OP_sal_byte			;A3
+	dword	OP_sat_word			;A4
+	dword	OP_sat_byte			;A5
+	dword	OP_sap_word			;A6
+	dword	OP_sap_byte			;A7
+	dword	OP_ssg_word			;A8
+	dword	OP_ssg_byte			;A9
+	dword	OP_ssl_word			;AA
+	dword	OP_ssl_byte			;AB
+	dword	OP_sst_word			;AC
+	dword	OP_sst_byte			;AD
+	dword	OP_ssp_word			;AE
+	dword	OP_ssp_byte			;AF
+	dword	OP_sagi_word		;B0
+	dword	OP_sagi_byte		;B1
+	dword	OP_sali_word		;B2
+	dword	OP_sali_byte		;B3
+	dword	OP_sati_word		;B4
+	dword	OP_sati_byte		;B5
+	dword	OP_sapi_word		;B6
+	dword	OP_sapi_byte		;B7
+	dword	OP_ssgi_word		;B8
+	dword	OP_ssgi_byte		;B9
+	dword	OP_ssli_word		;BA
+	dword	OP_ssli_byte		;BB
+	dword	OP_ssti_word		;BC
+	dword	OP_ssti_byte		;BD
+	dword	OP_sspi_word		;BE
+	dword	OP_sspi_byte		;BF
+	dword	OP_iag_word			;C0
+	dword	OP_iag_byte			;C1
+	dword	OP_ial_word			;C2
+	dword	OP_ial_byte			;C3
+	dword	OP_iat_word			;C4
+	dword	OP_iat_byte			;C5
+	dword	OP_iap_word			;C6
+	dword	OP_iap_byte			;C7
+	dword	OP_isg_word			;C8
+	dword	OP_isg_byte			;C9
+	dword	OP_isl_word			;CA
+	dword	OP_isl_byte			;CB
+	dword	OP_ist_word			;CC
+	dword	OP_ist_byte			;CD
+	dword	OP_isp_word			;CE
+	dword	OP_isp_byte			;CF
+	dword	OP_iagi_word		;D0
+	dword	OP_iagi_byte		;D1
+	dword	OP_iali_word		;D2
+	dword	OP_iali_byte		;D3
+	dword	OP_iati_word		;D4
+	dword	OP_iati_byte		;D5
+	dword	OP_iapi_word		;D6
+	dword	OP_iapi_byte		;D7
+	dword	OP_isgi_word		;D8
+	dword	OP_isgi_byte		;D9
+	dword	OP_isli_word		;DA
+	dword	OP_isli_byte		;DB
+	dword	OP_isti_word		;DC
+	dword	OP_isti_byte		;DD
+	dword	OP_ispi_word		;DE
+	dword	OP_ispi_byte		;DF
+	dword	OP_dag_word			;E0
+	dword	OP_dag_byte			;E1
+	dword	OP_dal_word			;E2
+	dword	OP_dal_byte			;E3
+	dword	OP_dat_word			;E4
+	dword	OP_dat_byte			;E5
+	dword	OP_dap_word			;E6
+	dword	OP_dap_byte			;E7
+	dword	OP_dsg_word			;E8
+	dword	OP_dsg_byte			;E9
+	dword	OP_dsl_word			;EA
+	dword	OP_dsl_byte			;EB
+	dword	OP_dst_word			;EC
+	dword	OP_dst_byte			;ED
+	dword	OP_dsp_word			;EE
+	dword	OP_dsp_byte			;EF
+	dword	OP_dagi_word		;F0
+	dword	OP_dagi_byte		;F1
+	dword	OP_dali_word		;F2
+	dword	OP_dali_byte		;F3
+	dword	OP_dati_word		;F4
+	dword	OP_dati_byte		;F5
+	dword	OP_dapi_word		;F6
+	dword	OP_dapi_byte		;F7
+	dword	OP_dsgi_word		;F8
+	dword	OP_dsgi_byte		;F9
+	dword	OP_dsli_word		;FA
+	dword	OP_dsli_byte		;FB
+	dword	OP_dsti_word		;FC
+	dword	OP_dsti_byte		;FD
+	dword	OP_dspi_word		;FE
+	dword	OP_dspi_byte		;FF	 
+
+OPbnot			EQU	00h
+OPadd				EQU	02h
+OPsub				EQU	04h
+OPmul				EQU	06h
+OPdiv				EQU	08h
+OPmod				EQU	0Ah
+OPshr				EQU	0Ch
+OPshl				EQU	0Eh
+OPxor				EQU	10h
+OPand				EQU	12h
+OPor				EQU	14h
+OPneg				EQU	16h
+OPnot				EQU	18h
+OPeq				EQU	1Ah
+OPne				EQU	1Ch
+OPgt				EQU	1Eh
+OPge				EQU	20h
+OPlt				EQU	22h
+OPle				EQU	24h
+OPugt				EQU	26h
+OPuge				EQU	28h
+OPult				EQU	2Ah
+OPule				EQU	2Ch
+OPbtword			EQU	2Eh
+OPbtbyte			EQU	2Fh
+OPbntword		EQU	30h
+OPbntbyte		EQU	31h
+OPjmpword		EQU	32h
+OPjmpbyte		EQU	33h
+OPloadiword		EQU	34h
+OPloadibyte		EQU	35h
+OPpush			EQU	36h
+OPpushiword		EQU	38h
+OPpushibyte		EQU	39h
+OPtoss			EQU	3Ah
+OPdup				EQU	3Ch
+OPlinkword		EQU	3Eh
+OPlinkbyte		EQU	3Fh
+OPcallword		EQU	40h
+OPcallbyte		EQU	41h
+OPcallkword		EQU	42h
+OPcallkbyte		EQU	43h
+OPcallbword		EQU	44h
+OPcallbbyte		EQU	45h
+OPcalleword		EQU	46h
+OPcallebyte		EQU	47h
+OPret				EQU	48h
+OPsendbyte		EQU	4Ah
+OPclassword		EQU	50h
+OPclassbyte		EQU	51h
+OPself			EQU	54h
+OPsuperword		EQU	56h
+OPsuperbyte		EQU	57h
+OPrestbyte		EQU	59h
+OPleaword		EQU	5Ah
+OPleabyte		EQU	5Bh
+OPselfID			EQU	5Ch
+OPpprev			EQU	60h
+OPpToaword		EQU	62h
+OPpToabyte		EQU	63h
+OPaTopword		EQU	64h
+OPaTopbyte		EQU	65h
+OPpTosword		EQU	66h
+OPpTosbyte		EQU	67h
+OPsTopword		EQU	68h
+OPsTopbyte		EQU	69h
+OPipToaword		EQU	6Ah
+OPipToabyte		EQU	6Bh
+OPdpToaword		EQU	6Ch
+OPdpToabyte		EQU	6Dh
+OPipTosword		EQU	6Eh
+OPipTosbyte		EQU	6Fh
+OPdpTosword		EQU	70h
+OPdpTosbyte		EQU	71h
+OPlofsa			EQU	72h
+OPlofss			EQU	74h
+OPpush0			EQU	76h
+OPpush1			EQU	78h
+OPpush2			EQU	7Ah
+OPpushSelf		EQU	7Ch
+OPlineNum		EQU	7Eh
+OPlagword		EQU	80h
+OPlagbyte		EQU	81h
+OPlalword		EQU	82h
+OPlalbyte		EQU	83h
+OPlatword		EQU	84h
+OPlatbyte		EQU	85h
+OPlapword		EQU	86h
+OPlapbyte		EQU	87h
+OPlsgword		EQU	88h
+OPlsgbyte		EQU	89h
+OPlslword		EQU	8Ah
+OPlslbyte		EQU	8Bh
+OPlstword		EQU	8Ch
+OPlstbyte		EQU	8Dh
+OPlspword		EQU	8Eh
+OPlspbyte		EQU	8Fh
+OPlagiword		EQU	90h
+OPlagibyte		EQU	91h
+OPlaliword		EQU	92h
+OPlalibyte		EQU	93h
+OPlatiword		EQU	94h
+OPlatibyte		EQU	95h
+OPlapiword		EQU	96h
+OPlapibyte		EQU	97h
+OPlsgiword		EQU	98h
+OPlsgibyte		EQU	99h
+OPlsliword		EQU	9Ah
+OPlslibyte		EQU	9Bh
+OPlstiword		EQU	9Ch
+OPlstibyte		EQU	9Dh
+OPlspiword		EQU	9Eh
+OPlspibyte		EQU	9Fh
+OPsagword		EQU	A0h
+OPsagbyte		EQU	A1h
+OPsalword		EQU	A2h
+OPsalbyte		EQU	A3h
+OPsatword		EQU	A4h
+OPsatbyte		EQU	A5h
+OPsapword		EQU	A6h
+OPsapbyte		EQU	A7h
+OPssgword		EQU	A8h
+OPssgbyte		EQU	A9h
+OPsslword		EQU	AAh
+OPsslbyte		EQU	ABh
+OPsstword		EQU	ACh
+OPsstbyte		EQU	ADh
+OPsspword		EQU	AEh
+OPsspbyte		EQU	AFh
+OPsagiword		EQU	B0h
+OPsagibyte		EQU	B1h
+OPsaliword		EQU	B2h
+OPsalibyte		EQU	B3h
+OPsatiword		EQU	B4h
+OPsatibyte		EQU	B5h
+OPsapiword		EQU	B6h
+OPsapibyte		EQU	B7h
+OPssgiword		EQU	B8h
+OPssgibyte		EQU	B9h
+OPssliword		EQU	BAh
+OPsslibyte		EQU	BBh
+OPsstiword		EQU	BCh
+OPsstibyte		EQU	BDh
+OPsspiword		EQU	BEh
+OPsspibyte		EQU	BFh
+OPiagword		EQU	C0h
+OPiagbyte		EQU	C1h
+OPialword		EQU	C2h
+OPialbyte		EQU	C3h
+OPiatword		EQU	C4h
+OPiatbyte		EQU	C5h
+OPiapword		EQU	C6h
+OPiapbyte		EQU	C7h
+OPisgword		EQU	C8h
+OPisgbyte		EQU	C9h
+OPislword		EQU	CAh
+OPislbyte		EQU	CBh
+OPistword		EQU	CCh
+OPistbyte		EQU	CDh
+OPispword		EQU	CEh
+OPispbyte		EQU	CFh
+OPiagiword		EQU	D0h
+OPiagibyte		EQU	D1h
+OPialiword		EQU	D2h
+OPialibyte		EQU	D3h
+OPiatiword		EQU	D4h
+OPiatibyte		EQU	D5h
+OPiapiword		EQU	D6h
+OPiapibyte		EQU	D7h
+OPisgiword		EQU	D8h
+OPisgibyte		EQU	D9h
+OPisliword		EQU	DAh
+OPislibyte		EQU	DBh
+OPistiword		EQU	DCh
+OPistibyte		EQU	DDh
+OPispiword		EQU	DEh
+OPispibyte		EQU	DFh
+OPdagword		EQU	E0h
+OPdagbyte		EQU	E1h
+OPdalword		EQU	E2h
+OPdalbyte		EQU	E3h
+OPdatword		EQU	E4h
+OPdatbyte		EQU	E5h
+OPdapword		EQU	E6h
+OPdapbyte		EQU	E7h
+OPdsgword		EQU	E8h
+OPdsgbyte		EQU	E9h
+OPdslword		EQU	EAh
+OPdslbyte		EQU	EBh
+OPdstword		EQU	ECh
+OPdstbyte		EQU	EDh
+OPdspword		EQU	EEh
+OPdspbyte		EQU	EFh
+OPdagiword		EQU	F0h
+OPdagibyte		EQU	F1h
+OPdaliword		EQU	F2h
+OPdalibyte		EQU	F3h
+OPdatiword		EQU	F4h
+OPdatibyte		EQU	F5h
+OPdapiword		EQU	F6h
+OPdapibyte		EQU	F7h
+OPdsgiword		EQU	F8h
+OPdsgibyte		EQU	F9h
+OPdsliword		EQU	FAh
+OPdslibyte		EQU	FBh
+OPdstiword		EQU	FCh
+OPdstibyte		EQU	FDh
+OPdspiword		EQU	FEh
+OPdspibyte		EQU	FFh
+

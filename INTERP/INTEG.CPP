@@ -111,8 +111,11 @@ IntegrityChecking(int mask, char* fmt, ...)
 	if (!mono) {
 		strcat(buf," ");
 		strcat(buf,integrityMasks[nIntegrityMasks - 1].description);
-	} else
+#ifndef WINDOWS
+	} else {
 		msgMgr->Mono("%s\n",buf);
+#endif
+	}
 	if (len)
 		msgMgr->Alert(buf);
 	if (!mono)
@@ -183,7 +186,8 @@ CheckIntegrity(char* fmt, ...)
 			ok = 0;
 		}
 		if (checkIntegrity & CHECK_GLOBALS)
-			ok &= pm.CheckIntegrity(buf);
+//BEW CHANGED			ok &= pm.CheckIntegrity(buf);
+			ok &= pmCheckIntegrity(buf);
 		ok &= memMgr->CheckIntegrity(buf);
 	#ifndef WINDOWS
 		if (mono)

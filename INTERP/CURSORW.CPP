@@ -12,6 +12,7 @@
 #include "celobj.hpp"
 #include "cursorw.hpp"
 #include "graphmgr.hpp"
+#include "graphmw.hpp"
 #include "intflag.hpp"
 #include "mouse.hpp"
 #include "msg.hpp"
@@ -31,7 +32,6 @@ uchar	buffXOR[128];
 // I put this here instead of in the CursorWin derived class because when
 // I did so, it was getting corrupted.  Need to investigate this further.
 static	Bool			restrictFlag = False;
-
 
 CursorWin::CursorWin()
 {
@@ -362,15 +362,9 @@ CursorWin::ClearRestrictRect()
 
 
 //	Windows cursor stuff
-#define MAXPALETTE	256
 
 uchar *cursorBuffAddr;
 uchar	*winCurBuff;
-
-struct {
-		BITMAPINFOHEADER	bmih;
-		WORD	colorix [MAXPALETTE];
-		} bic;
 
 
 CursorWinClr::CursorWinClr(const BufferWin& buffer):bitmap(-1,-1,-1),
@@ -422,26 +416,6 @@ CursorWinClr::CursorWinClr(const BufferWin& buffer):bitmap(-1,-1,-1),
 	drawBuff2.buffer =  cursorBuffAddr + 4 * maxCursorSize;
 	winCurBuff =        cursorBuffAddr + 8 * maxCursorSize;
 
-	// set up DIB header for the Windows cursor buff
-	bic.bmih.biSize =				(DWORD)sizeof(BITMAPINFOHEADER);
-//	bic.bmih.biWidth =			(DWORD)CMAPWIDTH;
-//	bic.bmih.biHeight =			(DWORD)CMAPHEIGHT;
-	bic.bmih.biPlanes =			1;
-	bic.bmih.biBitCount =	 	8;
-	bic.bmih.biCompression = 	0;
-	bic.bmih.biSizeImage =		0;
-	bic.bmih.biXPelsPerMeter =	0;
-	bic.bmih.biYPelsPerMeter =	0;
-	bic.bmih.biClrUsed =			MAXPALETTE;
-	bic.bmih.biClrImportant =	MAXPALETTE;
-
-	// set index values to identity
-	for (int i = 0; i < MAXPALETTE; i++)
-		bic.colorix [i] = i;
-	bic.colorix[255] = 7;						/* defined as white - this is close */
-
-//	while (ShowCursor (0) > -1);
-
 	Set(-1, -1, -1);
 }
 
@@ -461,7 +435,6 @@ CursorWinClr::~CursorWinClr()
 void
 CursorWinClr::Set(int v, int l, int c)
 {
-//LPSTR		lpCursor, lpWinBuff;
 
 	//  Get resource, put information away for savegame
 	gonnaPaint = True;
@@ -590,6 +563,8 @@ CursorWinClr::PaintStarting()
 	if (putCursorInVMAP)  {
 		//  Save Vmap, put cursor in vmap
 		saveVmap.rect = cursorData.rect;
+		// clip it in case we are partly off the vmap
+		saveVmap.rect.Clip(vmapData.rect);
 		Copy(saveVmap, vmapData);
 		Paint(vmapData, cursorData);
 	}
@@ -723,6 +698,8 @@ CursorWinClr::RevealCursor()
 
 	ReadVideo(cursorBack);
 	drawBuff1.rect = cursorData.rect;
+	// clip it in case we are partly off the vmap
+	drawBuff1.rect.Clip(vmapData.rect);
 	Copy(drawBuff1, cursorBack);
 
 	Paint(drawBuff1, cursorData);
@@ -985,25 +962,21 @@ WORD top, left, bottom, right, width, widthMod4, height;
 		srcPtr += srcNextLine;
 	}
 
-	bic.bmih.biWidth =			(DWORD)widthMod4;
-	bic.bmih.biHeight =			(DWORD)height;
+	bmiHdr.bmih.biWidth =			(DWORD)widthMod4;
+	bmiHdr.bmih.biHeight =			(DWORD)height;
 
 	SetDIBitsToDevice (hMyDC,						//device context
 							left + gameBorder,		//destination X
 							top + gameBorder,			//destination Y
-//							0,								//destination X
-//							0,								//destination Y
 							width,						//X-extent
 							height,						//Y-extent
-//							CMAPWIDTH,					//X-extent
-//							CMAPHEIGHT,					//Y-extent
 							0,								//source X
 							0,								//source Y
 							0,								//first scan-line number
 							height,						//number of scan lines
 							(LPSTR)winCurBuff, 		//pointer to DIB
-							(LPBITMAPINFO)&bic.bmih, //pointer to header
-							DIB_PAL_COLORS);			//indexed color table
+							(LPBITMAPINFO)&bmiHdr.bmih, //pointer to header
+							colorUse);					//indexed color table
 }
 
 

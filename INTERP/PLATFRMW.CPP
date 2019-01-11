@@ -1,9 +1,8 @@
 //	platfrmw.cpp
 
-#include <windows.h>
-
 #include "sol.hpp"
 
+#include "sciwin.hpp"
 #include "config.hpp"
 #include	"kernel.hpp"
 #include	"pmachine.hpp"
@@ -18,7 +17,21 @@ enum PlatformType {
 
 enum CallType {
 	WhatAmI,
-	CDspeed
+	CDspeed,
+	ColorDepth,
+	CDdrive
+};
+
+enum ColorTypes {
+	Error,
+	Colors16,
+	Colors256,
+	High16Bit,
+	True32Bit
+};
+
+enum WindowsOptions {
+	TitleBar
 };
 
 void
@@ -39,6 +52,28 @@ KPlatform(argList)
 			break;
 		case CDspeed:
 			pm.acc = configMgr->GetNum("CDspeed",0);
+			break;
+		case ColorDepth:
+			if (nColors == 16) {
+				pm.acc = Colors16;
+				break;
+			} else if (nColors == 256) {
+				pm.acc = Colors256;
+				break;
+			} else if (nColors == 65536) {
+				pm.acc = High16Bit;
+				break;
+			} else if (nColors == 16777216) {
+				pm.acc = True32Bit;
+				break;
+			} else {
+				pm.acc = Error;
+				break;
+			}
+		case CDdrive:
+			pm.acc = *configMgr->Get("CDdrive",0);
+			if (!pm.acc)
+				pm.acc = *configMgr->Get("resCDisc",0);
 			break;
 	}
 }
@@ -65,5 +100,38 @@ KGetSierraProfileString(argList)
 		arg(5),					//	dest size
 		"SIERRA.INI"
 	);
+}
+
+void
+KSetWindowsOption(argList)
+{
+
+	switch((WindowsOptions) arg(1)) {
+		case TitleBar:
+			if (arg(2))
+				pm.acc = WritePrivateProfileString(szInfo,"TitleBar","true",szIniFile);
+			else
+				pm.acc = WritePrivateProfileString(szInfo,"TitleBar","false",szIniFile);
+			break;
+
+		default:
+			pm.acc = False;
+			break;
+	}
+}
+
+void
+KGetWindowsOption(argList)
+{
+
+	switch((WindowsOptions) arg(1)) {
+		case TitleBar:
+			pm.acc = GetTFOption("titlebar",TRUE);
+			break;
+
+		default:
+			pm.acc = False;
+			break;
+	}
 }
 

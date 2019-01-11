@@ -150,6 +150,8 @@ const Msg_AVIPut = 144;
 const Msg_AVISetPalette = 145;
 const Msg_AVIPlay = 146;
 
+int 	Printf(char* fmt, ...);
+
 class MsgMgr : public Saveable {
 public:
 	enum {
@@ -224,4 +226,3 @@ extern MsgMgr * msgMgr;
 #define SrcLoc	'a', __FILE__, __LINE__
 
 #endif
-

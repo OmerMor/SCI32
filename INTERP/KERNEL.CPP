@@ -237,6 +237,7 @@ KernelCall kernelCalls[] = {
 #else
 	Kernel(Dummy),								// 129
 	Kernel(Dummy),
+//	Kernel(MonoOut),								
 	Kernel(Dummy),								
 	Kernel(Dummy),
 	Kernel(Dummy),
@@ -265,7 +266,7 @@ KernelCall kernelCalls[] = {
 	Dummy, 		//Kernel(MessageBox)       // 141
 #endif
 	Kernel(NewRoom),								// 142
-	Kernel(PreloadResource),					// 143
+	Dummy,		//Kernel(PreloadResource)	// 143
 	Kernel(Priority),								// 144
 	Kernel(MorphOn),								// 145
 	Kernel(PlayVMD),								// 146
@@ -274,10 +275,16 @@ KernelCall kernelCalls[] = {
 	
 #ifdef WINDOWS
 	Kernel(GetSierraProfileInt),				// 149
-	Kernel(GetSierraProfileString)			// 150
+	Kernel(GetSierraProfileString),			// 150
+	Kernel(SetWindowsOption),					// 151
+	Kernel(GetWindowsOption),					// 152
+	Kernel(WinDLL)									// 153
 #else
 	Dummy,											// 149
-	Dummy												// 150
+	Dummy, 											// 150
+	Dummy,											// 151
+	Dummy,											// 152
+	Dummy												// 153
 #endif
 };
 

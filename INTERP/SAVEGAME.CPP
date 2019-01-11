@@ -137,7 +137,13 @@ char* what = save ? "saving" : "restoring";
 	CheckPoint(0x1000, func, save);	memMgr->SaveRestoreDo(func, this, save);
 	CheckPoint(0x1001, func, save);	eventMgr->SaveRestoreDo(func, this, save);
 	CheckPoint(0x1002, func, save);	graphMgr->SaveRestoreDo(func, this, save);
-	CheckPoint(0x1003, func, save);	pm.SaveRestoreDo(func, this, save);
+	CheckPoint(0x1003, func, save);	
+
+if (func == Saveable::SaveRestoreBefore)
+	pmSaveRestoreBefore(this, save);
+else if (func == Saveable::SaveRestoreAfter)
+	pmSaveRestoreAfter(this, save);
+
 	CheckPoint(0x1004, func, save);	msgMgr->SaveRestoreDo(func, this, save);
 	CheckPoint(0x1005, func, save);
 #ifdef DEBUG
@@ -420,9 +426,12 @@ SaveGame::Restore(TextID gameName, int saveNum, TextID gameVersion)
 #endif
 	
 	if (rc)
-		longjmp(pm.restartBuf, 1);
-	else
-		return False;
+//BEW CHANGED		longjmp(pm.restartBuf, 1);
+		pmRestartBuf();
+
+//BEW REMOVED	else
+
+	return False;
 }
 
 Bool

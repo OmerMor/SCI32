@@ -1,5 +1,4 @@
-#include = i:\interp\sci\ibm\sci32;c:\watcom\h
-include = .;c:\watcom\h
+include = c:\w\h
 
 !ifndef SIERRA
 target	= sci.exe
@@ -14,10 +13,13 @@ bannerOpt= -Q
 !endif
 
 debugObjs = &
-	graphmd.obd &
-	graphmgr.obd &
-	robot.obd &
-	test.obd &
+	asm2cpp.obd &
+	math.obd &
+	msg.obd &
+	dos.obd &
+	pmachine.obd &
+	sci.obd	&
+	scid.obd	&
 	hotkey.obj
 
 objects = &
@@ -26,26 +28,18 @@ objects = &
 	audioa.obj &
 	audiod.obj &
 	blob.obj &
-	breakpt.obj &
 	bufferd.obj &
 	celasm.obj &
 	celobj.obj &
 	celobj1.obj &
 	celobj2.obj &
-	celobj3.obj &
-	celobj4.obj &
 	celobja.obj &
-	celobjb.obj &
 	config.obj &
 	criterr.obj &
 	criterrd.obj &
 	cursord.obj &
 	dcomp.obj &
-	debug.obj &
-	debugdsp.obj &
-	debugmnu.obj &
 	dialog.obj &
-	dos.obj &
 	drawlist.obj &
 	errormgr.obj &
 	event.obj &
@@ -55,6 +49,8 @@ objects = &
 	font.obj &
 	fonti.obj &
 	graph.obj &
+	graphmgr.obj &
+	graphmd.obj &
 	info.obj &
 	integ.obj &
 	intflag.obj &
@@ -67,7 +63,6 @@ objects = &
 	line.obj &
 	list.obj &
 	magnify.obj &
-	math.obj &
 	memid.obj &
 	memmgr.obj &
 	memmgrd.obj &
@@ -82,12 +77,10 @@ objects = &
 	moused.obj &
 	movdsp.obj &
 	movie.obj &
-	msg.obj &
 	msgd.obj &
 	new.obj &
 	newroom.obj &
 	object.obj &
-	opcodes.obj &
 	palette.obj &
 	palmgrd.obj &
 	palmgri.obj &
@@ -96,9 +89,6 @@ objects = &
 	platfrmd.obj &
 	playvmd.obj &
 	plist.obj &
-	pmachine.obj &
-	pmip.obj &
-	pmstack.obj &
 	polygon.obj &
 	ratio.obj &
 	rect.obj &
@@ -106,9 +96,8 @@ objects = &
 	remap.obj &
 	resource.obj &
 	restype.obj &
+	robot.obj &
 	savegame.obj &
-	sci.obj &
-	scid.obj &
 	screen.obj &
 	script.obj &
 	select.obj &
@@ -142,10 +131,14 @@ objects = &
 	vmdview.obj &
 	window.obj
 
+#	breakpt.obd &
+#	debug.obd &
+#	debugdsp.obd &
+#	debugmnu.obd &
+
 $(target) : $(debugObjs) $(objects) 
 	*wlink name $(targetub) system dos4g option map option stack=16k &
 		debug all file {$(debugObjs)} &
-		debug file {$(objects)}
-	4gwbind c:\watcom\bin\4gwpro.exe $(targetub) $(target) $(bannerOpt) -V
-#	del $(targetub)
+		debug file {$(objects)}	 l suvbelib, spmode
+	c:\watcom\bin\4gwbind c:\watcom\bin\4gwpro.exe $(targetub) $(target) $(bannerOpt) -V
 

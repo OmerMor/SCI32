@@ -32,7 +32,13 @@ class Plane
 	public:
 
 	// Plane types
-	enum {coloredPlane,picturePlane,transparentPlane,opaquePlane};
+	enum 
+		{coloredPlane,		// Color in background that covers entire plane
+		picturePlane,		// Picture in background that covers entire plane
+		transparentPlane,	// See through background
+		opaquePlane,		// Don't draw any background
+		pictureSkipPlane	// Picture with skip color
+		};
 
 	//  Constructors, etc
 	Plane(ObjectID);
@@ -65,13 +71,16 @@ class Plane
 						SIList() const				{return siArray;}
 	int				UpdateCount() const		{return updateCount;}
 	Bool				IsTransparent() const	{return (type == transparentPlane);}
+	Bool				IsPictureSkip() const	{return (type == pictureSkipPlane);}
 	Bool				IsColored() const			{return (type == coloredPlane);}
+	const SOL_Rect&	OnScreen() const		{return onScreen;}
+	int				TopScreenItem() const;
 
 	//  Normal methods
 	SOL_Rect&		OnScreen()					{return onScreen;}
-	void				AbortScreenItem(ScreenItem*);
-	int				AddPic(int thePic, SOL_Point&, int mirror);
-	void				AddScreenItem(ScreenItem*);
+	void				AbortScreenItem(const ScreenItem*);
+	int				AddPic(int thePic, const SOL_Point&, int mirror, Bool delCopy = True);
+	void				AddScreenItem(ScreenItem*);		//  cant be const
 	void				CalcLists(Plane* last,
 									 PlaneList& next,
 									 DrawList& drawLists,
@@ -89,12 +98,12 @@ class Plane
 													RectList& theirEraseList);
 	void				FilterUpDrawRects(DrawList& myDrawList, DrawList& theirDrawList);
 	void				FilterUpEraseRects(DrawList& myDrawList, RectList& theirEraseList);
-	int				TopScreenItem();
 	void				Move(const SOL_Point& ul);
 	void				MoveDelta(int deltaX, int deltaY);
 	void				MoveTo(SOL_Point ul);
 	void				NewScreenDim(SOL_Rect);
-	void				NowSeen(MemID, SOL_Rect& nowSeen);
+	Bool				NowSeen(MemID, SOL_Rect& nowSeen);
+	void				PackSiArray()				{siArray.Pack();}
 	void				RedrawAll(Plane* last,
 									 PlaneList& next,
 									 DrawList& drawLists,
@@ -160,11 +169,16 @@ class Plane
 
 };
 
-void	GlobalToLocal(int planeID, SOL_Point&);
-void	GlobalToLocalGame(int planeID, SOL_Point&);
-void	LocalGameToGlobal(int planeID, SOL_Point&);
-void	LocalToGlobal(int planeID, SOL_Point&);
+// HOOK
+// Never used
+//void	GlobalToLocal(int planeID, SOL_Point&);
+Bool	GlobalToLocalGame(int planeID, SOL_Point&);
+Bool	LocalGameToGlobal(int planeID, SOL_Point&);
+// HOOK
+// Never used
+//void	LocalToGlobal(int planeID, SOL_Point&);
 void	MergeToRectList(const SOL_Rect&, RectList& myEraseList);
 
 #endif
 
+

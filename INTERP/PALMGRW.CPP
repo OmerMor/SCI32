@@ -1,6 +1,7 @@
 #include "sciwin.hpp"
 #include "sol.hpp"
 #include "graphmgr.hpp"
+#include "graphmw.hpp"
 #include "palmgrw.hpp"
 #include "shiftpal.hpp"
 #include "mbox.hpp"
@@ -16,12 +17,6 @@ _Packed struct {
 			DWORD					dwEntry[256];
 			};
 		} lPal;
-
-// Bitmap header
-extern _Packed struct {
-		BITMAPINFOHEADER	bmih;
-		WORD	colorix [MAXPALETTE];
-		} bi;
 
 #ifdef WIN32S
 // System palette
@@ -207,11 +202,22 @@ int	colorVal, hiVal;
 			}
 		}
 
-		// Set index 255 to lightest color so that debug window is visible
-		bi.colorix[255] = hiIndex;
+		if (TRUECOLOR) {
+			for(i = 0; i < 236; i++) {
+				bmiHdr.rgbq[i].rgbRed 	= lPal.palPalEntry[i].peRed;
+				bmiHdr.rgbq[i].rgbGreen	= lPal.palPalEntry[i].peGreen;
+				bmiHdr.rgbq[i].rgbBlue	= lPal.palPalEntry[i].peBlue;
+			}
+			bmiHdr.rgbq[255].rgbRed 	= 255;
+			bmiHdr.rgbq[255].rgbGreen	= 255;
+			bmiHdr.rgbq[255].rgbBlue	= 255;
+		} else {
+			// Set index 255 to lightest color so that debug window is visible
+			bmiHdr.colorix[255] = hiIndex;
 
-		AnimatePalette (hPal, 0, USERPALETTE,
+			AnimatePalette (hPal, 0, USERPALETTE,
 							(LPPALETTEENTRY) &(lPal.palPalEntry [0]));
+		}
 #ifdef WIN32S
 	} else {
 		// Identity palette for WinG

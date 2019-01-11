@@ -43,6 +43,7 @@ inline S Min(S	a, T b)
 
 //	checks for success, and aborts if fails
 void*				operator new(size_t size, char*, int);
+void*				operator new[](size_t size, char*, int);
 #define New		new(__FILE__,  __LINE__)
 
 //	Each implementation should define its own AssertFail().

@@ -9,44 +9,20 @@
 
 class MemID;
 
-extern "C" {
-void Merge(void far *, void *, int, char, char);
-void Distort(void far *, int, char, char);
-void Volume(void far *, int, char, char);
-void Silence(void far *, int, char);
-char Decomp4To8(void *, void *, int, char);
-int  Decomp8To16(void *, void *, int, int);
-void Conv16To8(void *, void *, int);
-void Conv8To16(void *, int);
-void Conv11KTo22K(void *, int, char);
-void Conv22KTo11K(void *, void *, int, char);
-void CopyEOS(void *, void *, int, char);
-void DupeChannel(void *, int, int, char);
-Bool GetDACBuffer(void);
-}
-
-#pragma aux (PushArgs) Merge;
-#pragma aux (PushArgs) Distort;
-#pragma aux (PushArgs) Volume;
-#pragma aux (PushArgs) Silence;
-#pragma aux (PushArgs) Decomp4To8;
-#pragma aux (PushArgs) Decomp8To16;
-#pragma aux (PushArgs) Conv16To8;
-#pragma aux (PushArgs) Conv8To16;
-#pragma aux (PushArgs) Conv11KTo22K;
-#pragma aux (PushArgs) Conv22KTo11K;
-#pragma aux (PushArgs) CopyEOS;
-#pragma aux (PushArgs) DupeChannel;
-
 void		AdjustAudBuffSizes(unsigned *,unsigned *);
+void		AudioStop(int);
 void		AudioServer();
 int		CallDAC(int,int);
-Bool		InitAudioDriver();
-void		InitAudioVols();
 void		EndAudio();
-void		MakeName36(MemType,char*,ResNum,uchar,uchar,uchar,uchar);
 int		FindAud36Entry(ResNum,uchar,uchar,uchar,uchar);
 int		FindAudEntry(ResNum);
+Bool		GetDACBuffer(void);
+Bool		InitAudioDriver();
+void		InitAudioVols();
+void		MakeName36(MemType,char*,ResNum,uchar,uchar,uchar,uchar);
+#ifdef DEBUG
+void		CheckDiscStreaming(char*);
+#endif
 
 extern Bool		audioInstalled;
 extern int		audVolFD;
@@ -70,7 +46,10 @@ enum	audioFuncs {
 	CHANNELS,
 	PRELOAD,
 	FADE,
-	FADE36
+	FADE36,
+	NOISE,
+	DACCRITICAL,
+	LOOP
 };
 
 // Codes to be sent to the audio driver.
@@ -127,6 +106,15 @@ _Packed struct ResAud36Entry {
 	unsigned short	raveLen;
 };
 
+struct RobotAudStatus
+{
+	int	bytesPlayed;
+	int	bytesPlaying;
+	int	bytesSubmitted;
+	int	rate;
+	int	bits;
+};
+
 struct RobotAudInfo
 {
 	RobotAudInfo(MemID buffID, int byteLen, int fileLoc)	:
@@ -148,6 +136,7 @@ struct RobotAudInfo
 };
 
 Bool	AudRobot(RobotAudInfo);
+Bool	QueryAudRobot(RobotAudStatus*);
 
 #define	SYNCMASK		0x80
 #define	RAVEMASK		0x40

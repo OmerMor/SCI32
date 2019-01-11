@@ -29,44 +29,25 @@ class GraphicsMgrWin : public GraphicsMgr
 
 	int	ScreenCount() const	{return 1;}
 	const Screen&	VisibleScreen() const	{return last;}
-	const Screen&   NextScreen() const   {return next;}
-	Screen*	CurrScreen() 				{return &last;}
-	Plane* 		GetPlaneCurrent(int planeId)
-						{return last.GetPlane(planeId);}
-
+	const Screen&   NextScreen() const   	{return next;}
+	Screen*	CurrScreen() 						{return &last;}
 	void	UpdateScreen();
-	Screen&		VisibleScreen()   		{return last;}
+	Screen&		VisibleScreen()   			{return last;}
 //	Bool	PlaneExistsLast(int planeId)		{return last.PlaneExists(planeId);}
 	void	PlayMovie(char* filename, int tickCount, int xoff = 0, int yoff = 0);
 	void	SetVideoForMovies();
 	void	SetVideoForSpeed(); 
-	void	ShakeScreen(int, int){}
+	void	ShakeScreen(int, int)				{}
 	void	Repaint(const SOL_Rect&);
 	void  ClearLastScreen()						{}
 //	PaletteMgr&	GPalette()						{return palmgr;}
 	PaletteMgr&	GPalette()						{return *palmgr;}
-	void			MovieFrameOut(uchar* Bmp,
-									  int	bitmapWidth,
-									  int bitmapX1,
-									  int bitmapY1,
-									  int bitmapX2,
-									  int bitmapY2,
-									  int screenX1,
-									  int screenY1);
-	void			MovieFrameOutDbl(uchar* Bmp,
-									  int	bitmapWidth,
-									  int bitmapX1,
-									  int bitmapY1,
-									  int bitmapX2,
-									  int bitmapY2,
-									  int screenX1,
-									  int screenY1);
 	SOL_Cursor&	GCursor()						{return *cursor;}
 	void		SCursorClr();
 	void		SCursorWin();
 	void		TimingTest();
-	Buffer& 	PriMap() 				{return pmap;}
-	void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
+	Buffer& 	PriMap() 							{return pmap;}
+	void     AlterVMAP(const SOLPalette* myPal, const SOLPalette* newPal, int palIndex, char* palArray);
 
 	protected:
 	void			CalcLists(DrawList** drawLists,RectList** eraseLists,SOL_Rect& dirtyRect)
@@ -75,7 +56,7 @@ class GraphicsMgrWin : public GraphicsMgr
 //	void		Repaint(SOL_Rect& theRect);
 	void		ShowBits();
 	void		ShowRect(const SOL_Rect *, uchar *);
-	Buffer*	CurrBuffer()				{return &buffer;}
+	Buffer*	CurrBuffer()						{return &buffer;}
 
 	Screen			last;
 	BufferWin		buffer;			// VMAP
@@ -91,17 +72,22 @@ class GraphicsMgrWin : public GraphicsMgr
 	MemID				pmapID;
 };
 
+_Packed struct BMI {
+	BITMAPINFOHEADER	bmih;
+	union {
+		WORD			colorix[256];
+		RGBQUAD		rgbq[256];
+	};
+};
+
+extern	BMI	bmiHdr;
+extern	uint	colorUse;
+
 
 inline void	
 GraphicsMgrWin::UpdateScreen()
 {
 	last = next;
 }
-
-
 #endif
-
-
-
-
 

@@ -5,6 +5,7 @@
 
 #include "sol.hpp"
 
+#include "audio.hpp"
 #include "celobj.hpp"
 #include "criterrd.hpp"
 #include "event.hpp"
@@ -18,13 +19,23 @@ CritErrHandlerDOS::CritErrHandlerDOS()
 	_harderr(Handler);
 }
 
+CritErrHandlerDOS::~CritErrHandlerDOS()
+{
+}
+
 int __far
 CritErrHandlerDOS::Handler(unsigned deverr, unsigned errcode, unsigned far*)
 {
+
 	// if the players aren't up yet we can't read the error file
 	// nor buffer the error
-	if (!errorMgr || !memMgr)
-		msgMgr->Fatal("Media Critical Error");
+	if (!errorMgr || !memMgr || activeSamples) {
+		if (activeSamples) {
+			_disable();
+			AudioStop(ALL_SAMPLES);
+		}
+		msgMgr->Fatal("Critical Error:Unable to recover.\n Check your CD-ROM and restart game.\n");
+	}
 
 	// downcast, since we know what type it really is, and we need access
 	// to protected members
@@ -58,8 +69,14 @@ CritErrHandlerDOS::Handler(unsigned deverr, unsigned errcode, unsigned far*)
 	theText.Get(MemText, MsgMgr::MaxStr + 1);
 	sprintf((char*)*theText, msg, errorType, quitOrCancel);
 
-	errorMgr->Display((char*)*theText);
+	if (!eventMgr)
+	{
+	    errorMgr->Display("\nCritical Error:Unable to recover.\n Check to see disc is properly inserted\n");
+	    _exit(255);
+	}
 
+	errorMgr->Display((char*)*theText);
+	
 	SOL_Event dbgEvent;
 	while (True) {
 		eventMgr->Get(&dbgEvent,SOL_Event::MouseDown | SOL_Event::KeyDown);
@@ -89,5 +106,5 @@ CritErrHandlerDOS::Handler(unsigned deverr, unsigned errcode, unsigned far*)
 			errorMgr->Clear();
 			return _HARDERR_RETRY;
 		}
-	};
+	}
 }

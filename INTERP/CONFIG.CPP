@@ -1,6 +1,7 @@
 //	config.cpp
 
 #include <ctype.h>
+#include <io.h>
 #include	<stdio.h>
 #include <string.h>
 
@@ -31,10 +32,9 @@ struct FlagEntry {
 	int	val;
 
 } static flags[] = {
-
+#ifndef DEBUG
 	FlagEntry('\0'),
-#ifdef DEBUG
-	FlagEntry('a', "   alert warning if resources loaded during audio/robot playback"),
+	FlagEntry('a', "   alert if disc-streaming violations (-a0 to turn off; -a1 to C:\\DUMP)"),
 	FlagEntry('c', "   cursor display for resource loading (i.e. -c958 for cursor 958)"),
 	FlagEntry('e', "   extract resources from vols to the curdir (e.g. -e123.v56 or -e*.v56)"),
 	FlagEntry('i', "   integrity checking (default is on; use -i0 to turn off)"),
@@ -45,12 +45,13 @@ struct FlagEntry {
 	FlagEntry('P', "   Play digital audio test (examples: -P100.WAV -PA0010203.045)"),
 	FlagEntry('r', "   room-by-room min memory requirements printed to C:\\DUMP"),
 	FlagEntry('t', "   translation messages shown on mono monitor"),
-	FlagEntry('V', "   -VMDRGB xx where xx% will be the RGB increase\n"
-						"        -VMDBLACKLINES\n"
-						"        -VMDNOASYNC\n"
-						"        -VMDSKIPON\n"
-						"        -VMDREPORT"),
-	FlagEntry('W', "   WVIDEO compatibility")
+	FlagEntry('W', "   WVIDEO compatibility"),
+	FlagEntry('o', "   old resource-naming convention only"),
+	FlagEntry('V', "   Will cause a vmd report after a vmd movie")
+#else
+	FlagEntry('\0'),
+	FlagEntry('o', "   old resource-naming convention only"),
+	FlagEntry('V', "   Will cause a vmd report after a vmd movie")
 #endif
 };
 
@@ -65,6 +66,7 @@ struct ConfigEntry {
 	enum { MaxLine = 240 };
 
 	Bool	Claim(char* line, int nTokens, int len);
+	Bool	Claimed() {return claimed;}
 	char*	Get(int);
 
 	char*		label;
@@ -72,9 +74,11 @@ struct ConfigEntry {
 	char*		tokens;
 	MemType	resType;
 	char*		help;
+	Bool		claimed;
 
 } static entries[] = {
 
+	// Both MemResAudio and MemResWAVE use audio =
 	ConfigEntry("audio",			MemResAudio),
 	ConfigEntry("audio36",		MemResAudio36),
 	ConfigEntry("bitmap",		MemResBitmap),
@@ -83,7 +87,7 @@ struct ConfigEntry {
 	ConfigEntry("heap",			MemResHeap),
 	ConfigEntry("map",			MemResMap),
 	ConfigEntry("message",		MemResMsg),
-	ConfigEntry("movie",			MemResVMD),
+	ConfigEntry("movieDir",		MemResVMD),
 	ConfigEntry("palette",		MemResPalette),
 	ConfigEntry("patch",			MemResPatch),
 	ConfigEntry("pic",			MemResPic),
@@ -95,9 +99,12 @@ struct ConfigEntry {
 	ConfigEntry("translation",	MemResMsgTranslation),
 	ConfigEntry("view",			MemResView),
 	ConfigEntry("vocab",			MemResVocab),
+	// Both MemResAudio and MemResWAVE use audio =
+	ConfigEntry("audio",			MemResWAVE),
 
 	// these are special entries that are used by the interpreter
 
+	ConfigEntry("adjustPerDAC",MemResNone),
 	ConfigEntry("audioDMA",		MemResNone),
 	ConfigEntry("audioDrv",		MemResNone),
 	ConfigEntry("audioIRQ",		MemResNone),
@@ -105,6 +112,7 @@ struct ConfigEntry {
 		"0K(no audio),...62K(max), 32K default"),
 	ConfigEntry("brightness",	MemResNone,
 		"0(default),...4(maximum)"),
+	ConfigEntry("CDdrive",		MemResNone),
 	ConfigEntry("CDspeed",		MemResNone),
 	ConfigEntry("DACSize",		MemResNone,
 		"0K(no audio),...32K(max), 2K default"),
@@ -115,48 +123,51 @@ struct ConfigEntry {
 		"1(English)"),
 	ConfigEntry("minMemory",	MemResNone,
 		"required after SCI+extender loaded (1M default)"),
-	ConfigEntry("movieDir",		MemResNone),
 	ConfigEntry("patchDir",		MemResNone),
 	ConfigEntry("resAud",		MemResNone),
 	ConfigEntry("resCDisc",		MemResNone),
 	ConfigEntry("resMap",		MemResNone),
 	ConfigEntry("resSfx",		MemResNone),
+	ConfigEntry("vmdSkip",		MemResNone,
+		"Yes(default) or No"),
 	ConfigEntry("soundDrv",		MemResNone),
+	ConfigEntry("staticFilter",MemResNone,
+		"Yes or No(default) to enhance low-volume audio"),
 	ConfigEntry("staticMemory",MemResNone,
-		"bytes excluded from SCI usage (200K default)"),
-#ifdef NOT_SHIPPING_VERSION
+		"bytes excluded from SCI usage"),
+#ifdef DEBUG
 	ConfigEntry("thrashDetect",	MemResNone,
 		"turns on thrash detection (needs count)"),  
 #endif
-	ConfigEntry("tracking",		MemResNone),
+	ConfigEntry("SystemFont",MemResNone,
+		"systemFont xxxx where the font number is xxxx"),
+	ConfigEntry("tracking",		MemResNone)
 };
 
 const nEntries = sizeof(entries) / sizeof(*entries);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-ConfigMgr::ConfigMgr(int argc,char **argv)
+ConfigMgr::ConfigMgr(const char* defaultFileName, int argc, char **argv) 
 {
 	//	read the command line and the config file
 
-	strcpy(fileName, "resource.cfg");
-
-	ReadCommandLine(argc,argv);
+	*fileName = 0;
+	ReadCommandLine(defaultFileName, argc, argv);
 	ReadFile();
 }
 
 void
-ConfigMgr::ReadCommandLine(int argc,char** argv)
+ConfigMgr::ReadCommandLine(const char* defaultFileName, int argc,char** argv)
 {
 	//	parse the command line, setting Flags and their arguments
 
 	for (int i = 1; i < argc; ++i) {
 		if (*argv[i] != '-' && *argv[i] != '/') {
-			if (strlen(argv[i]) >= MaxPath) {
-				printf("Config file name can not exceed %u characters\n",MaxPath);
-				exit(1);
-			}
-			strcpy(fileName, argv[i]);
+			if (strlen(argv[i]) >= MaxPath)
+				msgMgr->Fatal("Config file name can not exceed %u characters\n",MaxPath);
+			FullPath(fileName, argv[i]);
+			strupr(fileName);
 			continue;
 		}
 
@@ -164,7 +175,7 @@ ConfigMgr::ReadCommandLine(int argc,char** argv)
 
 		if (!flag)
 			ShowUsage();  // won't be comming back...
-		
+
 		flags[flag].set = True;
 		flags[flag].arg = False;
 		flags[flag].str = &argv[i][2];
@@ -177,55 +188,61 @@ ConfigMgr::ReadCommandLine(int argc,char** argv)
 				flags[flag].arg = True;
 		}
 
-#ifdef DEBUG
-		switch(flag) {
-			case MemAllocate:
-				switch(argv[i][strlen(argv[i])-1]) {
-					case 'M':
-					case 'm':
-						flags[MemAllocate].val *= 1024;
-					case 'K':
-					case 'k':
-						flags[MemAllocate].val *= 1024;
-						break;
-				}
-				break;
-			case VMD: {
-				char* thisArg = &argv[i][1];
-
-				if (!stricmp("VMDRGB",thisArg)) {
-					// Get the percent change
-					if (isdigit(argv[i+1][0])) {
-						++i;
-						vmdRGB = 100 + atoi(argv[i]);
+		#ifdef DEBUG
+			switch(flag) {
+				case MemAllocate:
+					switch(argv[i][strlen(argv[i])-1]) {
+						case 'M':
+						case 'm':
+							flags[MemAllocate].val *= 1024;
+						case 'K':
+						case 'k':
+							flags[MemAllocate].val *= 1024;
+							break;
 					}
-				}
-				else {
-					if (!stricmp("VMDBLACKLINES",thisArg)) {
-						vmdBlackLines = True;
-					}
-					else {
-						if (!stricmp("VMDNOASYNC",thisArg)) {
-							vmdNoAsync = True;
-						}
-						else {
-							if (!stricmp("VMDSKIPON",thisArg)) {
-								vmdSkipOn = True;
-							}
-							else {
-								if (!stricmp("VMDREPORT",thisArg)) {
-									vmdReport = True;
-								}
-							}
-						}
-					}
-				}
-				break;
+					break;
 			}
-		}
-#endif
-
+		#endif
 	}
+
+	if (!FindConfigFile(fileName, defaultFileName))
+		msgMgr->Fatal("Can't find config file %s.  Please reinstall.\n", fileName);
+}
+
+Bool
+ConfigMgr::FindConfigFile(char* fileName, const char* defaultFileName)
+{
+	//	find a config file
+	//
+	//	if fileName contains a name, use it
+	//	else
+	//		look for defaultFileName in executable's path
+	//		if not found
+	//			use defaultFileName in current directory
+	//
+	//	returns whether file was found and puts full path of file in fileName
+
+	//	if no file was specified, try the default
+	if (!*fileName) {
+		//	first look in executable's directory
+		char	drive[_MAX_DRIVE];
+		char	dir[_MAX_DIR];
+		char	fname[_MAX_FNAME];
+		char	ext[_MAX_EXT];
+
+		//	get the executable's name and use its drive and dir
+		_splitpath(_argv[0], drive, dir, 0, 0);
+		//	use the default file's root and extension
+		_splitpath(defaultFileName, 0, 0, fname, ext);
+		_makepath(fileName, drive, dir, fname, ext);
+
+		//	if not found, look in the current directory
+		if (access(fileName, F_OK))
+			FullPath(fileName, defaultFileName);
+	}
+
+	//	make sure config file exists
+	return !access(fileName, F_OK);
 }
 
 ConfigMgr::Flag
@@ -291,12 +308,15 @@ ConfigMgr::ReadFile()
 	char buf[ConfigEntry::MaxLine + 1];
 	while (ReadString(buf, sizeof(buf), fd)) {
 		int len = strlen(buf);
-		int nTokens;
-		if (!(nTokens = Tokenize(buf)))
-			continue;
+		int nTokens = Tokenize(buf);
 		for (int i = 0 ; i < nEntries; i++)
-			if (entries[i].Claim(buf, nTokens, len))
-				break;
+			// It's possible for more than one entry to
+			// claim a line. For example audio = is claimed
+			// by both MemResAudio and MemResWAVE
+// HOOK
+			entries[i].Claim(buf, nTokens, len);
+//			if (entries[i].Claim(buf, nTokens, len))
+//				break;
 	}
 	
 	Close(fd);
@@ -438,6 +458,14 @@ ConfigMgr::GetEntry(char* name)
 	return 0;
 }
 
+Bool
+ConfigMgr::Claimed(char* name)
+{
+	ConfigEntry* entry = GetEntry(name);
+	return entry->Claimed();
+}
+
+
 ConfigEntry*
 ConfigMgr::GetEntry(MemType type)
 {
@@ -506,6 +534,7 @@ FlagEntry::Usage(char* dest)
 ConfigEntry::ConfigEntry(char* label, MemType resType, char* help) :
 	label(label), tokens(0), nTokens(0), resType(resType), help(help)
 {
+	claimed = False;
 }
 
 ConfigEntry::~ConfigEntry()
@@ -521,12 +550,17 @@ ConfigEntry::Claim(char* line, int nTokens, int len)
 	//	is it ours?
 	if (stricmp(line, label))
 		return False;
-	
-	//	skip over label name and make our own copy of the line
-	line += strlen(line) + 1;
-	this->nTokens = nTokens;
-	tokens = New char[len];
-	memcpy(tokens, line, len);
+
+	claimed = True;
+
+	if (nTokens) {
+
+		//	skip over label name and make our own copy of the line
+		line += strlen(line) + 1;
+		this->nTokens = nTokens;
+		tokens = New char[len];
+		memcpy(tokens, line, len);
+	}
 
 	return True;
 }
@@ -545,3 +579,4 @@ ConfigEntry::Get(int n)
 
 	return cp;
 }
+

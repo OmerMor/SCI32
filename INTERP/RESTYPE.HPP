@@ -144,7 +144,7 @@ protected:
 
 struct ResWave : SOL_ResType {
 	ResWave() : SOL_ResType(".wav", "ResWave")  {}
-	MemType GetType() const 		{ return MemResAudio; }
+	MemType GetType() const 		{ return MemResWAVE; }
 protected:
 	int		SeekToData() const;
 };
@@ -185,9 +185,12 @@ struct ResRobot : SOL_ResType {
 	MemType GetType() const 			{ return MemResRobot; }
 };
 
-struct ResVMD : SOL_ResType {
+class	ResVMD : public SOL_ResType {
+public:
 	ResVMD() : SOL_ResType(".vmd", "ResVMD")  {}
-	MemType GetType() const 			{ return MemResVMD; }
+	MemType	GetType() const		{ return MemResVMD; }
+protected:
+	int		SeekToData() const;
 };
 
 #endif  //RESTYPE_HPP

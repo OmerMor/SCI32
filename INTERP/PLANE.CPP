@@ -6,6 +6,7 @@
 #include "object.hpp"
 #include "plane.hpp"
 #include "plist.hpp"
+#include "pmachine.hpp"
 #include "rectlist.hpp"
 #include "selector.hpp"
 #ifdef WIN32S
@@ -225,7 +226,9 @@ Plane::operator=(const Plane& src)
 
 void
 Plane::UpdateRedrawAllCount()
-{redrawAllCount = graphMgr->ScreenCount();}
+{
+	redrawAllCount = graphMgr->ScreenCount();
+}
 
 void
 Plane::UpdatePlane(Plane* lastPlane)
@@ -326,8 +329,13 @@ Plane::SetType() {
 		case -3:
 			type = opaquePlane;
 			break;
+		case -4:
+			type = pictureSkipPlane;
+			break;
 		default:
-			type = picturePlane;
+			if ((type != picturePlane) && (type != pictureSkipPlane))
+				// Set if it's not already a picture plane
+				type = picturePlane;
 			break;
 	}
 }
@@ -336,14 +344,19 @@ void
 Plane::ChangePic()
 {
    changePic = False;
-	if (type !=	picturePlane) return;
+	if ((type != picturePlane) && (type != pictureSkipPlane))
+		return;
 
 	//  Add the pic cels to the plane
-	int count = 1000;
+	int count = 1000000;
+	Bool hasSkipInBackground = True;
 	for (int i = 0;i < count; i++)  {
 		CelObjPic* picCel = New CelObjPic(picResNum,i);
-		if (count == 1000)
+		if (count == 1000000) {
 			count = picCel->CelCount();
+		}
+		if (!picCel->HasSkip())
+			hasSkipInBackground = False;
 		ScreenItem* si = New ScreenItem(planeId,Bitmap(picResNum,i));
 		if (picMirror)
 			si->SetUserMirror(True);
@@ -353,16 +366,21 @@ Plane::ChangePic()
 		AddScreenItem(si);
 		si->SetCel(picCel);
 	}
+	if (hasSkipInBackground)
+		type = pictureSkipPlane;
+	else
+		type = picturePlane;
 }
 
 int
-Plane::AddPic(int thePic,SOL_Point& thePoint,int mirror)
+Plane::AddPic(int thePic, const SOL_Point& thePoint,int mirror,Bool delCopy)
 {
 	// Delete the pic if it's already present
 	// This is needed for restore	because they are
 	// deleting the plane then adding the plane 
 	// then adding the pics again.
-	DeletePic(thePic);
+	if (delCopy)
+		DeletePic(thePic);
 
 	//  Add the pic cels to the plane
 	int count = 1000;
@@ -404,6 +422,7 @@ Plane::DeleteAllPics()
 			}
 		}
 	}
+	siArray.Pack();
 }
 
 void
@@ -529,14 +548,13 @@ Plane::AddScreenItem(ScreenItem* si)
 }
 
 void
-Plane::AbortScreenItem(ScreenItem* si)
+Plane::AbortScreenItem(const ScreenItem* si)
 {
 	siArray.Delete(si);
-	siArray.Pack();
 }
 
 int
-Plane::TopScreenItem()
+Plane::TopScreenItem() const
 {
 	int thisPri;
 	int topPri = -100000;
@@ -556,13 +574,15 @@ Plane::TopScreenItem()
 	return topPri;
 }
 
-void
+Bool
 Plane::NowSeen(MemID id,SOL_Rect& nowSeen)
 {
 	int index = siArray.Search(id);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_ScreenItemNotExist);
-	siArray[index].NowSeen(*this,nowSeen);
+	if (index != -1) {
+		siArray[index].NowSeen(*this,nowSeen);
+		return True;
+	}
+	return False;
 }
 
 void
@@ -659,31 +679,90 @@ Plane::CalcLists(Plane* last,PlaneList& nextPlanesList,DrawList& drawList,RectLi
 	// against non changing member of the siArray
 	int drawListSize = drawList.Length();
 
-	/*
-		Now go through the eraselist looking for anything that
-		collides	with members of the siArray that are unchanged,
-		and add them to the drawList.
-	*/
+	//	Now go through the eraselist looking for anything that
+	//	collides	with members of the siArray that are unchanged,
+	//	and add them to the drawList.
+
+	#ifdef HI_RES
+		// Sort the siArray by priority
+		siArray.Sort();
+	#endif
+	int pictureDrawn = 0;
+	int screenItemDrawn = 0;
+
 	int eraseListSize = eraseList.Length();
-	for (i=0;i<eraseListSize;++i) {
-		for (int j=0;j<siArraySize;++j) {
-			if (siArray.Exists(j)  &&  !(siArray[j].UpdateCount() ||
-					 siArray[j].DeleteCount() ||
-					 siArray[j].AddCount())
-				) {
-				if (eraseList[i].Intersect(siArray[j].OnScreen(),rects)) {
-					// Add to the drawList
-					drawList.Add(&siArray[j],rects[0]);
+	#ifdef HI_RES
+		for (i=0;i<eraseListSize;++i) {
+			for (int j=0;j<siArraySize;++j) {
+				if (siArray.Exists(j)) {
+					if (eraseList[i].Intersect(siArray[j].OnScreen(),rects)) {
+						// Don't add to the drawList if:
+						//		If it's a picture screen Item after the first picture
+						//		screenItem encountered and no non-picture screen item
+						//		has been encountered and the subsequent picture item is
+						// 	completely within the previously drawn screen item then
+						//		it doesn't have to be drawn. In other words don't draw 
+						//		picture screenItems next to picture screenItems unless 
+						//		neccessary.
+						// This assumes that each picture screen item contains
+						// all the rest of the picture priority from it's priority 
+						// and to any higher picture priority and that the lowest
+						// priority picture element contains the entire picture.
+
+						// This version takes a shortcut in that if a non picuture
+						// screen item is drawn all the other picture screen items
+						// will be drawn.
+						if (!siArray[j].DeleteCount()) {
+							// This item may be added to the drawList
+
+							if (pictureDrawn)	{
+								if ((siArray[j].bitmap.IsPic())) {
+									if (screenItemDrawn || (siArray[j].bitmap.Cel() == 0)) {
+										// The cel == 0 means it's a lowest 
+										// priority picture element
+										drawList.Add(&siArray[j],rects[0]);
+									}
+								}
+								else {
+									// Add to the drawList
+									if (!(siArray[j].UpdateCount() || siArray[j].AddCount()))
+										drawList.Add(&siArray[j],rects[0]);
+									screenItemDrawn = True;
+								}
+							}
+							else {
+								// Add to the drawList
+								if (!(siArray[j].UpdateCount() || siArray[j].AddCount()))
+									drawList.Add(&siArray[j],rects[0]);
+								if (siArray[j].bitmap.IsPic())
+									pictureDrawn = True;
+							}
+						}
+					}
 				}
 			}
 		}
-	}
+		// Reset the siArray to it's orginal state
+		siArray.Unsort();
+	#else
+		for (i=0;i<eraseListSize;++i) {
+			for (int j=0;j<siArraySize;++j) {
+				if (siArray.Exists(j)  &&  !(siArray[j].UpdateCount() ||
+					 	siArray[j].DeleteCount() ||
+					 	siArray[j].AddCount())
+					) {
+					if (eraseList[i].Intersect(siArray[j].OnScreen(),rects)) {
+						// Add to the drawList
+						drawList.Add(&siArray[j],rects[0]);
+					}
+				}
+			}
+		}
+	#endif
 
-	/*
-		Go through the drawList. If a member of the drawList intersects a
-		member of the siArray that is unchanged and has higher priority,
-		then add	this member	to the drawList
-	*/
+	//	Go through the drawList. If a member of the drawList intersects a
+	//	member of the siArray that is unchanged and has higher priority,
+	//	then add	this member	to the drawList
 	if(!Remap::remapCount) {
    	for (i=0;i<drawListSize;++i) {	// Don't use dynamic list size!!
    		for (int j=0;j<siArraySize;++j) {
@@ -795,7 +874,8 @@ Plane::BreakDrawListByPlanes(DrawList& drawList,PlaneList& nextPlanesList)
 	for (int i=0;i< drawList.Length(); ++i) {
 		// See if intersected by a plane of higher priority
 		for (int j=nextHigherPlane;j<nextPlanesListSize;++j) {
-			if (!nextPlanesList[j].IsTransparent()) {
+			if (!nextPlanesList[j].IsTransparent() &&
+				 !nextPlanesList[j].IsPictureSkip()) {
 				int newRects = drawList[i].OnScreen().Split
 					(
 					nextPlanesList[j].OnScreen(),
@@ -833,7 +913,8 @@ Plane::BreakEraseListByPlanes(RectList& eraseList,PlaneList& nextPlanesList)
 	for (int i=0;i< eraseList.Length();++i) {
 		// See if intersected by a plane of higher priority
 		for (int j=nextHigherPlane;j<nextPlanesListSize;++j) {
-			if (!nextPlanesList[j].IsTransparent()) {
+			if (!nextPlanesList[j].IsTransparent()	&&
+				 !nextPlanesList[j].IsPictureSkip()) {
 				int newRects = eraseList[i].Split
 					(
 					nextPlanesList[j].OnScreen(),
@@ -905,7 +986,8 @@ Plane::DecSIArrayCounts(Plane* last,Bool forceUpdate)
 				siArray[i].DecDeleteCount();
 				if (!siArray[i].DeleteCount()) {
 					// Delete the screen item in last screen
-					lastList.Delete(i);
+					if ((last != NULL) && lastList.Exists(i))
+						lastList.Delete(i);
 					// Delete the screen item in next screen
 					siArray.Delete(i);
 				}
@@ -923,7 +1005,7 @@ KGlobalToLocal(argList)
 
    SOL_Point point(0,0);
 
-   GlobalToLocalGame(arg(2),point);
+   pm.acc = GlobalToLocalGame(arg(2),point);
 
 	// The point comes back as negative offsets
 	ObjectID evt = arg(1);
@@ -931,33 +1013,47 @@ KGlobalToLocal(argList)
 	evt.SetIndexedProperty(evY,evt.GetIndexedProperty(evY) + point.y);
 }
 
-void
+Bool
 GlobalToLocalGame(int planeID,SOL_Point& point)
 {
+	Bool		exitBool = True;
+	SOL_Rect r;
+	Screen& 	last =	graphMgr->VisibleScreen();
+
 	// Given a plane def, convert the point to local game coordinates
-	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
-
-	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].GameRect();
-
+	int index = last.Planes().Search(planeID);
+	if (index == -1) {
+		// Must be only in the next screen's planes list
+		Screen* next = graphMgr->NextScreen();
+		index = next->Planes().Search(planeID);
+		if (index == -1)
+			msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,planeID);
+		r = next->Planes()[index].GameRect();
+		exitBool = False;
+	}
+	else
+		r = last.Planes()[index].GameRect();
 	point.x -= r.A.x;
 	point.y -= r.A.y;
+	return exitBool;
 }
 
-void
-GlobalToLocal(int planeID,SOL_Point& point)
-{
-	// Given a plane def, convert the point to local coordinates
-	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
 
-	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].DefRect();
-
-	point.x -= r.A.x;
-	point.y -= r.A.y;
-}
+// HOOK
+// Never used
+//void
+//GlobalToLocal(int planeID,SOL_Point& point)
+//{
+//	// Given a plane def, convert the point to local coordinates
+//	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
+//	if (index == -1)
+//		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
+//
+//	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].DefRect();
+//
+//	point.x -= r.A.x;
+//	point.y -= r.A.y;
+//}
 
 void
 KLocalToGlobal(argList)
@@ -967,7 +1063,7 @@ KLocalToGlobal(argList)
 	//	arg(2) = plane
    SOL_Point point(0,0);
 
-   LocalGameToGlobal(arg(2),point);
+   pm.acc = LocalGameToGlobal(arg(2),point);
 
 	// The point comes back as positive offsets
 	ObjectID evt = arg(1);
@@ -975,35 +1071,48 @@ KLocalToGlobal(argList)
 	evt.SetIndexedProperty(evY,evt.GetIndexedProperty(evY) + point.y);
 }
 
-void
+Bool
 LocalGameToGlobal(int planeID,SOL_Point& point)
 {
+
+	Bool		exitBool = True;
+	SOL_Rect r;
+	Screen& 	last =	graphMgr->VisibleScreen();
+
 	// Given a plane def, convert the point to global game coordinates
-	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
-
-
-	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].GameRect();
-
+	int index = last.Planes().Search(planeID);
+	if (index == -1) {
+		// Must be only in the next screen's planes list
+		Screen* next = graphMgr->NextScreen();
+		index = next->Planes().Search(planeID);
+		if (index == -1)
+			msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,planeID);
+		r = next->Planes()[index].GameRect();
+		exitBool = False;
+	}
+	else
+		r = last.Planes()[index].GameRect();
 	point.x += r.A.x;
 	point.y += r.A.y;
+	return exitBool;
 }
 
-void
-LocalToGlobal(int planeID,SOL_Point& point)
-{
-	// Given a plane def, convert the point to global coordinates
-	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
-	if (index == -1)
-		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
-
-
-	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].DefRect();
-
-	point.x += r.A.x;
-	point.y += r.A.y;
-}
+// HOOK
+// Never used
+//void
+//LocalToGlobal(int planeID,SOL_Point& point)
+//{
+//	// Given a plane def, convert the point to global coordinates
+//	int index = graphMgr->VisibleScreen().Planes().Search(planeID);
+//	if (index == -1)
+//		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,index);
+//
+//
+//	SOL_Rect r = graphMgr->VisibleScreen().Planes()[index].DefRect();
+//
+//	point.x += r.A.x;
+//	point.y += r.A.y;
+//}
 
 void
 Plane::FilterUpEraseRects(DrawList& myDrawList,RectList& theirEraseList)
@@ -1035,7 +1144,7 @@ Plane::FilterDownEraseRects(DrawList& myDrawList,RectList& myEraseList,RectList&
 	// priority planes. If my plane is opaque then the part of the rectangle
 	// that intersects my plane will	not be passed on.
 
-	if (IsTransparent()) {
+	if (IsTransparent() || IsPictureSkip()) {
 		// I'm transparent
 		int theirCount = theirEraseList.Length();
 		for (int i = 0;i < theirCount;++i) {
@@ -1198,3 +1307,4 @@ MergeToRectList(const SOL_Rect& r,RectList& myEraseList)
 		myEraseList.Add(mergeList[j]);
 	}
 }
+

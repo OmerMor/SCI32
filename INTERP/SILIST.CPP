@@ -54,7 +54,7 @@ ScreenItemList::Add(ScreenItem* si)
 	if (length == MAXSI)
 		msgMgr->Fatal(SrcLoc, Msg_TooManyScreenItems);
 	siArray[length] = si;
-	return (length++);
+	return length++;
 }
 
 //  Clear Method
@@ -150,12 +150,16 @@ ScreenItemList::Sort()
 	//  Algorithm is modified bubble sort.   Feel free to replace
 	//  with a better performance one, but remember that the list is
 	//  usually very small (est. 100 elements or less).
-	Pack();
-	for (int i = length - 1; i > 0; i--)  {
+
+	for (int i=0;i<length;++i)
+		order[i] = i;	
+	for (i = length - 1;i > 0;i--)  {
 		int swap = False;
 
 		for (int j = 0; j < i; j++)  {
 			if (
+					(siArray[j] == NULL)
+					||
 				   (siArray[j]->Priority() > siArray[j+1]->Priority()) 
 				   ||
 				   (
@@ -175,6 +179,10 @@ ScreenItemList::Sort()
 				ScreenItem* temp = siArray[j+1];
 				siArray[j+1] = siArray[j];
 				siArray[j] = temp;
+				// Keep track of the unsorted order
+				int tmp = order[j+1];
+				order[j+1] = order[j];
+				order[j] = tmp;
 				swap = True;
 			}
 		}
@@ -182,3 +190,22 @@ ScreenItemList::Sort()
 			break;
 	}
 }
+
+void
+ScreenItemList::Unsort()
+{
+	// Put the list back to it's original order
+	for (int i=0;i<length;++i) {
+		while (order[i] != i) {
+			ScreenItem* temp = siArray[order[i]];
+			int tmp = order[order[i]];
+
+			siArray[order[i]] = siArray[i];
+			order[order[i]] = order[i];
+
+			siArray[i] = temp;
+			order[i] = tmp;
+		}
+	}
+}
+

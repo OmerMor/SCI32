@@ -18,14 +18,6 @@ class BufferStd : public Buffer
 	Bool	IsNull() const 		{return start == NULL;}
 
 	uchar*	Addr(const int x, const int y) const;
-	uchar*	AddrSimRes(int x, int y) const;
-
-	uchar*	start;
-
-
- protected:
- 	int		simResX, simResY;
-	int		realResX, realResY;
 };
 
 inline uchar*

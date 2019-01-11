@@ -44,6 +44,7 @@
 #define	VMD_TIMEOUT	0x040000L		// Time-Out son
 #define	VMD_BULLE	0x080000L		// Bulle
 #define	VMD_ERROR	0x800000L		// N/I
+#define	VMD_BEHIND	0x008000L		// Falling behind
 
 //       +--------------------------------------------------------+
 //       +                                                        +
@@ -63,9 +64,9 @@
 #define	VMD_SOUND16BITS		4		// Audio 16bits
 #define	VMD_DECAL1				8		// DÇpart son image N¯ 1
 
-//    +---------------------------------------------------------------+
-//    + VMD_NOWAIT          0x100		Champ utilisÇ systäme          +
-//    +---------------------------------------------------------------+
+//    	+--------------------------------------------------------+
+//    	+ VMD_NOWAIT          0x100		Champ utilisÇ systäme   +
+//    	+--------------------------------------------------------+
 #define	CURRENT_SOUND	1			// Buffer son courant
 #define	START_SOUND		2			// Buffer son dÇpart
 #define	SILENT_SOUND	3			// Buffer son vide
@@ -86,7 +87,6 @@
 //       +       Paramêtres de OpenIMD                            +
 //       +                                                        +
 //       +--------------------------------------------------------+
-
 #define	VMD_SOUNDFIRST	0x0004			// PrioritÇ son
 #define	VMD_PICTFIRST	0x0008			// PrioritÇ image
 #define	VMD_NOSOUND		0x0010			// Force sans son
@@ -98,16 +98,16 @@
 #define	VMD_NOTRACK		0x0400			// Force hors Tracker
 #define	VMD_FORCESOUND	0x0800			// Force lancement son
 
-//    +---------------------------------------------------------------+
-//    + RÇservÇ         0x1000   		Champ utilisÇ systäme          +
-//    +---------------------------------------------------------------+
+//    	+--------------------------------------------------------+
+//    	+ RÇservÇ         0x1000   		Champ utilisÇ systäme   +
+//    	+--------------------------------------------------------+
 #define	VMD_AUTOPLAY				0x2000						// Joue tout seul
 #define	VMD_DATA						0x4000						// Utilise les datas
 #define	VMD_TIME(a)	(VMD_NOWAIT+0x8000+((LONG)a<<16L))	// Force vitesse
 
-//    +---------------------------------------------------------------+
-//    + RÇservÇ         0x00xx8000L       Bits Systäme correspondants +
-//    +---------------------------------------------------------------+
+//    	+------------------------------------------------------------+
+//    	+ RÇservÇ         0x00xx8000L    Bits Systäme correspondants +
+//    	+------------------------------------------------------------+
 #define	VMD_LOOPCACHE	(0x01000000L+VMD_CACHE)	// VMD en cache Loop
 #define	VMD_ALLOCPTR	0x02000000L					// Allocation IMD_ptr
 
@@ -123,7 +123,6 @@
 #define	CACHE_VDUPLICATE	2			// Ouvert plusieurs fois
 #define	CACHE_USING			1			// En utilisation
 
-
 //       +--------------------------------------------------------+
 //       +                                                        +
 //       +       Paramêtres globaux                               +
@@ -131,7 +130,6 @@
 //       +--------------------------------------------------------+
 #define	VMD_8BITS	0x0001			// Force Son 8bits
 #define	VMD_11K		0x0002			// Force Son 11khz
-
 
 //       +--------------------------------------------------------+
 //       +                                                        +
@@ -328,7 +326,6 @@ typedef	_Packed struct
 //       +       Variables                                        +
 //       +                                                        +
 //       +--------------------------------------------------------+
-
 extern	UWORD			IMD_break;
 extern	BOOL			IMD_check;
 extern	BOOL			IMD_get;
@@ -405,7 +402,6 @@ extern	BOOL			WriteIMD(WORD,WORD,WORD,WORD,BOOL Diff,BOOL Pack,BOOL MiniList,BOO
 //			+     Gestion du Cache IMD                               +
 //			+                                                        +
 //			+--------------------------------------------------------+
-
 extern	void			CloseCache(void);
 extern	void			FlushCache(void *);
 extern	WORD			GetNextPictCached(void *);
@@ -477,13 +473,27 @@ enum {
 	SCIVMD_END = 1,
 	SCIVMD_ESC_PRESSED = 2,
 	SCIVMD_MOUSE_DOWN = 4,
-	SCIVMD_HOT_RECTANGLE = 8
+	SCIVMD_HOT_RECTANGLE = 8,
+	SCIVMD_TO_FRAME = 16,
+	SCIVMD_RETURN_INTERVAL = 32,
+	SCIVMD_KILLFOCUS = 64
+};
+
+enum {
+	// play parameters
+	SCIVMD_DOUBLE = 1,
+//	SCIVMD_NO_SKIPPING = 2,
+	SCIVMD_BLACK_LINES = 4,
+	SCIVMD_NO_AYSNC_CHECKS = 8,
+	SCIVMD_RGB = 16,
+	SCIVMD_LEAVE_SCREEN_BLACK = 32,
+	SCIVMD_LEAVE_LAST_FRAME = 64
 };
 
 enum avi_command_list {
       SCIVMD_OPEN = 0,
       SCIVMD_PUT,
-      SCIVMD_PLAY,
+      SCIVMD_PLAY,								 // Obsolete
       SCIVMD_STOP,
       SCIVMD_PAUSE,
       SCIVMD_RESUME,
@@ -496,12 +506,15 @@ enum avi_command_list {
 	   SCIVMD_SEEK,
 	   SCIVMD_FRAMES_SKIPPED,
 	   SCIVMD_WAIT_EVENT,
-	   SCIVMD_PUT_DOUBLE,
+	   SCIVMD_PUT_DOUBLE,						 // Obsolete
 	   SCIVMD_CURSOR,
 	   SCIVMD_START_BLOB,
 	   SCIVMD_STOP_BLOBS,
 	   SCIVMD_ADD_BLOB,
-	   SCIVMD_DELETE_BLOB
+	   SCIVMD_DELETE_BLOB,
+		SCIVMD_BLACK,
+		SCIVMD_SKIP,
+	   SCIVMD_RESTRICT_PALETTE
 };
 
 enum vmd_status {
@@ -515,4 +528,18 @@ enum vmd_status {
 
 const unsigned int SCIVMD_ERROR = 0xffff;
 
+extern			int vmdBlackLines;
+extern			int vmdDouble;
+extern			int vmdNoAsync;
+extern			int vmdSkipOn;
+extern			int vmdRGB;
+extern			int vmdRGBStart;
+extern			int vmdRGBEnd;
+extern			int vmdPaletteStart;
+extern			int vmdPaletteEnd;
+extern			int vmdLeaveScreenBlack;
+extern			int vmdBehind;
+extern			int vmdAhead;
+
 #endif
+

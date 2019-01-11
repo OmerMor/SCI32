@@ -14,7 +14,7 @@
 #include "kernel.hpp"
 #include "msg.hpp"
 #include "object.hpp"
-#include "opcodes.hpp"
+//BEW REMOVED #include "opcodes.hpp"
 #include "pmachine.hpp"
 #include "sendstac.hpp"
 
@@ -140,7 +140,7 @@ OpcodeBreakpoint::Set(uchar opcode, ...)
 Bool
 OpcodeBreakpoint::Triggered()
 {
-	uchar opcode = pm.ip.PeekChar() & ~OP_BYTE;
+	uchar opcode = *pm.ip & ~OP_BYTE;
 	for (int i = 0; i < nEntries; i++)
 		if (entries[i] == opcode)
 			return True;
@@ -155,39 +155,41 @@ public:
 	Bool	Triggered();
 
 protected:
-	PMIP*	pmipStackPtr;
+	Property*	pmipStackPtr;
 
 };
+
 static StepOverSourceBreakpoint stepOverSourceBreakpoint;
 
 void
 StepOverSourceBreakpoint::Set()
 {
 	AddOpcode(op_lineNum);
-	pmipStackPtr = pm.ip.StackPtr();
+	pmipStackPtr = pm.StackPtr();
 }
 
 Bool
 StepOverSourceBreakpoint::Triggered()
 {
-	return pm.ip.StackPtr() <= pmipStackPtr && OpcodeBreakpoint::Triggered();
+	return pm.StackPtr() <= pmipStackPtr && OpcodeBreakpoint::Triggered();
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 class PMIPStackBreakpoint: public Breakpoint {
 public:
-	void	Set(PMIP*);
+	void	Set(Property*);
 	Bool	Triggered();
 
 protected:
-	PMIP*		stackPtr;
+	Property*		stackPtr;
 
 };
- static PMIPStackBreakpoint pmipStackBreakpoint;
+
+static PMIPStackBreakpoint pmipStackBreakpoint;
 
 void
-PMIPStackBreakpoint::Set(PMIP* stackPtr)
+PMIPStackBreakpoint::Set(Property* stackPtr)
 {
 	this->stackPtr = stackPtr;
 }
@@ -195,7 +197,7 @@ PMIPStackBreakpoint::Set(PMIP* stackPtr)
 Bool
 PMIPStackBreakpoint::Triggered()
 {
-	return pm.ip.StackPtr() == stackPtr;
+	return pm.StackPtr() == stackPtr;
 }
 
 //////////////////////////////////////////////////////////////////////////////

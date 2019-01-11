@@ -8,14 +8,14 @@
 #include "wingfunc.hpp"
 #endif
 #include "scidlg.hpp"
+#include <io.h>
 #include <stdlib.h>
 #include <stdio.h>
-//#include "sol.hpp"
 #include "event.hpp"
 #include "audio.hpp"
+#include "config.hpp"
 #include "graphmw.hpp"
 #include "kernel.hpp"
-//#include "scidll.hpp"
 #include "memmgrw.hpp"
 #include "mousew.hpp"
 #include "moview.hpp"
@@ -27,7 +27,6 @@
 #include "soundwin.hpp"
 #include "timew.hpp"
 #include "mmsystem.h"
-#include "moview.hpp"
 #include "winthunk.hpp"
 
 int scimain (int argc, PSTR argv[]);
@@ -43,16 +42,18 @@ BOOL                    doDialog(int);
 void                    GetProfileInfo (void);
 BOOL                    GetTFOption (LPSTR, BOOL);
 int                     GetIntOption (LPSTR, int);
+int                     GetToken (LPSTR, int, int);
 void                    GetScreenInfo (void);
 void                    ReadCommandLine (LPSTR);
 void                    MBox (char *, char *);
+Bool                    MBox2 (char *, char *);
 void                    StartTimer (void);
 void                    StopTimer (void);
 void                    CheckConfig (void);
-void SciDisplay (char *);
 
 void	closeWaveDev(void);
 void	AudioUpdate(void);
+void	PollAudBuffs(void);
 unsigned	GetDACDefaultSize(void);
 
 #ifdef WIN32S
@@ -90,7 +91,7 @@ WORD            timerId;
 char            mbuff[80];
 WORD            nCheck;
 char            modSciwin[] = "sciwin";
-int             nHORZRES, nVERTRES, nCOLORS, nBITSPIXEL, nPLANES, nRASTERCAPS;
+int	nHORZRES, nVERTRES, nColors, nBITSPIXEL, nPLANES, nRASTERCAPS;
 int		forcePPC = 0;
 int		asyncCheckFreq = 10;
 int		monoDisp = 0;
@@ -107,15 +108,21 @@ BOOL    CONFIRMREDBOOK = FALSE; /* confirm from user if no Redbook */
 BOOL    USEAUDIO = TRUE;
 BOOL    USEMIDI = TRUE;
 BOOL    DOPPCTEST = TRUE;
-BOOL    HIRES = TRUE;
 BOOL	  TITLEBAR = TRUE;
+BOOL	  TITLEBARFIXED = FALSE;
 BOOL	  ALLOWRESIZE = TRUE;
 BOOL	  ALLOWTRUECOLOR = TRUE;
 BOOL	  TRUECOLOR = FALSE;
 BOOL	  TRAPCLOSE = TRUE;
 BOOL	  COLORCURSOR = FALSE;
+BOOL	  MAXIMIZED = FALSE;
 BOOL	  haveFocus = TRUE;
+BOOL	  firstPause = TRUE;
+BOOL	  waitVMDStop = FALSE;
+BOOL	  waitClose = FALSE;
+BOOL	  ES688WIN = FALSE;
 Bool	  WING = FALSE;
+BOOL	  bWin95;
 #ifdef WIN32S
 int     wingMinK = 3000;
 #endif
@@ -127,9 +134,10 @@ int     wingMinK = 3000;
 #define BASEADLIB       3
 extern  int     MidiType;
 
-static char		szIniFile[50] = "resource.win";
+char		szIniFile[_MAX_PATH];
+char		szInfo[] = "Windows";
+static char		szDefaultIniFile[] = "RESOURCE.WIN";
 static char		szTitle[80] = "Sierra On-Line";
-static char		szInfo[] = "Windows";
 static char		szAppName [] = "SciWin" ;
 char				szWinPatchDir[50] = "";
 int     gameWidth = SCIRESX;
@@ -142,22 +150,23 @@ int     forceWidth = 0;
 int     forceHeight = 0;
 int     ratioX, ratioY;
 int     reserveK = 0;
-int     reserveK4 = 0;
-int     reserveK8 = 0;
-int     reserveK16 = 0;
 int     sciMinK = 1500;
 int     sciMaxK = 8000;
-int     vmapWidth = 640;
-int     vmapHeight = 480;
+int     vmapWidth;
+int     vmapHeight;
 int	  DACSize;
 int	  cursorViewAdd = 0;
 int	  maxCursorSize = 0;
 DWORD   midiBuffSize[NUMMIDIBUFFS];
+ulong		asyncCheckPeriod = 0;
 
 Bool    isMaximized = False;
 Bool    minMaxFlag = False;
-extern	int	writeCount;
+extern	int		writeCount;
 
+extern	int 			vmdStatus;
+extern	BOOL			vmdShowFullFrame;
+extern	BOOL			vmdKillFocus;
 
 #pragma warning 579  9         //   Shut off cast warning for lpfnWndProc
 
@@ -180,9 +189,9 @@ extern BOOL haveMouse;
 RECT            windRect;
 
 #ifdef WIN32S
-    Main::hInstance = hInstance;
-    Main::hPrevInstance = hPrevInstance;
-    Main::nCmdShow = nCmdShow;
+	 Main::hInstance = hInstance;
+	 Main::hPrevInstance = hPrevInstance;
+	 Main::nCmdShow = nCmdShow;
 	 Main::lpszCmdLine = lpszCmdLine;
 #endif
 
@@ -204,12 +213,12 @@ RECT            windRect;
 		wndclass.style				= CS_HREDRAW | CS_VREDRAW ;
 		wndclass.lpfnWndProc		= ::WndProc ;
 		wndclass.cbClsExtra		= 0 ;
-        // Reserve extra bytes for each instance of the window;
-        // we will use these bytes to store a pointer to the C++
-        // (MainWindow) object corresponding to the window.
-        // the size of a 'this' pointer depends on the memory model.
-        wndclass.cbWndExtra    = sizeof( MainWindow * );
-        wndclass.hInstance     = Main::hInstance;
+		  // Reserve extra bytes for each instance of the window;
+		  // we will use these bytes to store a pointer to the C++
+		  // (MainWindow) object corresponding to the window.
+		  // the size of a 'this' pointer depends on the memory model.
+		  wndclass.cbWndExtra    = sizeof( MainWindow * );
+		  wndclass.hInstance     = Main::hInstance;
 		wndclass.hIcon				= LoadIcon (Main::hInstance, "myicon") ;
 #endif
 		wndclass.hCursor			= NULL;
@@ -231,6 +240,7 @@ RECT            windRect;
 		return msg.wParam ;                                     /* return to Windows */
 	}
 
+	bWin95 = ((HIBYTE(LOWORD(GetVersion()))) >= 95);
 
 	ReadCommandLine (lpszCmdLine);  /* get command line arguments */
 
@@ -257,15 +267,28 @@ RECT            windRect;
 	windWidth  = windRect.right - windRect.left;
 	windHeight = windRect.bottom - windRect.top;
 
-	if (windWidth > nHORZRES)
-		posX = 0;
-	else
+	posX = 0;
+	posY = 0;
+	if (nHORZRES > windWidth)
 		posX = (nHORZRES - windWidth) / 2;
-
-	if (windHeight > nVERTRES)
-		posY = 0;
-	else
+	if (nVERTRES > windHeight)
 		posY = (nVERTRES - windHeight) / 2;
+
+	if ((nHORZRES <= windWidth) || MAXIMIZED) {
+		howShow = SW_SHOWMAXIMIZED;
+		gameBorder = maximizedBorder;
+      isMaximized = True;
+	} else {
+		howShow = SW_SHOWNORMAL;
+		isMaximized = False;
+	}
+
+	// remove title bar if not enough room
+	if (TITLEBAR & !TITLEBARFIXED)
+		if ((windHeight - (2 * borderPixels)) > nVERTRES) {
+			TITLEBAR = FALSE;
+			myStyle = WS_POPUP | WS_CLIPCHILDREN;
+		}
 
 #ifndef WIN32S
 	hWnd = CreateWindow (szAppName, szTitle,
@@ -282,15 +305,6 @@ RECT            windRect;
 
 	SetCapture(hMyWnd);
 
-	if (nHORZRES > windWidth) {
-		howShow = SW_SHOWNORMAL;
-      isMaximized = False;
-	} else {
-		howShow = SW_SHOWMAXIMIZED;
-		gameBorder = 0;
-      isMaximized = True;
-	}
-
 	ShowWindow (hMyWnd, howShow) ;
 	UpdateWindow (hMyWnd) ;
 
@@ -302,7 +316,7 @@ RECT            windRect;
 
 	GetWindowsMemory();
 
-	scimain (argc, argv);                   /* call sci.c to start intrpreter */
+	scimain(argc, argv);                   /* call sci.c to start interpreter */
 
 	exit (1);
 //	return msg.wParam ;                     /* return to Windows */
@@ -311,19 +325,19 @@ RECT            windRect;
 #ifdef WIN32S
 // Do not create unless previously registered.
 MainWindow::MainWindow( void )
-    {
-        // Pass 'this' pointer in lpParam of CreateWindow().
-        hWnd = CreateWindow( szAppName,
-            szTitle,
+	 {
+		  // Pass 'this' pointer in lpParam of CreateWindow().
+		  hWnd = CreateWindow( szAppName,
+				szTitle,
 				myStyle,
 				posX, posY,
 				windWidth, windHeight,
-            NULL,
-            NULL,
-            Main::hInstance,
-            (LPSTR) this );
+				NULL,
+				NULL,
+				Main::hInstance,
+				(LPSTR) this );
 	hMyWnd = hWnd;                                          /* for public use */
-    }
+	 }
 #endif
 
 
@@ -336,18 +350,51 @@ void AsyncEventCheck ()
 	so that we can return when message queue exhausted.
 ***********************************************************************/
 {
-	while (GAMEPAUSED)
-		{
+ulong		currTime;
+static	ulong		nextTime = 0;
+
+	if (waitVMDStop) {
+		if (vmdStatus == statusNotOpen) {
+			waitVMDStop = FALSE;
+			if (waitClose) {
+				pm.Global(g_quit) = 2;
+				waitClose = FALSE;
+			} else {
+				GAMEPAUSED = TRUE;
+				firstPause = TRUE;
+			}
+		} else
+			return;
+	}
+
+	while (GAMEPAUSED) {
+		if (firstPause) {
+			firstPause = FALSE;
+			((TimeMgrWin*)timeMgr)->DisableTimer();
+		}
 		GetMessage (&myMsg, NULL, 0, 0);
 		if (myMsg.message == WM_QUIT)
 			exit (1);
 		TranslateMessage (&myMsg) ;
 		DispatchMessage (&myMsg) ;
-		}
+	}
 
-	if (!*timeToCheck)
-		return;
-	*timeToCheck = 0;
+	PollAudBuffs();
+
+	if (ES688WIN) {
+		// The ES688WIN.DRV driver version 4.13.02 on the Compaq presario
+		// (and other machines) crashes while playing DAC.
+		// The following code fixes the problem, altough I don't know why.
+		// TM - 7/31/95
+		currTime = timeGetTime();
+		if (currTime < nextTime)
+			return;
+		nextTime = currTime + asyncCheckPeriod;
+	} else {
+		if (!*timeToCheck)
+			return;
+		*timeToCheck = 0;
+	}
 
 	AudioServer();
 	if (!USEAUDIO)
@@ -389,8 +436,16 @@ LPSTR   inChar;
 	//find the config file name
 	for (int i = 1; i < argc; ++i) {
 		if (*argv[i] != '-' && *argv[i] != '/') {
-			strcpy(szIniFile, argv[i]);
+			_fullpath(szIniFile, argv[i], sizeof szIniFile);
+			strupr(szIniFile);
 		}
+	}
+
+	if (!ConfigMgr::FindConfigFile(szIniFile, szDefaultIniFile)) {
+		char buf[100];
+		sprintf(buf, "Can't open configuration file %s.\nPlease run Setup.", szIniFile);
+		MBox(buf, "Error");
+		exit(1);
 	}
 }
 
@@ -399,14 +454,14 @@ void GetProfileInfo (void)
 char            buff[80];
 unsigned			 aSize, dSize;
 
-	if (!GetPrivateProfileString ((LPSTR)szInfo, "title", NULL, szTitle,
+	if (!GetPrivateProfileString ((LPSTR)szInfo, "title", "", szTitle,
 											sizeof(szTitle), (LPCSTR)szIniFile))
 		MBox ("Windows title not found","");
 
-	GetPrivateProfileString ((LPSTR)szInfo, "winPatchDir", NULL, szWinPatchDir,
+	GetPrivateProfileString ((LPSTR)szInfo, "winPatchDir", "", szWinPatchDir,
 											sizeof(szWinPatchDir), (LPCSTR)szIniFile);
 
-	GetPrivateProfileString ((LPSTR)szInfo, "synthtype", NULL, buff,
+	GetPrivateProfileString ((LPSTR)szInfo, "synthtype", "", buff,
 											sizeof(buff), (LPSTR)szIniFile);
 	if ((buff[0] == 'P') || (buff[0] == 'p'))
 		MidiType = PCSPEAKER;
@@ -419,13 +474,9 @@ unsigned			 aSize, dSize;
 
 	forceWidth		= GetPrivateProfileInt ((LPSTR)szInfo, "wwidth", 0, (LPSTR)szIniFile);
 	forceHeight		= GetPrivateProfileInt ((LPSTR)szInfo, "wheight", 0, (LPSTR)szIniFile);
-	movieType		= GetPrivateProfileInt ((LPSTR)szInfo, "movieplayer", 0, (LPSTR)szIniFile);
 	borderPixels	= GetPrivateProfileInt ((LPSTR)szInfo, "borderpixels", 5, (LPSTR)szIniFile);
 	gameBorder = borderPixels;
-	reserveK			= GetPrivateProfileInt ((LPSTR)szInfo, "reservek", 0, (LPSTR)szIniFile);
-	reserveK4		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek4", 700, (LPSTR)szIniFile);
-	reserveK8		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek8", 1500, (LPSTR)szIniFile);
-	reserveK16		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek16", 2000, (LPSTR)szIniFile);
+	reserveK			= GetPrivateProfileInt ((LPSTR)szInfo, "reservek", 600, (LPSTR)szIniFile);
 	sciMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "scimink", 1500, (LPSTR)szIniFile);
 	sciMaxK			= GetPrivateProfileInt ((LPSTR)szInfo, "scimaxk", 8000, (LPSTR)szIniFile);
 #ifdef WIN32S
@@ -439,10 +490,17 @@ unsigned			 aSize, dSize;
 	aSize				= GetIntOption ("audioSize", INT_HBUFFSIZE*2);
 	AdjustAudBuffSizes(&aSize,&dSize);
 	DACSize			= (int)dSize;
+	vmapWidth		= GetToken("hires",0,640);
+	vmapHeight		= GetToken("hires",1,480);
+	vmapWidth=640;
+	vmapHeight=480;
 
 	asyncCheckFreq	= GetPrivateProfileInt ((LPSTR)szInfo, "asynccheckfreq", 10, (LPSTR)szIniFile);
+	asyncCheckPeriod = 1000 / asyncCheckFreq;
+	if (asyncCheckPeriod < 1)
+		asyncCheckPeriod = 1;
 	monoDisp			= GetPrivateProfileInt ((LPSTR)szInfo, "monodisp", 0, (LPSTR)szIniFile);
-	reserveSize		= GetPrivateProfileInt ((LPSTR)szInfo, "reserveSize", 35000, (LPSTR)szIniFile);
+	reserveSize		= GetPrivateProfileInt ((LPSTR)szInfo, "reserveSize", 36000, (LPSTR)szIniFile);
 	cacheSize1		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize1", 400, (LPSTR)szIniFile);
 	cacheSize2		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize2", 500, (LPSTR)szIniFile);
 	cacheSize3		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize3", 50, (LPSTR)szIniFile);
@@ -468,16 +526,17 @@ unsigned			 aSize, dSize;
 	USEAUDIO			= GetTFOption("useaudio",TRUE);
 	CONFIRMREDBOOK	= GetTFOption("confirmredbook",FALSE);
 	TITLEBAR			= GetTFOption("titlebar",TRUE);
+	TITLEBARFIXED	= GetTFOption("titlebarfixed",FALSE);
 	LOCKMAIN			= GetTFOption("lockmain",FALSE);
 	LOCKAUDIO		= GetTFOption("lockaudio",FALSE);
 	SHOWMEM			= GetTFOption("showmem",FALSE);
 	SHOWNEWS			= GetTFOption("shownews",FALSE);
-	HIRES				= GetTFOption("hires",TRUE);
 	DOPPCTEST		= GetTFOption("doppctest",TRUE);
 	ALLOWRESIZE		= GetTFOption("allowresize",TRUE);
 	ALLOWTRUECOLOR	= GetTFOption("allowtruecolor",TRUE);
 	TRAPCLOSE		= GetTFOption("trapclose",TRUE);
 	COLORCURSOR		= GetTFOption("colorcursor",FALSE);
+	MAXIMIZED		= GetTFOption("maximized",FALSE);
 #ifdef WIN32S
 	WING				= GetTFOption("wing",TRUE);
 #endif
@@ -501,7 +560,7 @@ char	TFBuff[10];
 
 int	GetIntOption(LPSTR optionName, int defaultVal)
 {
-char	str[20];
+char	str[50];
 int	num;
 
 	GetPrivateProfileString ((LPSTR)szInfo, optionName, "q", str,
@@ -521,6 +580,29 @@ int	num;
 	return num;
 }
 
+int	GetToken(LPSTR optionName, int tokenNum, int defaultVal)
+{
+char	str[50];
+char	*tmp;
+char	*strPtr;
+int	i;
+
+	GetPrivateProfileString ((LPSTR)szInfo, optionName, "q", str,
+									sizeof(str), (LPSTR)szIniFile);
+	if (str[0] == 'q')
+		return defaultVal;
+	strPtr = str;
+	for (i = 0; i < tokenNum + 1; i++) {
+		tmp = strtok(strPtr, " =\t;,");
+		strPtr = 0;
+	}
+	if (tmp) {
+		strcpy(str,tmp);
+		return atoi(str);
+	} else
+		return defaultVal;
+}
+
 void
 GetScreenInfo(void)
 {
@@ -538,7 +620,7 @@ int maxClientX, maxClientY;
 	if (nBITSPIXEL > 24)		//some drivers have reported 32 bits
 		nBITSPIXEL = 24;
 	nPLANES = GetDeviceCaps (hMyDC, PLANES);
-	nCOLORS = 1 << (nPLANES * nBITSPIXEL);
+	nColors = 1 << (nPLANES * nBITSPIXEL);
 	DeleteDC (hMyDC);
 
 	nCYCAPTION = GetSystemMetrics(SM_CYCAPTION);
@@ -566,8 +648,13 @@ int maxClientX, maxClientY;
 
 	if (nHORZRES > vmapWidth)
 		maximizedBorder = (nHORZRES - vmapWidth) / 2;
-	else
-		maximizedBorder = 0;
+	else {
+		if (bWin95)
+			maximizedBorder = 0;
+		else
+			// Windows 3.1 does not display row 0, column 0 in maximized mode
+			maximizedBorder = 1;
+	}
 
 	if (gameWidth > vmapWidth) {
 		gameWidth = vmapWidth;
@@ -581,6 +668,10 @@ int maxClientX, maxClientY;
 	}
 	if (forceHeight)
 		gameHeight = forceHeight;
+
+	//game cannot be larger than vmap
+	gameWidth = Min(gameWidth,vmapWidth);
+	gameHeight = Min(gameHeight,vmapHeight);
 
 	clientWidth = gameWidth + (2 * gameBorder);
 	clientHeight = gameHeight + (2 * gameBorder);
@@ -606,7 +697,7 @@ char	szErrorText[150];
 	else
 		TRUECOLOR = FALSE;
 
-	if (nCOLORS < 256)
+	if (nColors < 256)
 		{
 		GetPrivateProfileString ("boot", "display.drv", "none", mbuff, 40,
 									"system.ini");
@@ -619,7 +710,7 @@ char	szErrorText[150];
 		exit(1);
 		}
 
-	if ((nCOLORS > 256) && !ALLOWTRUECOLOR)
+	if ((nColors > 256) && !ALLOWTRUECOLOR)
 		{
 		GetPrivateProfileString ("boot", "display.drv", "none", mbuff, 40,
 									"system.ini");
@@ -631,6 +722,13 @@ char	szErrorText[150];
 				mbuff, MB_OK | MB_ICONSTOP);
 		exit(1);
 		}
+
+	// see if we are using that !@#$% es688win.drv audio driver.
+	GetPrivateProfileString ("drivers", "wave", "none", mbuff, 40, "system.ini");
+	if (lstrcmpi(mbuff,"es688win.drv"))
+		ES688WIN = FALSE;
+	else
+		ES688WIN = TRUE;
 
 	pwf.wf.wFormatTag = WAVE_FORMAT_PCM;
 	pwf.wf.nChannels  = 1;
@@ -722,36 +820,48 @@ MBox (char* text, char* title)
 //		ShowCursor(0);
 }
 
+Bool
+MBox2 (char* text, char* title)
+{
+	OemToAnsiBuff((LPCSTR)text, (LPSTR)text, lstrlen((LPCSTR)text));
+	return (MessageBox (hMyWnd, (LPSTR)text, (LPSTR)title, MB_YESNO | MB_TASKMODAL) == IDNO);
+}
 
-void SciDisplay (char* szFormat)
+
+void SciDisplay (char* szFormat,int xOrig,int yOrig,int width,int height,int history)
 /**********************************************************************
 	Display debug messages in a scroll box.
 ***********************************************************************/
 {
 static int nIndex = 0;
+static int linesStored = 50;
 
 	if (!monoDisp) {
 		if (!hWndList) {
 			hWndList = CreateWindow ("Listbox", NULL,
 							WS_OVERLAPPED | WS_VISIBLE | WS_BORDER | WS_VSCROLL
 							 | WS_THICKFRAME | WS_CAPTION | DS_NOIDLEMSG,
-							620, 400, 140, 200,
+							xOrig, yOrig, width, height,
 							hMyWnd, NULL,
 							MyInstance, NULL);
 			SetFocus(hMyWnd);
+			linesStored = history;
 		}
 
-		if (nIndex > 49)
-			SendMessage (hWndList, LB_DELETESTRING, nIndex - 50, (DWORD) NULL);
+		if (nIndex > linesStored-1)
+			SendMessage (hWndList, LB_DELETESTRING, nIndex - linesStored,(DWORD) NULL);
+		char *cp;
+		while ((cp = strchr(szFormat,'\n')) != NULL)
+			*cp = ' ';
 		nIndex = (int)SendMessage (hWndList, LB_ADDSTRING, NULL, (DWORD)((LPSTR) szFormat));
 		SendMessage (hWndList, LB_SETCURSEL, nIndex, (DWORD) NULL);
 		return;
 	}
 
+	if (monoDisp > 2)
+		return;
 	OutputDebugString(szFormat);
-	if (monoDisp == 1)
-		OutputDebugString("/");
-	else
+	if (monoDisp == 2)
 		OutputDebugString("\n");
 }
 //#endif
@@ -827,12 +937,17 @@ struct {
 	ushort  func;
 } static audArgs;
 
+	if (GAMEPAUSED) {
+		if ((iMessage != WM_SETFOCUS) &&
+			 (iMessage != WM_SYSCOMMAND) &&
+			 (iMessage != WM_QUERYENDSESSION) &&
+			 (iMessage != WM_PAINT) &&
+			 (iMessage != WM_DESTROY))
+			return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
+	}
+
 	switch (iMessage)
 		{
-		case MM_WOM_DONE:
-			AudioUpdate();
-			break;
-
 		case WM_CHAR:                                   /* standard character entered */
 		case WM_KEYDOWN:                                /* for non-standard characters */
 		case WM_SYSKEYDOWN:                     /* ALT key combinations */
@@ -885,7 +1000,10 @@ struct {
 
 		case WM_SETFOCUS:
 			haveFocus = TRUE;
-			SetCapture(hMyWnd);
+			// SetCapture here was causing a problem if an icon was dragged
+			// into the game window, it would become the cursor.  Removing
+			// SetCapture caused no ill effects.  TM 6/12/95	
+//			SetCapture(hMyWnd);
 			if (pm.game)
 				{
 				/* Microsoft says to realize the palette in response to
@@ -907,18 +1025,23 @@ struct {
 			haveFocus = FALSE;
 			ReleaseCapture();
 			if (pm.game) {
+				if (vmdStatus != statusNotOpen) {
+					waitVMDStop = TRUE;
+					vmdKillFocus = TRUE;
+				} else {
+					GAMEPAUSED = TRUE;
+					firstPause = TRUE;
 					if (audioInstalled) {
 						audArgs.count = 1;
 						audArgs.func = STOP;
 						KDoAudio((kArgs) &audArgs);
 						closeWaveDev();
-//						CallDAC(DAC_TERMINATE,0);
 					}
+				}
 				PauseSnd ((ObjectID)0, TRUE);
 				SuspendSounds(TRUE);
 				CloseSnd ();
-				GAMEPAUSED = TRUE;
-				((TimeMgrWin*)timeMgr)->DisableTimer();
+//				((TimeMgrWin*)timeMgr)->DisableTimer();
 			}
 			break;
 
@@ -931,12 +1054,13 @@ struct {
 					break;
 
 				case SC_MAXIMIZE:
+				case 0xF032:		//double-click on title bar
 					gameBorder = maximizedBorder;
                isMaximized = True;
 					break;
 
 				case SC_RESTORE:
-//					MBox("rest","");
+				case 0xF122:		//double-click on title bar
 					if (!minMaxFlag) {
 						gameBorder = borderPixels;
 	               isMaximized = False;
@@ -945,6 +1069,12 @@ struct {
 					break;
 
 				case SC_CLOSE:
+					if (vmdStatus == statusPlaying) {
+						((KbdMgrWin*)kbdMgr)->HandleKey(WM_CHAR, VK_ESCAPE, 65537);
+						waitVMDStop = TRUE;
+						waitClose = TRUE;
+						return 0L;
+					}
 					if (TRAPCLOSE) {
 						// set global to allow the game to do any saves and then
 						// do its own terminate.
@@ -955,6 +1085,9 @@ struct {
 						return 0L;
 					} else
 						break;
+
+				case SC_SCREENSAVE:
+					return 0L;
 				}
 			return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
 
@@ -965,15 +1098,16 @@ struct {
 		case WM_PAINT:                                  /* re-paint client area */
 			hPaintDC = BeginPaint (hWnd, &ps);
 			if (pm.game) {
-//				if (isMaximized)
-//					MBox("paint Max","");
-//				else
-//					MBox("paint not Max","");
+				if (!haveFocus) {
+					graphMgr->Repaint(SOL_Rect(0, 0, gameWidth-1, gameHeight-1));
+					break;
+				}
+				if (vmdStatus == statusPlaying)
+					vmdShowFullFrame = TRUE;
 				// check if dimensions changed
 				GetClientRect(hWnd, &cliRect);
 				cliRect.right -= (2 * gameBorder);
 				cliRect.bottom -= (2 * gameBorder);
-//				if (!isMaximized && ((cliRect.right != gameWidth) || (cliRect.bottom != gameHeight))) {
 				if (ALLOWRESIZE &&
 				   ((cliRect.right != gameWidth) || (cliRect.bottom != gameHeight))) {
 					// re-size with proper aspect ratio
@@ -983,18 +1117,15 @@ struct {
 						gameWidth = (ratioX * cliRect.bottom) / ratioY;
 					gameWidth = Min(Max(gameWidth,SCIRESX),vmapWidth);
 					if (isMaximized) {
-//						sprintf(mbuff,"Max width:%d",gameWidth);
-//						MBox(mbuff,"");
 						gameWidth = vmapWidth;
 					}
 					gameHeight = (ratioY * gameWidth) / ratioX;
+					gameHeight = Min(gameHeight,vmapHeight);
 					// compute new client width, height
 					cliRect.right = gameWidth + (2 * gameBorder);
 					cliRect.bottom = gameHeight + (2 * gameBorder);
 					if (!isMaximized) {
 						AdjustWindowRect(&cliRect, myStyle, FALSE);
-					}
-					if (!isMaximized) {
 						SetWindowPos(hMyWnd, (HWND)NULL,
 											0, 0,
 											cliRect.right - cliRect.left,
@@ -1004,12 +1135,25 @@ struct {
 					graphMgr->NewScreenDim(gameWidth, gameHeight);
 					graphMgr->FrameOut();
 				} else {
+					// don't allow any size change
+					cliRect.right = gameWidth + (2 * gameBorder);
+					cliRect.bottom = gameHeight + (2 * gameBorder);
+					if (!isMaximized) {
+						AdjustWindowRect(&cliRect, myStyle, FALSE);
+						SetWindowPos(hMyWnd, (HWND)NULL,
+											0, 0,
+											cliRect.right - cliRect.left,
+											cliRect.bottom - cliRect.top,
+											SWP_NOZORDER | SWP_NOMOVE); 
+					}
 					// nothing changed; just do a re-paint
-						graphMgr->Repaint(SOL_Rect(0, 0, gameWidth-1, gameHeight-1));
+					graphMgr->Repaint(SOL_Rect(0, 0, gameWidth-1, gameHeight-1));
 				}
 			}
 			EndPaint (hWnd, &ps);
 			hPaintDC = (HDC) NULL;
+			if (pm.game && haveFocus && COLORCURSOR)
+				((MouseWinClr*)mouse)->SetPaintFlag();
 			break;
 
 		case WM_QUERYENDSESSION:

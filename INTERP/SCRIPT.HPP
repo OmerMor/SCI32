@@ -124,12 +124,21 @@ FakeTemplateID(ScriptID, Script, MemScript)
 
 ////////////////////////////////////////////////////////////////////////
 
-ObjectID			GetClass(unsigned);
-void				LoadClassTbl();
 ScriptID			LoadScript(unsigned num);
 ScriptID			ScriptPtr(unsigned num);
 void				DisposeAllScripts();
+
+//BEW CHANGED ObjectID			GetClass(unsigned);
+//BEW CHANGED void				LoadClassTbl();
+//BEW CHANGED DispatchEntry	GetDispatchEntry(unsigned scriptNum, unsigned entryNum,
+//BEW CHANGED						ScriptID* script = 0);
+
+extern "C" {
+ObjectID			GetClass(unsigned);
+void				LoadClassTbl();
 DispatchEntry	GetDispatchEntry(unsigned scriptNum, unsigned entryNum,
 						ScriptID* script = 0);
+}
 
 #endif
+

@@ -10,6 +10,7 @@
 class CritErrHandlerDOS : public CritErrHandler {
 public:
 	CritErrHandlerDOS();
+	~CritErrHandlerDOS();
 
 protected:
 	static int __far Handler(unsigned deverr, unsigned errcode, unsigned far*);

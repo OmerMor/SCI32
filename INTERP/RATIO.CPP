@@ -10,22 +10,26 @@ Ratio::Ratio(const Ratio& src)
 void
 Ratio::Normalize()
 {
-	if (numer == denom)  {
+	if (numer == denom)
+	{
 		numer = denom = 1;
 		return;
 	}
 
-	while (!(numer & 1)  &&  !(denom & 1))  {
+	while (!(numer & 1)  &&  !(denom & 1))
+	{
 		numer >>= 1;
 		denom >>= 1;
 	}
 
-	while (!(numer % 3)  &&  !(denom % 3))  {
+	while (!(numer % 3)  &&  !(denom % 3))
+	{
 		numer /= 3;
 		denom /= 3;
 	}
 		
-	while (!(numer % 5)  &&  !(denom % 5))  {
+	while (!(numer % 5)  &&  !(denom % 5))
+	{
 		numer /= 5;
 		denom /= 5;
 	}
@@ -58,4 +62,18 @@ Ratio::operator!=(const Ratio& src) const
 {
 	return !operator==(src);
 }
-
+
+
+#ifdef DEBUG
+Bool
+Ratio::Assert() const
+{
+	if (numer < 0  || denom < 0)
+		return False;
+	return True;	
+}
+#endif
+
+
+
+

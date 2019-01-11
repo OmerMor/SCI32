@@ -172,6 +172,7 @@ class CelObj
 	int	ResY() const			{return resy;}
 	int	Type() const			{return bitmap.Type();}
 	uchar	Skip() const			{return skip;}
+	Bool	HasSkip() const		{return hasSkip;}
 	int	RemapState() const	{return remapState;}
 	Bool	Mirrored() const		{return mirrored;}
 
@@ -216,22 +217,6 @@ class CelObj
 	void	ScaleDrawMap(const Buffer&, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt);
 	void	ScaleDrawUncompMap(const Buffer&, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt);
 
-	//  CelObj3  -  No remap on, remap in data, write priority
-	void	DrawHzFlip(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawNoFlip(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawUncompNoFlip(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawUncompHzFlip(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	ScaleDraw(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
-	void	ScaleDrawUncomp(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
-
-	//  CelObj4  -  Remap on, remap in data, write priority
-	void	DrawHzFlipMap(const Buffer& dest, const Buffer& destpri, const SOL_Rect&, const SOL_Point ul, uchar pri);
-	void	DrawNoFlipMap(const Buffer& dest, const Buffer& destpri, const SOL_Rect&, const SOL_Point ul, uchar pri);
-	void	DrawUncompNoFlipMap(const Buffer& dest, const Buffer& destpri, const SOL_Rect&, const SOL_Point ul, uchar pri);
-	void	DrawUncompHzFlipMap(const Buffer& dest, const Buffer& destpri, const SOL_Rect&, const SOL_Point ul, uchar pri);
-	void	ScaleDrawMap(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
-	void	ScaleDrawUncompMap(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
-
 	//  CelObjA  -  No remap in data
 	void  DrawHzFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_Point ul);
 	void	DrawNoFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_Point ul);
@@ -242,14 +227,6 @@ class CelObj
 
 	void	DrawUncompNoFlipNoMDNoSkip(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_Point ul);
 	void	DrawUncompHzFlipNoMDNoSkip(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_Point ul);
-
-	//  CelObjB  -  No remap in data, write priority
-	void	DrawHzFlipNoMD(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawNoFlipNoMD(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawUncompNoFlipNoMD(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	DrawUncompHzFlipNoMD(const Buffer& dest, const Buffer& destpri, SOL_Rect, SOL_Point ul, uchar pri);
-	void	ScaleDrawNoMD(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
-	void	ScaleDrawUncompNoMD(const Buffer& dest, const Buffer& destpri, const Ratio& ratioX, const Ratio& ratioY, const SOL_Rect& drawRect, const SOL_Point& pt, uchar pri);
 
 
 	Bitmap	bitmap;
@@ -316,7 +293,7 @@ class CelObjView : public CelObj
 class CelObjMem : public CelObj
 {
 	public:
-	CelObjMem(MemID handle);
+	CelObjMem(MemID);
 	CelObjMem(const CelObjMem& src) : CelObj(src) {}
 	CelObj*	Duplicate() const			{return New CelObjMem(*this);}
 	void		Draw(const Buffer&, const ScreenItem&, const SOL_Rect&, Bool horzFlip);  
@@ -355,11 +332,11 @@ class CelObjPic : public CelObj
 class CelObjColor : public CelObj
 {
 	public:
-	CelObjColor(uchar theColor,int theWidth,int theHeight);
+	CelObjColor(uchar theColor, int theWidth, int theHeight);
 	CelObj*	Duplicate() const			{return New CelObjColor(*this);}
-	void		Draw(const Buffer&,const ScreenItem&, const SOL_Rect&, Bool);
-	void		Draw(const Buffer&,const SOL_Rect& drawRect,SOL_Point,Bool);
-	void		Draw(const Buffer&,const SOL_Rect& drawRect);
+	void		Draw(const Buffer&, const ScreenItem&, const SOL_Rect&, Bool);
+	void		Draw(const Buffer&, const SOL_Rect& drawRect, SOL_Point, Bool);
+	void		Draw(const Buffer&, const SOL_Rect& drawRect);
 
 	protected:
 	uchar*	ResPointer();
@@ -387,4 +364,3 @@ Bitmap::operator!=(const Bitmap& src) const
 }
 
 #endif
-

@@ -130,156 +130,74 @@ CelObj::Draw(const Buffer& dest, const ScreenItem& si, const SOL_Rect& drawRect)
 	//
 
 	Buffer& pmap = graphMgr->PriMap();
-	if (remapState == NoRemapInCel)  {
-		if (graphMgr->drawToPriMap)  {
-			int priority = si.Priority();
-			if (priority < 0)
-				priority = 0;
-			else if (priority > 255)
-				priority = 255;
+	if (remapState == NoRemapInCel)
+	{
+		//
+		//  No remap, no priority map
+		//
 
-			//
-			//  No remap, but priority draw on
-			//
-
-		   if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
-			   if (compressType)
-					ScaleDrawNoMD(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-			   else
-					ScaleDrawUncompNoMD(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-			}
-		   else {
-			   if (compressType)  {
-				   if (horzFlip)
-				   	DrawHzFlipNoMD(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawNoFlipNoMD(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-			   else  {
-				   if (horzFlip)
-					   DrawUncompHzFlipNoMD(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawUncompNoFlipNoMD(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-         }
+		if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())
+		{
+			if (compressType)
+				ScaleDrawNoMD(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
+			else
+				ScaleDrawUncompNoMD(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
 		}
-		else  {
-
-			//
-			//  No remap, no priority map
-			//
-
-			if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
-				if (compressType)
-					ScaleDrawNoMD(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
+		else
+		{
+			if (compressType)
+			{
+				if (horzFlip)
+					DrawHzFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				else
-					ScaleDrawUncompNoMD(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
+					DrawNoFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 			}
-			else {
-				if (compressType)  {
+			else
+			{
+				if (!hasSkip)
+				{
 					if (horzFlip)
-						DrawHzFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
+						DrawUncompHzFlipNoMDNoSkip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 					else
-						DrawNoFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
+						DrawUncompNoFlipNoMDNoSkip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				}
-				else  {
-					if (!hasSkip)  {
-						if (horzFlip)
-							DrawUncompHzFlipNoMDNoSkip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
-						else
-							DrawUncompNoFlipNoMDNoSkip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
-					}
-					else  {
-						if (horzFlip)
-							DrawUncompHzFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
-						else
-							DrawUncompNoFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
-					}
+				else
+				{
+					if (horzFlip)
+						DrawUncompHzFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
+					else
+						DrawUncompNoFlipNoMD(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				}
 			}
 		}
 		return;
 	}
 		
-			
-
-	//
-	//  If graphmgr wants full blown drawing, do it without checking
-	//
-
-	if (graphMgr->drawToPriMap)  {
-		int priority = si.Priority();
-		if (priority < 0)
-			priority = 0;
-		else if (priority > 255)
-			priority = 255;
-
-	   if (remapState == RemapInCel)  {
-		   if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
-			   if (compressType)
-					ScaleDrawMap(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-			   else
-					ScaleDrawUncompMap(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-		   }
-		   else {
-			   if (compressType)  {
-				   if (horzFlip)
-					   DrawHzFlipMap(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawNoFlipMap(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-			   else  {
-				   if (horzFlip)
-					   DrawUncompHzFlipMap(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawUncompNoFlipMap(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-		   }
-      }
-	   else  {
-		   if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
-			   if (compressType)
-					ScaleDraw(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-			   else
-					ScaleDrawUncomp(dest, pmap, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()), priority);
-		   }
-		   else {
-			   if (compressType)  {
-				   if (horzFlip)
-				   	DrawHzFlip(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawNoFlip(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-			   else  {
-				   if (horzFlip)
-					   DrawUncompHzFlip(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-				   else
-					   DrawUncompNoFlip(dest, pmap, drawRect, SOL_Point(si.X1(), si.Y1()), priority);
-			   }
-         }
-		}  
-		return;
-	}
 
 	//
 	//  If we are remapping, use this set of draw routines
 	//
 
-	if (Remap::remapCount  &&  remapState == RemapInCel)  {
-		if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
+	if (Remap::remapCount  &&  remapState == RemapInCel)
+	{
+		if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())
+		{
 			if (compressType)
 				ScaleDrawMap(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
 			else
 				ScaleDrawUncompMap(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
 		}
-		else {
-			if (compressType)  {
+		else
+		{
+			if (compressType)
+			{
 				if (horzFlip)
 					DrawHzFlipMap(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				else
 					DrawNoFlipMap(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 			}
-			else  {
+			else
+			{
 				if (horzFlip)
 					DrawUncompHzFlipMap(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				else
@@ -287,21 +205,26 @@ CelObj::Draw(const Buffer& dest, const ScreenItem& si, const SOL_Rect& drawRect)
 			}
 		}
 	}
-	else  {
-		if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())  {
+	else
+	{
+		if (!si.ScaleX().IsOne() || !si.ScaleY().IsOne())
+		{
 			if (compressType)
 				ScaleDraw(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
 			else
 				ScaleDrawUncomp(dest, si.ScaleX(), si.ScaleY(), drawRect, SOL_Point(si.X1(),si.Y1()));
 		}
-		else {
-			if (compressType)  {
+		else
+		{
+			if (compressType)
+			{
 				if (horzFlip)
 					DrawHzFlip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				else
 					DrawNoFlip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 			}
-			else  {
+			else
+			{
 				if (horzFlip)
 					DrawUncompHzFlip(dest, drawRect, SOL_Point(si.X1(), si.Y1()));
 				else
@@ -316,21 +239,26 @@ CelObj::DrawTo(const Buffer& dest, const SOL_Rect& drawRect, SOL_Point p,
 					const Ratio ratioX, const Ratio ratioY)
 {   
 
-	if (remapState == RemapInCel)  {
-		if (!ratioX.IsOne() || !ratioY.IsOne())  {
+	if (remapState == RemapInCel)
+	{
+		if (!ratioX.IsOne() || !ratioY.IsOne())
+		{
 			if (compressType)
 				ScaleDrawMap(dest, ratioX, ratioY, drawRect, p);
 			else
 				ScaleDrawUncompMap(dest, ratioX, ratioY, drawRect, p);
 		}
-		else {
-			if (compressType)  {
+		else
+		{
+			if (compressType)
+			{
 				if (horzFlip)
 					DrawHzFlipMap(dest, drawRect, p);
 				else
 					DrawNoFlipMap(dest, drawRect, p);
 			}
-			else  {
+			else
+			{
 				if (horzFlip)
 					DrawUncompHzFlipMap(dest, drawRect, p);
 				else
@@ -338,28 +266,35 @@ CelObj::DrawTo(const Buffer& dest, const SOL_Rect& drawRect, SOL_Point p,
 			}
       }
 	}
-	else  { 
-		if (!ratioX.IsOne() || !ratioY.IsOne())  {
+	else
+	{ 
+		if (!ratioX.IsOne() || !ratioY.IsOne())
+		{
 			if (compressType)
 				ScaleDrawNoMD(dest, ratioX, ratioY, drawRect, p);
 			else
 				ScaleDrawUncompNoMD(dest, ratioX, ratioY, drawRect, p);
 		}
-		else {
-			if (compressType)  {
+		else
+		{
+			if (compressType)
+			{
 				if (horzFlip)
 					DrawHzFlipNoMD(dest, drawRect, p);
 				else
 					DrawNoFlipNoMD(dest, drawRect, p);
 			}
-			else  {
-				if (!hasSkip)  {
+			else
+			{
+				if (!hasSkip)
+				{
 					if (horzFlip)
 						DrawUncompHzFlipNoMDNoSkip(dest, drawRect, p);
 					else
 						DrawUncompNoFlipNoMDNoSkip(dest, drawRect, p);
 				}
-				else  {
+				else
+				{
 					if (horzFlip)
 						DrawUncompHzFlipNoMD(dest, drawRect, p);
 					else
@@ -533,9 +468,17 @@ CelObj::ScaleTables(const Ratio& ratioX, const Ratio& ratioY)
 	static int scaleXa[2][maxScaledLine];
 	static int scaleYa[2][maxScaledLine];
 
-	if (lastused == -1)  {
+	assert(ratioX.numer > 0);
+	assert(ratioX.denom >= 0);
+	assert(ratioY.numer > 0);
+	assert(ratioY.denom >= 0);
+
+	//  If uninitialized, init all arrays to no scaling
+	if (lastused == -1)
+	{
 		lastused = 0;
-		for (int i = 0; i < maxScaledLine; i++)  {
+		for (int i = 0; i < maxScaledLine; i++)
+		{
 			scaleXa[0][i] = i;
 			scaleXa[1][i] = i;
 			scaleYa[0][i] = i;
@@ -543,43 +486,66 @@ CelObj::ScaleTables(const Ratio& ratioX, const Ratio& ratioY)
 		}
 	}
 
-	for (int i = 0; i < 2; i++)  {
-		if (lastScaleX[i] == ratioX  &&  lastScaleY[i] == ratioY) {
+	assert(lastused >= 0);
+	assert(lastused < 2);
+
+	//  If we already have scaling cached, point to correct array
+	for (int i = 0; i < 2; i++)
+	{
+		if (lastScaleX[i] == ratioX  &&  lastScaleY[i] == ratioY)
+		{
 			lastused = i;
 			scaleX = scaleXa[i];
 			scaleY = scaleYa[i];
 			return;
 		}
 	}
+
+	//  Need to calculate scaling array.  Use the least recently used array
 	i = 1 - lastused;
 
-	if (lastScaleX[i] != ratioX)  {
+	//  If X ratio scaling is different, recalculate table
+	if (lastScaleX[i] != ratioX)
+	{
 		DoTable(scaleXa[i], ratioX, graphMgr->Xdim());
 		lastScaleX[i] = ratioX;
 	}
 
-	if (lastScaleY[i] != ratioY)  {
+	//  If Y ratio scaling is different, recalculate table
+	if (lastScaleY[i] != ratioY)
+	{
 		DoTable(scaleYa[i], ratioY, graphMgr->Ydim());
 		lastScaleY[i] = ratioY;
 	}
 
+	//  Set pointers to proper table, init lastused
 	scaleX = scaleXa[i];
 	scaleY = scaleYa[i];
 	lastused = i;
 }
 
+
+
 void
 CelObj::DoTable(int* table, const Ratio& scale, int size)
 {
+	assert(table);
+	assert(size > 0);
+	assert(size <= maxScaledLine);
+	assert(scale.numer > 0);
+	assert(scale.denom >= 0);
+
 	int total = 0;
 	int value = 0;
 	int numer = scale.numer;
 	int denom = scale.denom;
 
-	for (int i = 0; i < size; i++)  {
+	for (int i = 0; i < size; i++)
+	{
 		*table++ = value;
 		total += denom;
-		if (total >= numer)  {
+		if (total >= numer)
+		{
 			value += total / numer;
 			total %= numer;
 		}

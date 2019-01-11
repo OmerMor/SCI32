@@ -30,7 +30,7 @@
 
 #include "config.hpp"
 #ifdef DEBUG
-#include "debug.hpp"
+	#include "debug.hpp"
 #endif
 #include "kernel.hpp"
 #include "memmgr.hpp"
@@ -100,11 +100,11 @@ MemoryMgr::Init(size_t maxSize)
 
 	int sysMem = GetSysMemAvail();
 	if (sysMem < (totalMemory = configMgr->GetNum("minMemory", 0, sysMem)))
-		exit(printf("Insufficient memory; %d bytes required\n",totalMemory));
+		exit(Printf("Insufficient memory; %d bytes required\n",totalMemory));
 
  	if ((totalMemory = configMgr->GetNum("staticMemory",0))) {
 		if (sysMem < totalMemory)
-			exit(printf("Insufficient memory; %d bytes required\n",totalMemory));
+			exit(Printf("Insufficient memory; %d bytes required\n",totalMemory));
 	 	sysMem -= totalMemory;
 	}
 
@@ -154,9 +154,9 @@ MemoryMgr::Init(size_t maxSize)
 	desc[descID].data = DescriptorsAddr;
 	desc[descID].memInfo.attributes = HANDLESATTRIBUTES;
 	desc[descID].memInfo.type = MemDescriptors;
-#ifdef DEBUG
-	WriteSignature(descID);
-#endif
+	#ifdef DEBUG
+		WriteSignature(descID);
+	#endif
 	AddBefore(descID,mruList,&mruList,&mruListEnd,mruList,False);
 
 	// Set up the freeList
@@ -167,9 +167,9 @@ MemoryMgr::Init(size_t maxSize)
 	desc[freeID].memInfo.bits.freeMemory = True;
 	desc[freeID].memInfo.bits.moveable = True;
 	AddBefore(freeID,freeList,&freeList,&freeListEnd,mruList,False);
-#ifdef DEBUG
-//	memset(desc[freeID].data,FREE_MARK_CHAR,desc[freeID].size);
-#endif
+	#ifdef DEBUG
+//		memset(desc[freeID].data,FREE_MARK_CHAR,desc[freeID].size);
+	#endif
 
 convBase = 0;
 	if (convBase) {
@@ -194,7 +194,7 @@ convBase = 0;
 		desc[id].memInfo.bits.freeMemory = True;
 		AddBefore(id,freeList,&freeList,&freeListEnd,mruList,True);
 	}
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
 	// Create a thrash array
 	int size = ThrashListSize*sizeof(ThrashItem);
 	SOL_Handle thrashArrayHandle = Alloc(THRASHATTRIBUTES,size,0,0,0,ThrashArrayHandle);
@@ -210,8 +210,10 @@ MemoryMgr::GetNewDescriptor(ReservedHandle requestHandle)
 
 	if (requestHandle != IllegalHandle) {
 
-		if (!desc[requestHandle].memInfo.bits.freeDescriptor)
-			msgMgr->Fatal(SrcLoc,"Reserved handle %d unavailable",requestHandle);
+		#ifdef DEBUG
+			if (!desc[requestHandle].memInfo.bits.freeDescriptor)
+				msgMgr->Fatal(SrcLoc,"Reserved handle %d unavailable",requestHandle);
+		#endif
 		desc[requestHandle].memInfo.bits.freeDescriptor = False;
 		desc[requestHandle].memInfo.bits.freeMemory = False;
 		i = requestHandle;
@@ -435,9 +437,7 @@ void
 MemoryMgr::MoveOrderedLink(SOL_Handle id, Placement place, SOL_Handle refID)
 {
 	if (place != Before)
-	{
-	msgMgr->Fatal("ERROR");
-	}
+		msgMgr->Fatal("INTERNAL ERROR");
 
 	SOL_Handle p = desc[id].prevO;
 	SOL_Handle n = desc[id].nextO;
@@ -461,38 +461,6 @@ MemoryMgr::MoveOrderedLink(SOL_Handle id, Placement place, SOL_Handle refID)
 		desc[desc[refID].prevO].nextO = id;
 		desc[refID].prevO = id;
 	}
-//	if (place == Before && desc[id].nextO == refID ||
-//		 place == After && desc[id].prevO == refID)
-//		return;
-//
-//	SOL_Handle p = desc[id].prevO;
-//	SOL_Handle n = desc[id].nextO;
-//
-//	desc[p].nextO = n;
-//	desc[n].prevO = p;
-//
-//	if (!refID) {
-//		desc[0].nextO = ordListEnd;
-//		desc[0].prevO = ordListEnd;
-//	}
-//
-//	if (place == Before) {
-//		desc[id].prevO = p = desc[refID].prevO;
-//		if (p)
-//			desc[p].nextO = id;
-//		else
-//			ordList = id;
-//		desc[id].nextO = refID;
-//		desc[refID].prevO = id;
-//	} else {
-//		desc[id].nextO = n = desc[refID].nextO;
-//		if (n)
-//			desc[n].prevO = id;
-//		else
-//			ordListEnd = id;
-//		desc[id].prevO = refID;
-//		desc[refID].nextO = id;
-//	}
 }
 
 //****************************************************************************
@@ -520,30 +488,34 @@ MemoryMgr::Alloc(	MemAttrs			theMemAttrs,
 						char 				theChar,
 						ReservedHandle	requestHandle)
 {
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Alloc");
-	if (configMgr->Get(configMgr->RoomMinK)) {
-		int sum = theSize;
-		for (int id = mruList; id; id = desc[id].next)
-			if (!desc[id].memInfo.bits.moveable)
-				sum += desc[id].size - SIGNATURESIZE;
-		if (sum > roomMaxAloc)
-			roomMaxAloc = sum;
-	}
-#endif
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Alloc");
+		if (configMgr->Get(configMgr->RoomMinK)) {
+			int sum = theSize;
+			for (int id = mruList; id; id = desc[id].next)
+				if (!desc[id].memInfo.bits.moveable)
+					sum += desc[id].size - SIGNATURESIZE;
+			if (sum > roomMaxAloc)
+				roomMaxAloc = sum;
+		}
+	#endif
 
 	SOL_Handle	theID;
 
-	if (theSize > totalMemory)
-		msgMgr->Fatal("Out of memory: %u bytes requested, type %08x, num %d",
-			theSize, theMemAttrs);
-
-#if 0
-	if (!theSize)
-		msgMgr->Fatal("Zero allocation request: type %08x, num %d",
-			theMemAttrs, theNumber);
-#endif
+	#ifdef DEBUG
+		if (theSize > totalMemory)
+			msgMgr->Fatal("Out of memory: %u bytes requested, type %08x, num %d",
+							  theSize,
+							  theMemAttrs);
+// HOOK
+// This should be put back but someone is depending on getting
+// a memory allocation of zero bytes!!
+//		if (!theSize)
+//			msgMgr->Fatal("Zero allocation request: type %08x, num %d",
+//							  theMemAttrs,
+//							  theNumber);
+	#endif
 
 	// The following routine is here to prevent recursion.
 	if (needMoreDescs)
@@ -579,10 +551,10 @@ theMemAttrs&0xff,theNumber);
 
 	// Initialize the memory if requested
 	if (theMemAttrs & INITMEMORY) {
-#ifdef DEBUG
-		if (theChar == FREE_MARK_CHAR)
-			msgMgr->Fatal(SrcLoc,Msg_MemInitError);
-#endif
+		#ifdef DEBUG
+			if (theChar == FREE_MARK_CHAR)
+				msgMgr->Fatal(SrcLoc,Msg_MemInitError);
+		#endif
 		memset(desc[theID].data,theChar,theSize-SIGNATURESIZE);
 	}
 
@@ -618,7 +590,7 @@ MemoryMgr::GetLow(size_t theSize,ReservedHandle requestHandle)
 	if (!bestFitID) {
 		bestFitID = Purge(alocSize);
 		if (!bestFitID)
-			msgMgr->Fatal("Out of Low memory; %u bytes requested",theSize);
+			msgMgr->Fatal("Out of movable memory; %u bytes requested",theSize);
 		bestFit = desc[bestFitID].size - alocSize;
 	}
 
@@ -638,9 +610,9 @@ MemoryMgr::GetLow(size_t theSize,ReservedHandle requestHandle)
 		desc[bestFitID].data += alocSize;
    }
 
-#ifdef DEBUG
-  	WriteSignature(theID);
-#endif
+	#ifdef DEBUG
+  		WriteSignature(theID);
+	#endif
 
 	return (theID);
 }
@@ -654,7 +626,7 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 	int alocSize = (theSize + 3) & 0xFFFFFFFC;
 
 	if (!freeList && !Purge(alocSize))
-		msgMgr->Fatal("Out of High memory; %u bytes requested",theSize);
+		msgMgr->Fatal("Out of unmovable memory; %u bytes requested",theSize);
 
 	SOL_Handle freeID;
 
@@ -675,7 +647,7 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 
   	if (!found) {
 		if (!Purge(alocSize))
-			msgMgr->Fatal("Out of High memory; %u bytes requested",theSize);
+			msgMgr->Fatal("Out of unmovable memory; %u bytes requested",theSize);
 		Pack();
 		freeID = freeList;
 	}
@@ -695,9 +667,9 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 		desc[freeID].size -= alocSize;
 	}
 
-#ifdef DEBUG
-  	WriteSignature(theID);
-#endif
+	#ifdef DEBUG
+  		WriteSignature(theID);
+	#endif
 
 	desc[theID].lockCount = 1;
 	return(theID);
@@ -707,7 +679,7 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 void
 MemoryMgr::Free(SOL_Handle theID)
 {
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
 
 	// See if thrashing
 	if (!thrashReporting) {
@@ -762,9 +734,9 @@ MemoryMgr::Free(SOL_Handle theID)
 
 	DeleteFromList(theID,&mruList,&mruListEnd);
 
-#ifdef DEBUG
-  	EraseSignature(theID);
-#endif
+	#ifdef DEBUG
+  		EraseSignature(theID);
+	#endif
 
 	desc[theID].memInfo = info;
 	desc[theID].memInfo.bits.freeDescriptor = False;
@@ -805,12 +777,11 @@ MemoryMgr::Free(SOL_Handle theID)
 			desc[theID].prev = prevID;
 		}
 	}
-
-#ifdef DEBUG
-	if (checkIntegrity & CHECK_FREE)
-	  	// fill the freed memory
-		memset(desc[theID].data,FREE_MARK_CHAR,desc[theID].size);
-#endif
+	#ifdef DEBUG
+		if (checkIntegrity & CHECK_FREE)
+	  		// fill the freed memory
+			memset(desc[theID].data,FREE_MARK_CHAR,desc[theID].size);
+	#endif
 
 	SOL_Handle prevID = desc[theID].prevO;
 	SOL_Handle nextID = desc[theID].nextO;
@@ -891,12 +862,10 @@ MemoryMgr::Purge(size_t theSize)
 	// If possible, Purge() frees and/or packs memory so that there is at
 	// least one free hunk of at least "theSize" bytes (whose handle will
 	// be returned; else returns 0)
-
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Purge");
-#endif
-
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Purge");
+	#endif
 	size_t	 	sum = 0;
 	SOL_Handle	id;
 
@@ -953,10 +922,10 @@ MemoryMgr::Purge(size_t theSize)
 size_t
 MemoryMgr::Pack(size_t theSize)
 {
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Pack");
-#endif
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Pack");
+	#endif
 
 	SOL_Handle begID, endID, freeID = freeList;
 
@@ -998,11 +967,11 @@ MemoryMgr::Pack(size_t theSize)
 
 		_enable();
 
-#ifdef DEBUG
-		// initialize free memory to special character
-		if (checkIntegrity & CHECK_FREE)
-			memset(desc[freeID].data,FREE_MARK_CHAR,desc[freeID].size);
-#endif
+		#ifdef DEBUG
+			// initialize free memory to special character
+			if (checkIntegrity & CHECK_FREE)
+				memset(desc[freeID].data,FREE_MARK_CHAR,desc[freeID].size);
+		#endif
 
 		if ((endID = desc[freeID].next) &&
 			 (desc[freeID].data + desc[freeID].size) == desc[endID].data) {
@@ -1022,10 +991,10 @@ MemoryMgr::Pack(size_t theSize)
 void*
 MemoryMgr::Lock(SOL_Handle theID)
 {
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Lock");
-#endif
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Lock");
+	#endif
 
 	CheckValid(theID);
 
@@ -1044,10 +1013,10 @@ MemoryMgr::Lock(SOL_Handle theID)
 void*
 MemoryMgr::Unlock(SOL_Handle theID)
 {
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Unlock");
-#endif
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Unlock");
+	#endif
 
 	CheckValid(theID);
 
@@ -1081,10 +1050,9 @@ MemoryMgr::Move(SOL_Handle theID)
 					desc[theID].initChar
 					);
 
-#ifdef DEBUG
-	desc[theNewID].checksum = desc[theID].checksum;
-#endif
-//?	desc[theNewID].initChar = desc[theID].initChar;
+	#ifdef DEBUG
+		desc[theNewID].checksum = desc[theID].checksum;
+	#endif
 
 	// Move the data
 	memcpy(desc[theNewID].data,desc[theID].data,GetSize(theID));
@@ -1120,10 +1088,10 @@ MemoryMgr::Move(SOL_Handle theID)
 void
 MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 {
-#ifdef DEBUG
-	if (checkVolatile)
-		VolatileMethod("Realloc");
-#endif
+	#ifdef DEBUG
+		if (checkVolatile)
+			VolatileMethod("Realloc");
+	#endif
 
 	SOL_Handle	theNewID = desc[theID].nextO;
 
@@ -1136,37 +1104,34 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 		// Expanding...
 
 		size_t moreBytes = memorySize - desc[theID].size;
-		if (	theNewID && 
-				desc[theNewID].memInfo.bits.freeMemory &&
-				desc[theNewID].size >= moreBytes
-			) {
-			// the very next block is free and large enough...
+		if (theNewID 											&& 
+			 desc[theNewID].memInfo.bits.freeMemory &&
+			 desc[theNewID].size >= moreBytes) {
 
+			// the very next block is free and large enough...
 			if (desc[theNewID].size > moreBytes) {
 				// ...but *more* than large enough
 				desc[theNewID].data += moreBytes;
 				desc[theNewID].size -= moreBytes;
-#ifdef DEBUG
-				EraseSignature(theID);
-#endif
-
+				#ifdef DEBUG
+					EraseSignature(theID);
+				#endif
 				// Initialize if neccessary
 				if (desc[theID].memInfo.bits.initMemory) {
 					memset(desc[theID].data+desc[theID].size-SIGNATURESIZE,
 							desc[theID].initChar,
 							moreBytes);
 				}
-
 				desc[theID].size += moreBytes;
-
-#ifdef DEBUG
-				WriteSignature(theID);
-#endif
-			} else {
+				#ifdef DEBUG
+					WriteSignature(theID);
+				#endif
+			} 
+			else {
 				// ... but *exactly* large enough
-#ifdef DEBUG
-				EraseSignature(theID);
-#endif
+				#ifdef DEBUG
+					EraseSignature(theID);
+				#endif
 
 				// Initialize if neccessary
 				if (desc[theID].memInfo.bits.initMemory) {
@@ -1174,17 +1139,15 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 							desc[theID].initChar,
 							moreBytes);
 				}
-
 				desc[theID].size += moreBytes;
-#ifdef DEBUG
-				WriteSignature(theID);
-#endif
+				#ifdef DEBUG
+					WriteSignature(theID);
+				#endif
    			DeleteFromList(theNewID,&freeList,&freeListEnd);
    			FreeDescriptor(theNewID);
 			}
-
-		} else {
-
+		} 
+		else {
    		// Allocate a new area of memory large enough
   			theNewID = 
      			Alloc
@@ -1195,7 +1158,6 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 					desc[theID].client
         			);
 			memcpy(desc[theNewID].data,desc[theID].data,desc[theID].size - SIGNATURESIZE);
-
 			// If initialize attribute then set the extra memory to the init character
 			if (desc[theID].memInfo.bits.initMemory) {
      			memset
@@ -1214,39 +1176,32 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 			char* data = desc[theNewID].data;
 			desc[theNewID].data = desc[theID].data;
 			desc[theID].data = data;
-
 			size_t size = desc[theNewID].size;
 			desc[theNewID].size = desc[theID].size;
 			desc[theID].size = size;
-
 			SwapOrderedLinks(theID,theNewID);
-
    		// free the old memory allocation
 			desc[theNewID].client = 0;
   			Free(theNewID);
 		}
-
-   } else if (desc[theID].size > memorySize) {
-
-		// Contracting...
-
-		theNewID = GetNewDescriptor();
-		desc[theNewID].size = desc[theID].size - memorySize;
-		desc[theNewID].data = desc[theID].data + memorySize;
-		desc[theNewID].memInfo.attributes = desc[theID].memInfo.attributes;
-		desc[theID].size = memorySize;
-
-#ifdef DEBUG
-		WriteSignature(theID);
-#endif
-
-     	// Free the unwanted piece
-		desc[theNewID].client = 0;
-		// Link to other desc
-		AddBefore(theNewID,mruList,&mruList,&mruListEnd,theID,False);
-     	Free(theNewID);
-
-	} // (else no change in size)
+   } 
+	else 
+		if (desc[theID].size > memorySize) {
+			// Contracting...
+			theNewID = GetNewDescriptor();
+			desc[theNewID].size = desc[theID].size - memorySize;
+			desc[theNewID].data = desc[theID].data + memorySize;
+			desc[theNewID].memInfo.attributes = desc[theID].memInfo.attributes;
+			desc[theID].size = memorySize;
+			#ifdef DEBUG
+				WriteSignature(theID);
+			#endif
+     		// Free the unwanted piece
+			desc[theNewID].client = 0;
+			// Link to other desc
+			AddBefore(theNewID,mruList,&mruList,&mruListEnd,theID,False);
+     		Free(theNewID);
+		} // (else no change in size)
 	desc[theID].memInfo.bits.alignBytes = (4 - (theNewSize & 3)) & 3;
 }
 
@@ -1260,62 +1215,59 @@ MemoryMgr::Split(SOL_Handle   theID,
 {
    // Split a memory allocation into two parts 
    // creating another handle for the bottom part
-#ifdef DEBUG
-   // Get a new space for the bottom part
-	SOL_Handle returnID = Alloc(theMemAttrs,
-					                desc[theID].size - offset - SIGNATURESIZE,
-					                theNumber,
-					                theClient);
-   // move the data
-	memcpy(desc[returnID].data,
-          desc[theID].data + offset,
-          desc[theID].size - offset  - SIGNATURESIZE);
-   // Now reallocate the orginal to the new size
-   Realloc(theID,offset);
+	#ifdef DEBUG
+   	// Get a new space for the bottom part
+		SOL_Handle returnID = Alloc(theMemAttrs,
+					                	desc[theID].size - offset - SIGNATURESIZE,
+					                	theNumber,
+					                	theClient);
+   	// move the data
+		memcpy(desc[returnID].data,
+          	desc[theID].data + offset,
+          	desc[theID].size - offset  - SIGNATURESIZE);
+   	// Now reallocate the orginal to the new size
+   	Realloc(theID,offset);
+		if (desc[returnID].memInfo.bits.checksummable && desc[returnID].client) {
+			// message back to the data's manager to do the checksum
+			desc[returnID].checksum = desc[returnID].client->GetChecksum(returnID);
+		}
+		if (desc[theID].memInfo.bits.checksummable && desc[theID].client) {
+			// message back to the data's manager to do the checksum
+			desc[theID].checksum = desc[theID].client->GetChecksum(theID);
+		}
+	#else
+   	// Get another handle
+		SOL_Handle returnID = GetNewDescriptor();
+		// Install the manager for this memory
+		desc[returnID].client = theClient;
+		// Save the number
+		desc[returnID].resNumber = theNumber;
+		// Set the attributes
+		desc[returnID].memInfo.attributes = theMemAttrs & (~UNUSEDATTRS);
+   	// split the allocation
+   	desc[returnID].data = desc[theID].data + offset;
+   	desc[returnID].size = desc[theID].size - offset;
+   	desc[theID].size = offset;
+   	// link in the new handle
+		AddBefore(returnID,mruList,&mruList,&mruListEnd,theID,False);
+   	if (
+      	(desc[returnID].memInfo.bits.moveable && !desc[theID].memInfo.bits.moveable)
+      	||
+      	(!desc[returnID].memInfo.bits.moveable && desc[theID].memInfo.bits.moveable)
+      	) {
 
-	if (desc[returnID].memInfo.bits.checksummable && desc[returnID].client) {
-		// message back to the data's manager to do the checksum
-		desc[returnID].checksum = desc[returnID].client->GetChecksum(returnID);
-	}
-	if (desc[theID].memInfo.bits.checksummable && desc[theID].client) {
-		// message back to the data's manager to do the checksum
-		desc[theID].checksum = desc[theID].client->GetChecksum(theID);
-	}
-#else
-   // Get another handle
-	SOL_Handle returnID = GetNewDescriptor();
-	// Install the manager for this memory
-	desc[returnID].client = theClient;
-	// Save the number
-	desc[returnID].resNumber = theNumber;
-	// Set the attributes
-	desc[returnID].memInfo.attributes = theMemAttrs & (~UNUSEDATTRS);
-   // split the allocation
-   desc[returnID].data = desc[theID].data + offset;
-   desc[returnID].size = desc[theID].size - offset;
-   desc[theID].size = offset;
-
-   // link in the new handle
-	AddBefore(returnID,mruList,&mruList,&mruListEnd,theID,False);
-
-   if (
-      (desc[returnID].memInfo.bits.moveable && !desc[theID].memInfo.bits.moveable)
-      ||
-      (!desc[returnID].memInfo.bits.moveable && desc[theID].memInfo.bits.moveable)
-      ) {
-
-      if (desc[theID].memInfo.bits.moveable) {
-         // Need to allocate unmoveable memory
-		   desc[returnID].memInfo.attributes |= MOVEABLE;
-         Move(returnID);
-      }
-      else {
-         // Need to allocate moveable memory
-		   desc[returnID].memInfo.attributes &= ~MOVEABLE;
-         Move(returnID);
-      }
-   }
-#endif
+      	if (desc[theID].memInfo.bits.moveable) {
+         	// Need to allocate unmoveable memory
+		   	desc[returnID].memInfo.attributes |= MOVEABLE;
+         	Move(returnID);
+      	}
+      	else {
+         	// Need to allocate moveable memory
+		   	desc[returnID].memInfo.attributes &= ~MOVEABLE;
+         	Move(returnID);
+      	}
+   	}
+	#endif
    return returnID;
 }
 
@@ -1447,12 +1399,20 @@ MemoryMgr::SaveRestore(SaveGame* saveGame,Bool save)
 				//	make sure what we're writing over is not persistent or locked
 				if	(desc[index].memInfo.bits.persist)
 					msgMgr->Fatal(SrcLoc,Msg_InvalidRestoreData,
-						GetMemTypeStr(index),"persistent",index,desc[index].size);
-				//	KLUDGE:  temporarily allow sounds to get dumped even if locked
-				else if (!desc[index].memInfo.bits.moveable &&
-							(!IsValid(index) || GetMemType(index) != MemResSound))
-					msgMgr->Fatal(SrcLoc,Msg_InvalidRestoreData,
-						GetMemTypeStr(index),"!moveable",index,desc[index].size);
+						           GetMemTypeStr(index),
+									  "persistent",
+									  index,desc[index].size);
+// HOOK
+// Temporary change for SQ6 until Windows cache requests are given
+// a MemRes-type. Also the MemResMap will get a reserved handle!
+//				else
+//					//	KLUDGE:  temporarily allow sounds to get dumped even if locked
+//					if (!desc[index].memInfo.bits.moveable 							&&
+//						 (!IsValid(index) || GetMemType(index) != MemResSound))
+//						msgMgr->Fatal(SrcLoc,Msg_InvalidRestoreData,
+//										  GetMemTypeStr(index),
+//										  "!moveable",
+//										  index,desc[index].size);
 			}
 			// Read in the data
 			SaveDescriptor savedDescriptor;
@@ -1661,8 +1621,10 @@ KMemoryInfo(argList)
 				pm.acc = -1;
 			break;
 
-		default:
-			msgMgr->Fatal(SrcLoc, Msg_InvalidMemInfoCall, arg(1));
+		#ifdef DEBUG
+			default:
+				msgMgr->Fatal(SrcLoc, Msg_InvalidMemInfoCall, arg(1));
+		#endif
 	}
 }
 
@@ -1675,58 +1637,56 @@ SOL_Handle MemoryMgr::GetHandle(void* adr)
 	return 0;
 }
 
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
+	int
+	MemoryMgr::ThrashAdd(SOL_Handle theID)
+	{
+		MemType	theType = desc[theID].memInfo.type;
+		ushort	theResNumber = desc[theID].resNumber;
 
-int
-MemoryMgr::ThrashAdd(SOL_Handle theID)
-{
-	MemType	theType = desc[theID].memInfo.type;
-	ushort	theResNumber = desc[theID].resNumber;
+	// HOOK
+	// This shows that 0.heap 0.hunk are thrashing early in the game!!	
+	//	if (theType > MemResLast)
+	// This shows that some one is using resNumber 0 and type 0 illegally
+	//	if ((theType != MemResView) && (theType != MemResPic))
+		if (
+			((theType != MemResView) && (theType != MemResPic))  ||
+			(theResNumber == 0))
+			return 0;
 
-// HOOK
-// This shows that 0.heap 0.hunk are thrashing early in the game!!	
-//	if (theType > MemResLast)
-// This shows that some one is using resNumber 0 and type 0 illegally
-//	if ((theType != MemResView) && (theType != MemResPic))
-	if (
-		((theType != MemResView) && (theType != MemResPic))  ||
-		(theResNumber == 0))
+
+		for (int i=0;i<ThrashListSize;++i) {
+			if ((thrashArray[i].count != 0)						&& 
+			 	(theResNumber == thrashArray[i].resNumber)	&&
+			 	(theType == thrashArray[i].type))
+
+				return ++thrashArray[i].count;
+		}
+		// A new entry
+		// Shift all entries
+		for (i=ThrashListSize-1;i>0;--i) {
+			thrashArray[i] = thrashArray[i-1];
+		}
+		thrashArray[0].count = 1;
+		thrashArray[0].type = theType;
+		thrashArray[0].resNumber = theResNumber;
 		return 0;
-
-
-	for (int i=0;i<ThrashListSize;++i) {
-		if ((thrashArray[i].count != 0)						&& 
-			 (theResNumber == thrashArray[i].resNumber)	&&
-			 (theType == thrashArray[i].type))
-
-			return ++thrashArray[i].count;
 	}
-	// A new entry
-	// Shift all entries
-	for (i=ThrashListSize-1;i>0;--i) {
-		thrashArray[i] = thrashArray[i-1];
-	}
-	thrashArray[0].count = 1;
-	thrashArray[0].type = theType;
-	thrashArray[0].resNumber = theResNumber;
-	return 0;
-}
 
-void
-MemoryMgr::ThrashReset()
-{
-	for (int i=0;i<ThrashListSize;++i) {
-		thrashArray[i].count = 0;
+	void
+	MemoryMgr::ThrashReset()
+	{
+		for (int i=0;i<ThrashListSize;++i) {
+			thrashArray[i].count = 0;
+		}
 	}
-}
-
 #endif
 
 // The memory manager
 MemoryMgr*	memMgr;
 
-#ifdef NOT_SHIPPING_VERSION
-Bool 			doThrashReport = False;
-Bool 			thrashReporting = True;
-int  			thrashDetectCount = 20;
+#ifdef DEBUG
+	Bool 			doThrashReport = False;
+	Bool 			thrashReporting = True;
+	int  			thrashDetectCount = 20;
 #endif

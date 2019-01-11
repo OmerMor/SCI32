@@ -699,11 +699,26 @@ SetSndLoop(ObjectID soundObject, int newLoop)
 			soundObject.SetIndexedProperty(sndLoop, -1);
 			if (!snID->sSample)
 				(NodeDataAddr(*snID))->sLoop = True;
-		}
-		else {
+			else {
+				audArgs.count = 4;
+				audArgs.arg2 = newLoop;
+				audArgs.arg3 = soundObject.GetIndexedProperty(sndNumber);
+				audArgs.arg4 = snID;
+				audArgs.func = LOOP;
+				KDoAudio((kArgs) &audArgs);
+			}
+		} else {
 			soundObject.SetIndexedProperty(sndLoop, 1);
 			if (!snID->sSample)
 				(NodeDataAddr(*snID))->sLoop = False;
+			else {
+				audArgs.count = 4;
+				audArgs.arg2 = newLoop;
+				audArgs.arg3 = soundObject.GetIndexedProperty(sndNumber);
+				audArgs.arg4 = snID;
+				audArgs.func = LOOP;
+				KDoAudio((kArgs) &audArgs);
+			}
 		}
 	}
 }

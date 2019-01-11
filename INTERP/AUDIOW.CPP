@@ -38,6 +38,7 @@ void	writeWave (DWORD lpHdr);
 #else
 void	writeWave (LPWAVEHDR lpHdr);
 #endif
+void	AudioUpdate(void);
 
 uchar	*wAudioBuffAddr;
 int	writeCount = 0;
@@ -51,6 +52,7 @@ static	DWORD				wHdr1_alias, wHdr2_alias;
 #endif
 static	UINT				wError;
 static	int				buffNum;
+static	int				nextIn;
 static	LPSTR				tBuf1;
 static	LPSTR				tBuf2;
 static	int				tBufSize;
@@ -59,6 +61,8 @@ static	int				maxBits, maxRate, maxChannels;
 static	Bool				(*AudCallBack)(void);
 static	Bool				moreToPlay = False;
 static	Bool				nowPlaying = False;
+static	BOOL				audBuff1Out = FALSE;
+static	BOOL				audBuff2Out = FALSE;
 
 static int	*DACArgs;
 
@@ -226,6 +230,7 @@ int DacPlay(void)
 		moreToPlay = False;
 	}
 	buffNum = 1;
+	nextIn = 1;
 	nowPlaying = True;
 	return 0;
 }
@@ -238,11 +243,6 @@ int DacContinue(void)
 
 int DacStop(void)
 {
-	if (waveDevOpen && writeCount) {
-		wError = waveOutReset (hWave);
-		if (wError)
-			DisplayError(wError, "waveOutReset");
-	}
 	closeWaveDev();
 	moreToPlay = False;
 	nowPlaying = False;
@@ -295,7 +295,7 @@ int DacSetChannels(void)
 
 int DacSetBuff(void)
 {
-	// arg 1 - buffer half size in bytes
+	// arg 1 - buffer size in bytes
 	// arg 2 - call back address
 	// return 0 if OK
 	// allocate buffer of arg 1 K
@@ -308,7 +308,7 @@ int DacSetBuff(void)
 	// TM - 11/5/93
 
 
-	tBufSize = DACArgs[1];
+	tBufSize = DACArgs[1]/2;
 	AudCallBack = (boolproc)DACArgs[2];
 	wHdr1.dwBufferLength = (DWORD)tBufSize;
 	wHdr2.dwBufferLength = (DWORD)tBufSize;
@@ -361,9 +361,9 @@ void openWaveDev (void)
 	wError = waveOutOpen ((LPHWAVEOUT)&hWave,
 									WAVE_MAPPER,
 									(LPWAVEFORMAT)&pwf.wf,
-									(DWORD)hMyWnd,
+									NULL,
 									(DWORD)0,
-									CALLBACK_WINDOW);
+									0);
 	if (wError)
 		DisplayError(wError, "waveOutOpen");
 #ifndef WIN32S
@@ -381,12 +381,12 @@ void openWaveDev (void)
 	if (wError)
 		DisplayError(wError, "waveOutPrepareHeader2");
 	waveDevOpen = True;
+	writeCount = 0;
 }
 
 
 void closeWaveDev (void)
 {
-MSG myMsg;
 
 	if (!waveDevOpen)
 		return;
@@ -398,11 +398,15 @@ MSG myMsg;
 			wError = waveOutReset (hWave);
 			if (wError)
 				DisplayError(wError, "waveOutReset");
-
 			while (writeCount > 0) {
-				GetMessage(&myMsg, NULL, 0, 0);
-				if (myMsg.message == MM_WOM_DONE)
+				if (audBuff1Out && (wHdr1.dwFlags & WHDR_DONE)) {
+					audBuff1Out = FALSE;
 					writeCount--;
+				}
+				if (audBuff2Out && (wHdr2.dwFlags & WHDR_DONE)) {
+					audBuff2Out = FALSE;
+					writeCount--;
+				}
 			}
 		}
 	}
@@ -448,6 +452,10 @@ void writeWave (LPWAVEHDR lpHdr)
 #endif
 		if (wError)
 			DisplayError(wError, "waveOutWrite");
+		if (lpHdr == wHdr1_alias)
+			audBuff1Out = TRUE;
+		else
+			audBuff2Out = TRUE;
 	}
 	writeCount++;
 }
@@ -459,6 +467,28 @@ char	szErrorText[150];
 
 if (!waveOutGetErrorText(wError, (LPSTR)szErrorText, sizeof(szErrorText)))
 	MessageBox (NULL, szErrorText, title, MB_OK);
+}
+
+void
+PollAudBuffs()
+{
+	if (!writeCount)
+		return;
+
+	if (nextIn) {
+		if (audBuff1Out && (wHdr1.dwFlags & WHDR_DONE)) {
+			audBuff1Out = FALSE;
+			nextIn = 1 - nextIn;
+			AudioUpdate();
+		}
+	} else {
+
+		if (audBuff2Out && (wHdr2.dwFlags & WHDR_DONE)) {
+			audBuff2Out = FALSE;
+			nextIn = 1 - nextIn;
+			AudioUpdate();
+		}
+	}
 }
 
 void
@@ -484,3 +514,4 @@ AudioUpdate()
 		}
 	}
 }
+

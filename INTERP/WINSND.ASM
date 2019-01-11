@@ -327,9 +327,9 @@ NoteOff	PROC	NEAR 		;TURN OFF NOTE
 ;	cl = velocity
 
 	push	ax
-	.if	_devType != HIGHSYNTH
+;	.if	_devType != HIGHSYNTH
 		call	setNoteOff	;reset table entry
-	.endif
+;	.endif
 	mov	ah, NOTEOFF
 	call	StdShortMsg
 	pop	ax
@@ -357,6 +357,7 @@ endif
 
 ;	high-level synth, no general midi
 	push	ax
+	call	setNoteOn	;set table entry
 	mov	ah, NOTEON
 	call	StdShortMsg
 	pop	ax
@@ -366,9 +367,9 @@ endif
 ;	base-level synth
 noteonbase:
 	push	ax
-	.if	_devType != HIGHSYNTH
+;	.if	_devType != HIGHSYNTH
 		call	setNoteOn	;set table entry
-	.endif
+;	.endif
 	mov	ah, 0
 	movzx	esi, ax	 	;si is channel index
 	mov	al, chVolM[esi]	;get channel volume
@@ -835,17 +836,17 @@ chanClear	PROC	NEAR
 
 ; Turn off all notes on channel al
 
-	.if	_devType == HIGHSYNTH	;just send controller 123
-		push	ax
-		push	cx
-		mov	ah, CONTROLLER
-		mov	ch, 123
-		mov	cl, 0	
-		call	StdShortMsg
-		pop	cx
-		pop	ax
-		ret
-	.endif
+;	.if	_devType == HIGHSYNTH	;just send controller 123
+;		push	ax
+;		push	cx
+;		mov	ah, CONTROLLER
+;		mov	ch, 123
+;		mov	cl, 0	
+;		call	StdShortMsg
+;		pop	cx
+;		pop	ax
+;		ret
+;	.endif
 
 	push	bx
 	push	cx
@@ -1308,4 +1309,5 @@ endif	;PCSPEAK
 _TEXT		ENDS
 		END
 
+
 

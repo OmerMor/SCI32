@@ -306,22 +306,22 @@ enum {    // enums for KScrollWindow kernel call
 };
 
 
-#if defined(DEBUG) || defined(NOT_SHIPPING_VERSION)
-// external subroutines:
-EventWindow*	CenterXWindow(char* contents,
-								  char* title,
-								  int width,
-								  int top,
-								  Bool wait = False);
+#ifdef DEBUG
+	// external subroutines:
+	EventWindow*	CenterXWindow(char* contents,
+								  	char* title,
+								  	int width,
+								  	int top,
+								  	Bool wait = False);
 
-EventWindow* DebugWindow(char* contents,
-								char* title,
-								int width,
-								SOL_Point& loc,
-								Bool wait = False,
-								Bool* escape = NULL);
-void			MemoryWindow();
-void 			PaletteWindow ();
+	EventWindow* DebugWindow(char* contents,
+									char* title,
+									int width,
+									SOL_Point& loc,
+									Bool wait = False,
+									Bool* escape = NULL);
+	void			MemoryWindow();
+	void 			PaletteWindow ();
 #endif
 
 Bool			WaitOnUser(EventWindow* w = NULL);
@@ -330,4 +330,3 @@ Bool			WaitOnUser(EventWindow* w = NULL);
 //void        TestWindow();
 
 #endif  //WINDOW_HPP
-

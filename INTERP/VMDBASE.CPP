@@ -13,7 +13,6 @@
 //*********************************************************************
 
 #include "sol.hpp"
-#include "config.hpp"
 
 #include "VMDMDO.HPP"
 #include "VMD.HPP"
@@ -22,14 +21,16 @@
 #endif
 #include "msg.hpp"
 #include "graphmgr.hpp"
+#include "resource.hpp"
 #include "palette.hpp"
 #include "palmgri.hpp"
 #include "rect.hpp"
 
-#include <IO.H>
+// #include <IO.H>
 #include <ERRNO.H>
 #include <SYS\STAT.H>
 #include <STDIO.H>
+
 int blockPaletteUpdate;
 
 //*********************************************************************
@@ -43,27 +44,20 @@ int blockPaletteUpdate;
 LONG 
 GXlseek(WORD handle,LONG offs,WORD mode)
 {
-	// Seek in a file
-#ifdef WINDOWS
-	return(_llseek(handle,offs,mode));
-#else
-	return lseek(handle, offs, mode);
-#endif
+	return LSeek(handle, offs, mode);
 }
 
 
 UWORD 
 GXread(WORD handle,void * ptr,UWORD size)	
 {
+	static int result = 0;	// debug only
 	// Read in a file
 	if (X_TrackLoop)
 		X_TrackLoop();
 	TrackLoop();
-#ifdef WINDOWS
-	return (UWORD) (_lread(handle,ptr,size));
-#else
-	return (UWORD) (read(handle, ptr, size));
-#endif
+	result = Read(handle, ptr, size);
+	return (UWORD) result; 
 }
 
 
@@ -106,13 +100,13 @@ GXopen(char *file,WORD)
 
 	if (X_TrackLoop)
 		X_TrackLoop();
-#ifdef WINDOWS
-	handle=_lopen(file,OF_SHARE_DENY_NONE);
-#else
-	handle = open(file, O_RDWR | O_BINARY);
-#endif
+
+   handle = resMgr->Open(MemResVMD,atoi(file));
+	LSeek(handle,0,SEEK_SET);
+
 	if (X_TrackLoop)
 		X_TrackLoop();
+
 	return (WORD) (handle);
 }
 
@@ -120,11 +114,7 @@ void
 GXclose(WORD h)
 {
 	// Close a file
-#ifdef WINDOWS
-	_lclose(h);
-#else
-	close(h);
-#endif
+	resMgr->Close(h);
 	if (X_TrackLoop)
 		X_TrackLoop();
 }
@@ -142,38 +132,63 @@ AssignColors(WORD n1,WORD n2)
 	if(blockPaletteUpdate)
 		return;
 
-	SOLPalette newPal;
-
 #if defined(WINDOWS) && defined(BITBLT)
-	if(n2 > 245)
-		n2 = 245;
-
 	if(n1 < 10)
 		n1 = 10;
+	if(n2 > 245)
+		n2 = 245;
 #endif
+	if(n1 < vmdPaletteStart)
+		n1 = vmdPaletteStart;
+	if(n2 > vmdPaletteEnd)
+		n2 = vmdPaletteEnd;
+
+	SOLPalette newPal;
+	for (i=0;i < n1;i++) {
+		Rgb24F newColor(0,0,0,0);
+		#if defined(WINDOWS) && defined(BITBLT)
+			newPal[i - 10] = newColor;
+		#else
+			newPal[i] = newColor;
+		#endif
+	}
+
+	for (i=n2+1;i < 256;i++) {
+		Rgb24F newColor(0,0,0,0);
+		#if defined(WINDOWS) && defined(BITBLT)
+			newPal[i - 10] = newColor;
+		#else
+			newPal[i] = newColor;
+		#endif
+	}
 
 	for (i=n1;i<=n2;i++)
 	{
-		// HOOK
-		// Up the RBG values for skipping every other line
-		int red = (Video_R[i] << 2)*vmdRGB/100;
-		int green = (Video_V[i] << 2)*vmdRGB/100;
-		int blue = (Video_B[i] << 2)*vmdRGB/100;
+		// If requested up the RBG values for the vmd movie
+		int red = (Video_R[i] << 2);
+		int green = (Video_V[i] << 2);
+		int blue = (Video_B[i] << 2);
+
 		if (vmdRGB != 100) {
-			if (red > 255) 
-				red = 255;
-			if (green > 255) 
-				green = 255;
-			if (blue > 255) 
-				blue = 255;
+			if ((i >= vmdRGBStart) && (i <= vmdRGBEnd)) {
+				red = red*vmdRGB/100;
+				green = green*vmdRGB/100;
+				blue = blue*vmdRGB/100;
+				if (red > 255) 
+					red = 255;
+				if (green > 255) 
+					green = 255;
+				if (blue > 255) 
+					blue = 255;
+			}
 		}
 
 		Rgb24F newColor(red,green,blue,1);
-#if defined(WINDOWS) && defined(BITBLT)
-		newPal[i - 10] = newColor;
-#else
-		newPal[i] = newColor;
-#endif
+		#if defined(WINDOWS) && defined(BITBLT)
+			newPal[i - 10] = newColor;
+		#else
+			newPal[i] = newColor;
+		#endif
 	}
 	graphMgr->GPalette().Submit(newPal);
 	graphMgr->GPalette().UpdateForFrame();
@@ -200,8 +215,3 @@ GXfilesize(char * file)
 
 	return(0L);
 }
-
-
-
-
-

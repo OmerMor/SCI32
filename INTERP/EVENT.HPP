@@ -127,5 +127,34 @@ extern EventMgr*	eventMgr;
 
 extern void		AsyncEventCheck();
 
+void			Wait(char* message);
+
+// HOOK
+// Used for debuging by halting interperter
+// until keystoke is entered
+inline void
+Wait(char* message = NULL)
+{
+	if (message)
+		msgMgr->Mono(message);
+
+	if(!eventMgr)
+		return;
+
+	SOL_Event userEvent;
+	while (True) {
+		eventMgr->Get(&userEvent,SOL_Event::MouseDown | SOL_Event::KeyDown);
+		if (
+			(userEvent.type == SOL_Event::KeyDown) &&
+			(
+			(userEvent.message == Kbd::Enter) ||
+			(userEvent.message == Kbd::Esc)
+			)
+			)
+			break;
+		if (userEvent.type == SOL_Event::MouseDown)
+			break;
+	}
+}
+
 #endif
-

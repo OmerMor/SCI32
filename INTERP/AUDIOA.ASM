@@ -44,9 +44,9 @@ Merge proc public uses es edi esi,\
 	xor	eax, eax
 merge16c:
 	mov	dx, es:[edi]
-	sar	dx, 2
 	lodsw
-;	sar	ax, 1
+	sar	ax, 1
+	sar	dx, 1
 	add	ax, dx
 	stosw
 	loop	merge16c
@@ -54,6 +54,13 @@ merge16c:
 merge16nc:
 	lodsw
 	add	ax, es:[edi]
+	jno	merge16ok
+	js	merge16p
+	mov	ax, 8000h
+	jmp	short merge16ok
+merge16p:
+	mov	ax, 7fffh
+merge16ok:
 	stosw
 	loop	merge16nc
 	ret
@@ -78,6 +85,13 @@ merge8nc:
 	sub	dl, al
 	sub	dh, es:[edi]
 	add	dl, dh
+	jno	merge8ok
+	js	merge8p
+	mov	dl, 81h
+	jmp	short merge8ok
+merge8p:
+	mov	dl, 80h
+merge8ok:
 	mov	al, 80h
 	sub	al, dl
 	stosb
@@ -118,7 +132,7 @@ distortOut:
 Distort endp
 
 Volume proc public uses es edi,\
-	outb:far ptr, count:dword, bits:byte, vol:byte 
+	outb:far ptr, count:dword, bits:byte, vol:byte, filter:byte 
 
 ;	push	ds
 ;	pop	es
@@ -326,7 +340,7 @@ vol8:
 	je	vol8_15
 	ret
 vol8_15: ;15x/16 = (1x+2x+4x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax
@@ -337,13 +351,13 @@ vol8_15: ;15x/16 = (1x+2x+4x+8x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_15
 	ret
 vol8_14: ;14x/16 = (2x+4x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	eax, al
 	shl	eax, 1
@@ -353,13 +367,13 @@ vol8_14: ;14x/16 = (2x+4x+8x)/16
 	shl	eax, 1
 	add	eax, edx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_14
 	ret
 vol8_13: ;13x/16 = (1x+4x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax
@@ -368,13 +382,13 @@ vol8_13: ;13x/16 = (1x+4x+8x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_13
 	ret
 vol8_12: ;12x/16 = (4x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	shl	ax, 2
@@ -382,13 +396,13 @@ vol8_12: ;12x/16 = (4x+8x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_12
 	ret
 vol8_11: ;11x/16 = (1x+2x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax
@@ -397,13 +411,13 @@ vol8_11: ;11x/16 = (1x+2x+8x)/16
 	shl	ax, 2
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_11
 	ret
 vol8_10: ;10x/16 = (2x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	shl	ax, 2
@@ -411,26 +425,27 @@ vol8_10: ;10x/16 = (2x+8x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_10
 	ret
 vol8_9: ;9x/16 = (1x+8x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax
 	shl	ax, 3
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_9
 	ret
 vol8_8: ;8x/16 = (8x)/16
-	mov	ax, 7f7fh
+	mov	al, filter
+	mov	ah, al
 	sub	ah, es:[edi]
 	sar	ah, 1
 	sub	al, ah
@@ -438,7 +453,7 @@ vol8_8: ;8x/16 = (8x)/16
 	loop	vol8_8
 	ret
 vol8_7: ;7x/16 = (1x+2x+4x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax 
@@ -447,13 +462,13 @@ vol8_7: ;7x/16 = (1x+2x+4x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_7
 	ret
 vol8_6: ;6x/16 = (2x+4x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	shl	ax, 1
@@ -461,26 +476,27 @@ vol8_6: ;6x/16 = (2x+4x)/16
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_6
 	ret
 vol8_5: ;5x/16 = (1x+4x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax 
 	shl	ax, 2
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_5
 	ret
 vol8_4: ;4x/16 = (4x)/16
-	mov	ax, 7f7fh
+	mov	al, filter
+	mov	ah, al
 	sub	ah, es:[edi]
 	sar	ah, 2
 	sub	al, ah
@@ -488,20 +504,21 @@ vol8_4: ;4x/16 = (4x)/16
 	loop	vol8_4
 	ret
 vol8_3: ;3x/16 = (1x+2x)/16
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, es:[edi]
 	movsx	ax, al
 	mov	dx, ax 
 	shl	ax, 1
 	add	ax, dx 
 	shl	ax, 4
-	mov	al, 7fh
+	mov	al, filter
 	sub	al, ah
 	stosb
 	loop	vol8_3
 	ret
 vol8_2: ;2x/16 = (2x)/16
-	mov	ax, 7f7fh
+	mov	al, filter
+	mov	ah, al
 	sub	ah, es:[edi]
 	sar	ah, 3
 	sub	al, ah
@@ -509,7 +526,8 @@ vol8_2: ;2x/16 = (2x)/16
 	loop	vol8_2
 	ret
 vol8_1: ;1x/16 = (1x)/16
-	mov	ax, 7f7fh
+	mov	al, filter
+	mov	ah, al
 	sub	ah, es:[edi]
 	sar	ah, 4
 	sub	al, ah
@@ -777,6 +795,44 @@ copyeosOut:
 
 CopyEOS endp
 
+;DupeChannel proc public uses es edi esi\
+;	inb:near ptr, count:dword, channel:dword, bits:byte
+;
+;	push	ds
+;	pop	es
+;	mov	esi, inb
+;	mov	edi, esi
+;	mov	ecx, count
+;	cmp	ecx, 0
+;	jle	dupeOut
+;	xor	eax, eax
+;	mov	al, bits
+;	shr	eax, 3
+;	.if channel == 0
+;		add	esi, eax
+;	.else
+;		add	edi, eax
+;	.endif
+;	cmp	bits, 8
+;	je	dupe8
+;dupe16:
+;	lodsw
+;	stosw
+;	add	esi, 2
+;	add	edi, 2
+;	loop	dupe16
+;	ret
+;dupe8:
+;	lodsb
+;	stosb
+;	add	esi, 1
+;	add	edi, 1
+;	loop	dupe8
+;dupeOut:
+;	ret
+;
+;DupeChannel endp
+
 DupeChannel proc public uses es edi esi\
 	inb:near ptr, count:dword, channel:dword, bits:byte
 
@@ -786,34 +842,113 @@ DupeChannel proc public uses es edi esi\
 	mov	edi, esi
 	mov	ecx, count
 	cmp	ecx, 0
-	jle	dupeOut
+	jle	avgOut
 	xor	eax, eax
 	mov	al, bits
 	shr	eax, 3
 	.if channel == 0
 		add	esi, eax
+		cmp	bits, 8
+		je	avg8_even
+		lodsw
+		sub	esi, 2
+		movsx	edx, ax
+		jmp	short avg16
+avg8_even:
+		lodsb
+		sub	esi, 1
+		movsx	edx, al
+		and	edx, 0ffh
+		jmp	short avg8
 	.else
 		add	edi, eax
+		cmp	bits, 8
+		je	avg8_odd
+		lodsw
+		add	esi, 2
+		dec	ecx
+		jz	avg16_1
+		movsx	edx, ax
+		jmp	short avg16
+avg8_odd:
+		lodsb
+		add	esi, 1
+		dec	ecx
+		jz	avg8_1
+		movsx	edx, al
+		and	edx, 0ffh
+		jmp	short avg8
 	.endif
-	cmp	bits, 8
-	je	dupe8
-dupe16:
+avg16:
 	lodsw
+	movsx	eax, ax
+	add	edx, eax
+	xchg	eax, edx
+	shr	eax, 1
 	stosw
 	add	esi, 2
 	add	edi, 2
-	loop	dupe16
+	loop	avg16
+avg16_1:
+	.if channel != 0
+		sub	esi, 4
+		lodsw
+		stosw
+	.endif
 	ret
-dupe8:
+avg8:
 	lodsb
+	add	edx, eax
+	xchg	eax, edx
+	shr	eax, 1
 	stosb
 	add	esi, 1
 	add	edi, 1
-	loop	dupe8
-dupeOut:
+	loop	avg8
+avg8_1:
+	.if channel != 0
+		sub	esi, 2
+		lodsb
+		stosb
+	.endif
+avgOut:
 	ret
 
 DupeChannel endp
+
+MonitorNoise proc public uses esi\
+	inb:near ptr, count:dword, bits:byte
+
+	mov	esi, inb
+	mov	ecx, count
+	cmp	ecx, 0
+	jle	noiOut
+	cmp	bits, 8
+	je	noi8
+	shr	ecx, 1
+noi16:
+	lodsw
+	cmp	ah, 5
+	jg	noiOut
+	cmp	ah, -5
+	jl	noiOut
+	loop	noi16
+	xor	eax, eax
+	ret
+noi8:
+	lodsb
+	cmp	al, 7ah
+	jb	noiOut
+	cmp	al, 85h
+	ja	noiOut
+	loop	noi8
+	xor	eax, eax
+	ret
+noiOut:
+	mov	eax, 1
+	ret
+
+MonitorNoise endp
 
 	end
 

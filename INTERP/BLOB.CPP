@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include "sol.hpp"
+#include "vmdmdo.hpp"
+#include "vmd.hpp"
 
 BlobRect::BlobRect(int squareSize, int bitmapWidth, int top, int left, int bottom,int right) :
 	squareSize(squareSize), bitmapWidth(bitmapWidth), top(top),left(left), 
@@ -14,6 +16,16 @@ void BlobRect::BlobIt(char * bitmap)
 	int x,y;
 
 	y = top;
+
+	#ifdef WINDOWS
+		if (vmdBlackLines && vmdDouble) {
+			// Only do the even numbered lines
+			y = y & 0xfffe;
+			bottom = bottom & 0xfffe;
+			// Make the square size an even number
+			squareSize = squareSize	& 0xfffe;
+		}
+	#endif
 	char * ptr = bitmap + y * bitmapWidth + left;
 
 	while(y <= bottom) {
@@ -48,6 +60,13 @@ void BlobRect::BlobIt(char * bitmap)
 				}
 				pixel = lineStart + bitmapWidth;
 				lineStart += bitmapWidth;
+				#ifdef WINDOWS
+					if (vmdBlackLines && vmdDouble) {
+						pixel += bitmapWidth;
+						lineStart += bitmapWidth;
+						row++;
+					}
+				#endif
 			}
 
 			x += squareSize;
@@ -110,5 +129,3 @@ void Blob::Process(char * bitmap)
 		}
 	}
 }
-
-

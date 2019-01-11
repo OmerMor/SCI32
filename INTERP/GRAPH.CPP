@@ -57,11 +57,9 @@ KMorphOn(argList)
 void
 KFrameOut(argList)
 {
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
 	if (doThrashReport)
 		memMgr->ThrashReport();
-#endif
-#ifdef DEBUG
 	trackingFrameOut = True;
 #endif
 
@@ -355,8 +353,15 @@ KBitmap(argList)
 			// Input
 			// 	  arg2-----the MemID for the bitmap
 
-			if (memMgr->IsValid((SOL_Handle) arg(2)))
+			if (memMgr->IsValid((SOL_Handle) arg(2)) &&
+					memMgr->GetMemType((SOL_Handle) arg(2))==MemBitmap)
 				memMgr->Free((SOL_Handle) arg(2));
+#ifdef DEBUG
+			else 
+				msgMgr->Alert(
+					"Bitmap dispose called with %u, which is not a bitmap",
+					arg(2));
+#endif
 			break;
 
 		case bAddLine:	{
@@ -824,7 +829,11 @@ KUpdateScreenItem(argList)
 		int planeId = id.GetIndexedProperty(actPlaneID);
 		ScreenItem* si = graphMgr->NextScreen()->GetScreenItem(planeId,id);
 		if (si == NULL)
-			msgMgr->Fatal(SrcLoc,Msg_ScreenItemNotExist);
+			#ifdef DEBUG
+				msgMgr->Fatal(SrcLoc,Msg_ScreenItemNotExist);
+			#else
+				return;
+			#endif
 		*si = id;
 	} 
 	else {
@@ -1109,6 +1118,8 @@ KAddPicAt(argList)
 	//      arg3-----x postion plane relative of left corner of picture
 	//      arg4-----y postion plane relative of top corner of picture
 	//		  arg5-----True if mirrored, False for not mirrored
+	//      arg6 optional
+	//		  arg6-----True if duplicate picture is to be deleted
 	// Ouput
 	//      picture added to plane at specified postion
 
@@ -1118,11 +1129,14 @@ KAddPicAt(argList)
 	Bool mirror = False;
 	if (argCount > 4)
 		mirror = arg(5);
+	Bool delCopy = True;
+	if (argCount > 5)
+		delCopy = arg(6);
 	SOL_Point anchor(arg(3),arg(4));
 
 	Plane* plane = graphMgr->GetPlaneNext(id);
 	if (plane != NULL)
-		plane->AddPic(arg(2),anchor,mirror);
+		plane->AddPic(arg(2),anchor,mirror,delCopy);
 	else
 		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,id);
 
@@ -1138,7 +1152,7 @@ KRepaintPlane(argList)
 	
 	ObjectID id = (ObjectID) arg(1);
 
-	Plane* plane = graphMgr->GetPlaneCurrent(id);
+	Plane* plane = graphMgr->VisiblePlane(id);
 	if (plane != NULL)
 		graphMgr->Repaint(plane->OnScreen());
 	else
@@ -1259,11 +1273,7 @@ KIsOnMe(argList)
 		return;
 	}
 
-	Plane* plane = graphMgr->GetPlaneCurrent(planeId);
-	if (plane == NULL) {
-		pm.acc = False;
-		return;
-	}
+	Plane* plane = graphMgr->VisiblePlane(planeId);
 
 	ScreenItem siCopy(si);
 
@@ -1276,13 +1286,17 @@ KSetNowSeen(argList)
 	// Input
 	//      arg1-----the SCI Object
 	// Ouput
-	//       -----the nowSeen rectangle is set
+	//      -----the nowSeen rectangle is set
+	//      True is returned when plane exists in the last screen
+	//
+	//      If False is returned the plane does not exist in the 
+	//      last screen and the plane in the next screen was used!
 
 	ObjectID id = arg(1);
 
 	int planeID = id.GetIndexedProperty(actPlaneID);
 	SOL_Rect nowSeen;
-	graphMgr->NowSeen((int) id,planeID,nowSeen);
+	pm.acc = graphMgr->NowSeen((int) id,planeID,nowSeen);
 #ifdef NETWORK
 	id.SetIndexedProperty(actLeft, nowSeen.A.x);
 	id.SetIndexedProperty(actTop, nowSeen.A.y);
@@ -1842,5 +1856,4 @@ KCelLink(argList)
 
 	}
 }
-
 

@@ -62,6 +62,29 @@ HeapLeakChecker::~HeapLeakChecker()
 }
 #endif
 
+
+void*
+operator new[](size_t size, char* file, int line)
+{
+	void* p = new char[size];
+	if (!p)
+#ifdef WINDOWS
+		{
+		MBox("Error allocating New","");
+		file = file;
+		line = line;
+		exit(255);
+		}
+#else
+		msgMgr->Fatal("Can't allocate %u bytes in %s(%d)", size, file, line);
+#endif
+#if CHECKHEAPLEAKS
+	if (heapLeakChecker)
+		heapLeakChecker->Add(file, line, p);
+#endif
+	return p;
+}
+
 void*
 operator new(size_t size, char* file, int line)
 {
@@ -83,6 +106,7 @@ operator new(size_t size, char* file, int line)
 #endif
 	return p;
 }
+
 
 #if CHECKHEAPLEAKS
 void

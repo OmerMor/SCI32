@@ -407,7 +407,12 @@ struct ClassTblID : FakeClassTblID
 
 /////////////////////////////////////////////////////////////////////////////
 
+//BEW CHANGED void			LoadPropOffsets();
+
+extern "C" {
 void			LoadPropOffsets();
+}
+
 ObjectID		GetClass(const char* name);
 const char*	GetSelectorName(Selector, char*);
 Selector		GetSelector(const char*);

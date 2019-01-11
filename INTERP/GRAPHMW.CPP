@@ -17,10 +17,10 @@
 #include "mbox.hpp"
 
 #define MAXPALETTE	256
-_Packed struct {
-		BITMAPINFOHEADER	bmih;
-		WORD	colorix [MAXPALETTE];
-		} bi;
+
+BMI	bmiHdr;
+uint	colorUse;
+DWORD	widthMod4;
 
 #ifdef WIN32S
 // WinG stuff
@@ -37,13 +37,16 @@ extern	_Packed struct {
 		} lPal;
 #endif
 
+// used to adjust vmap width to mod 4 
+#define	M4(c)	((((c) + 3) >> 2) << 2)
+
 GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
-	last(xdim, ydim), buffer(vmapWidth, vmapHeight, NULL), pmap(xdim, ydim, NULL)
+	last(xdim, ydim), buffer(M4(vmapWidth), vmapHeight, NULL), pmap(xdim, ydim, NULL)
 {
 #ifdef WIN32S
 	if (!WING) {
 #endif
-		vmapID.Get(MemBitmap, vmapWidth * vmapHeight + 1000, VmapHandle);
+		vmapID.Get(MemBitmap, M4(vmapWidth) * vmapHeight + 1000, VmapHandle);
 		buffer.start = (uchar*) *vmapID;
 	   buffer.Clear(SOL_BLACK);
 
@@ -61,21 +64,26 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 			cursor = winCursor;
 
 		// Set up the DIB header
-		bi.bmih.biSize =				(DWORD)sizeof(BITMAPINFOHEADER);
-		bi.bmih.biWidth =				(DWORD)vmapWidth;
-		bi.bmih.biHeight =			(DWORD)vmapHeight;
-		bi.bmih.biPlanes =			1;
-		bi.bmih.biBitCount =			8;
-		bi.bmih.biCompression =		0;
-		bi.bmih.biSizeImage =		0;
-		bi.bmih.biXPelsPerMeter =	0;
-		bi.bmih.biYPelsPerMeter =	0;
-		bi.bmih.biClrUsed =			MAXPALETTE;
-		bi.bmih.biClrImportant =	MAXPALETTE;
+		bmiHdr.bmih.biSize =				(DWORD)sizeof(BITMAPINFOHEADER);
+		bmiHdr.bmih.biPlanes =			1;
+		bmiHdr.bmih.biBitCount =	 	8;
+		bmiHdr.bmih.biCompression = 	0;
+		bmiHdr.bmih.biSizeImage =		0;
+		bmiHdr.bmih.biXPelsPerMeter =	0;
+		bmiHdr.bmih.biYPelsPerMeter =	0;
+		bmiHdr.bmih.biClrUsed =			MAXPALETTE;
+		bmiHdr.bmih.biClrImportant =	MAXPALETTE;
 
-		// set index values to identity
-		for (int i = 0; i < MAXPALETTE; i++)
-			bi.colorix [i] = i;
+		widthMod4 =			(DWORD)M4(vmapWidth);
+
+		if (TRUECOLOR) {
+			colorUse = DIB_RGB_COLORS;
+		} else {
+			colorUse = DIB_PAL_COLORS;
+			// set index values to identity
+			for (int i = 0; i < MAXPALETTE; i++)
+				bmiHdr.colorix [i] = i;
+		}
 
 #ifdef WIN32S
 	} else {
@@ -104,20 +112,20 @@ GraphicsMgrWin::~GraphicsMgrWin()
 {
 #ifndef WIN32S
 	vmapID.Free();
-	delete cursor;
 #else
 	if (!WING) {
 		vmapID.Free();
-		delete cursor;
 	} else {
-		delete cursor;
 		WingTerm();
 	}
 #endif
+	delete clrCursor;
+	delete winCursor;
+	delete palmgr;
 }
 
 void
-GraphicsMgrWin::AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex, char* palArray)
+GraphicsMgrWin::AlterVMAP(const SOLPalette* myPal, const SOLPalette* newPal,int palIndex, char* palArray)
 {
 	int test	= palIndex;
 
@@ -249,6 +257,8 @@ WORD top, left, bottom, right;
 #ifdef WIN32S
   	if (!WING) {
 #endif
+		bmiHdr.bmih.biWidth =			(DWORD)widthMod4;
+		bmiHdr.bmih.biHeight =			(DWORD)vmapHeight;
 
 		SetDIBitsToDevice (hMyDC,						//device context
 								left + gameBorder,		//destination X
@@ -260,8 +270,8 @@ WORD top, left, bottom, right;
 								0,								//first scan-line number
 								vmapHeight,					//number of scan lines
 								(LPSTR)Buffer,				//pointer to DIB
-								(LPBITMAPINFO)&bi.bmih,	//pointer to header
-								DIB_PAL_COLORS);			//indexed color table
+								(LPBITMAPINFO)&bmiHdr.bmih,	//pointer to header
+								colorUse);					//indexed color table or RGB
 #ifdef WIN32S
 	} else {
 
@@ -406,7 +416,7 @@ GraphicsMgrWin::ResizeVmap(int x, int y)
 void
 KIsHiRes(kArgs)
 {
-	pm.acc = HIRES;
+	pm.acc = (graphMgr->Xdim() >= 640  &&  graphMgr->Ydim() >= 400);
 }
 
 void
@@ -446,6 +456,125 @@ int	v, l, c;
 //	 	hCurCur = hMyCur;
 //	 	SetCursor(hCurCur);
 //		ShowCursor (1);
+	}
+}
+
+void
+PutMovieRect(uchar* screen,uchar* bitmap,int bitmapWidth,SOL_Rect* rect,SOL_Point* screenPos)
+{
+	// Copy vmd movie bitmap into framebuffer
+
+	// The screen is the address of the framebuffer
+	// The bitmap is the address of the bitmap
+	// The bitmapWidth is the width of the bitmap
+	// The rect is the bitmap relative rectangle to blit
+	// The screenPos is the position of the bitmap within the framebuffer	
+
+	int hRun = rect->Xlen();
+	int vRun = rect->Ylen();
+	int screenOffset = vmapWidth - hRun;
+	int bitmapOffset = bitmapWidth - hRun;
+
+	// Calculate the screen start
+	screen += (screenPos->y + rect->A.y)*vmapWidth + screenPos->x + rect->A.y;
+	// Calculate the bitmap start
+	bitmap += rect->A.y*bitmapWidth + rect->A.x;
+
+	while (vRun--) {
+		memcpy(screen,bitmap,hRun);
+		screen += screenOffset;
+		bitmap += bitmapOffset;
+	}
+}
+void
+PutMovieRectBlack(uchar* screen,uchar* bitmap,int bitmapWidth,SOL_Rect* rect,SOL_Point* screenPos)
+{
+	// Copy vmd movie bitmap into framebuffer
+
+	// The screen is the address of the framebuffer
+	// The bitmap is the address of the bitmap
+	// The bitmapWidth is the width of the bitmap
+	// The rect is the bitmap relative rectangle to blit
+	// The screenPos is the position of the bitmap within the framebuffer	
+
+	// Only do the even numbered lines
+	rect->A.y = rect->A.y & -2;
+
+	int hRun = rect->Xlen();
+	int vRun = rect->Ylen() >> 1;
+	int screenOffset = (vmapWidth << 1) - hRun;
+	int bitmapOffset = (bitmapWidth << 1) - hRun;
+
+	// Calculate the screen start
+	screen += (screenPos->y + rect->A.y)*vmapWidth + screenPos->x + rect->A.y;
+	// Calculate the bitmap start
+	bitmap += rect->A.y*bitmapWidth + rect->A.x;
+
+	while (vRun--) {
+		memcpy(screen,bitmap,hRun);
+		screen += screenOffset;
+		bitmap += bitmapOffset;
+	}
+}
+void
+PutMovieRectDbl(uchar* screen,uchar* bitmap,int bitmapWidth,SOL_Rect* rect,SOL_Point* screenPos)
+{
+	// Copy vmd movie bitmap into framebuffer
+
+	// The screen is the address of the framebuffer
+	// The bitmap is the address of the bitmap
+	// The bitmapWidth is the width of the bitmap
+	// The rect is the bitmap relative rectangle to blit
+	// The screenPos is the position of the bitmap within the framebuffer	
+
+// HOOK
+// The following code will not work
+	int hRun = rect->Xlen();
+	int vRun = rect->Ylen();
+	int screenOffset = vmapWidth - hRun;
+	int bitmapOffset = bitmapWidth - hRun;
+
+	// Calculate the screen start
+	screen += (screenPos->y + rect->A.y)*vmapWidth + screenPos->x + rect->A.y;
+	// Calculate the bitmap start
+	bitmap += rect->A.y*bitmapWidth + rect->A.x;
+
+	while (vRun--) {
+		memcpy(screen,bitmap,hRun);
+		screen += screenOffset;
+		bitmap += bitmapOffset;
+	}
+}
+void
+PutMovieRectDblBlack(uchar* screen,uchar* bitmap,int bitmapWidth,SOL_Rect* rect,SOL_Point* screenPos)
+{
+	// Copy vmd movie bitmap into framebuffer
+
+	// The screen is the address of the framebuffer
+	// The bitmap is the address of the bitmap
+	// The bitmapWidth is the width of the bitmap
+	// The rect is the bitmap relative rectangle to blit
+	// The screenPos is the position of the bitmap within the framebuffer	
+
+// HOOK
+// The following code will not work
+	// Only do the even numbered lines
+	rect->A.y = rect->A.y & -2;
+
+	int hRun = rect->Xlen();
+	int vRun = rect->Ylen() >> 1;
+	int screenOffset = (vmapWidth << 1) - hRun;
+	int bitmapOffset = (bitmapWidth << 1) - hRun;
+
+	// Calculate the screen start
+	screen += (screenPos->y + rect->A.y)*vmapWidth + screenPos->x + rect->A.y;
+	// Calculate the bitmap start
+	bitmap += rect->A.y*bitmapWidth + rect->A.x;
+
+	while (vRun--) {
+		memcpy(screen,bitmap,hRun);
+		screen += screenOffset;
+		bitmap += bitmapOffset;
 	}
 }
 

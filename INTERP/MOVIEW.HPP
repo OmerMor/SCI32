@@ -75,7 +75,6 @@ enum avi_command_list {
 	   AVI_WAIT_EVENT,
 	   AVI_PUT_DOUBLE
 };
-extern short movieType;
 
 }
 #endif

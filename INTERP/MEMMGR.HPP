@@ -26,10 +26,6 @@
 #ifndef MEMMGR_HPP
 #define MEMMGR_HPP
 
-// This is for thrashing detection
-// Remove the define on the shipping game
-#define NOT_SHIPPING_VERSION
-
 #ifndef MEMTYPE_HPP
 #include "memtype.hpp"
 #endif
@@ -109,17 +105,15 @@ typedef SCIWord	SOL_Handle;
 //--------------------------------------------------------------------------------
 
 #ifdef DEBUG
-// fill free memory with bad opcodes (such as underscore)
-#define	FREE_MARK_CHAR		0x5f
-#define	FREE_MARK_DWORD	0x5f5f5f5f
+	// fill free memory with bad opcodes (such as underscore)
+	#define	FREE_MARK_CHAR		0x5f
+	#define	FREE_MARK_DWORD	0x5f5f5f5f
+
+	#define THRASHATTRIBUTES LOCKEDNOSAVE+PERSIST+INITMEMORY
 #endif
 
 // Initial handle attributes
 #define MEMATTRIBUTES FREEMEMORY+DISCARDABLE+FREEHANDLE
-
-#ifdef NOT_SHIPPING_VERSION
-#define THRASHATTRIBUTES LOCKEDNOSAVE+PERSIST+INITMEMORY
-#endif
 
 // The reserved handles enum
 // The valid reserved descriptors are:
@@ -170,6 +164,7 @@ enum ReservedHandle {
 	AudioXferBufHandle,
    Patch36TableHandle,
 	ThrashArrayHandle,
+	AudioPriorityHandle,
 	RESERVEDHANDLES
 };
 
@@ -287,16 +282,16 @@ public:
 	friend void* operator new(size_t,SOL_Handle);
 };
 
-#ifdef NOT_SHIPPING_VERSION
-#define ThrashListSize 20
-class ThrashItem
-{
-	uchar		count;			// The count of times freed
-	MemType	type;   			// The memory type
-	ushort	resNumber;  	// The resource number
-public:
-	friend class MemoryMgr;
-};
+#ifdef DEBUG
+	#define ThrashListSize 20
+	class ThrashItem
+	{
+		uchar		count;			// The count of times freed
+		MemType	type;   			// The memory type
+		ushort	resNumber;  	// The resource number
+	public:
+		friend class MemoryMgr;
+	};
 #endif
 
 class MemoryMgr : public Saveable
@@ -417,7 +412,7 @@ public:
 		return (desc[theID].resNumber);
 	}
 
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
 	void	ThrashReport();
 #endif
 
@@ -547,22 +542,15 @@ protected:
 	char*       	memoryBase;    // Pointer to allocated memory for
 											// the memory manager
 	char*				blackHoleAddr;	// Address of the black hole
-#ifdef NOT_SHIPPING_VERSION
-	ThrashItem* 	thrashArray;	// Thrash detection array
-#endif
 #ifdef DEBUG
+	ThrashItem* 	thrashArray;	// Thrash detection array
 	Bool				moveToFront;  	// Used in CheckChecksums
 	unsigned			checkVolatile;	// error volatile method invoked
 	char*				info;				// integrity check caller
 	char        	signature		// Signature written at the end of each aloc
 							[SIGNATURESIZE];
-#endif
-
-#ifdef NOT_SHIPPING_VERSION
-
 	int	ThrashAdd(SOL_Handle theID);
 	void	ThrashReset();
-
 #endif
 
 	// get an available handle
@@ -622,11 +610,14 @@ protected:
 
 };
 
-extern MemoryMgr* memMgr;
-#ifdef NOT_SHIPPING_VERSION
-extern Bool 		doThrashReport;
-extern Bool 		thrashReporting;
-extern int  		thrashDetectCount;
+//BEW CHANGED extern MemoryMgr* memMgr;
+extern "C" MemoryMgr* memMgr;
+
+#ifdef DEBUG
+	extern Bool 		doThrashReport;
+	extern Bool 		thrashReporting;
+	extern int  		thrashDetectCount;
 #endif
 
 #endif  //MEMMGR_HPP
+

@@ -379,7 +379,7 @@ GetInputText(TextID theTextID,TextID theTitleID,int boxWidth,int priority)
 	editStruct->fore = SOL_BLACK;			
 	editStruct->back = SOL_WHITE;			
 	editStruct->skip = SOL_SKIP;			
-	editStruct->font = SYSTEMFONT; 		
+	editStruct->font = systemFont; 		
 	editStruct->maxLength = boxWidth;
 	editStruct->borderColor = SOL_BLACK;
 	editStruct->cursor = 0;			
@@ -412,14 +412,14 @@ GetInputText(TextID theTextID,TextID theTitleID,int boxWidth,int priority)
 							SOL_BLACK,
 							SOL_WHITE,
 	                  SOL_SKIP,			
-							SYSTEMFONT,
+							systemFont,
 							TEJUSTLEFT,
                      SOL_BLACK,
 
 							theTitleID,
 							SOL_WHITE,
 							SOL_BLACK,
-							SYSTEMFONT
+							systemFont
 							);
 	// Put the cursor in
 	DrawCursor(editStructID);
@@ -813,8 +813,7 @@ MsgBox(char* title, char* fmt, ...)
 		}
 	escape = WaitOnUser();
 #else
-	MBox(buf,title);
-	escape = False;
+	escape = MBox2(buf,title);
 #endif
 
 #ifdef DEBUG
@@ -995,7 +994,7 @@ EditClass::EditClass(TextID theTextID,TextID theTitleID,int boxWidth,int boxHeig
 	fore = SOL_BLACK;			
 	back = SOL_WHITE;			
 	skip = SOL_SKIP;			
-	font = SYSTEMFONT; 		
+	font = systemFont; 		
 //	maxWidth = boxWidth;
 	borderColor = SOL_BLACK;
 	cursor = 0;			
@@ -1059,14 +1058,14 @@ EditClass::EditClass(TextID theTextID,TextID theTitleID,int boxWidth,int boxHeig
 								SOL_BLACK,
 								SOL_WHITE,
 	                  	SOL_SKIP,			
-								SYSTEMFONT,
+								systemFont,
 								TEJUSTLEFT,
                      	SOL_BLACK,
 
 								theTitleID,
 								SOL_WHITE,
 								SOL_BLACK,
-								SYSTEMFONT
+								systemFont
 								);
    else
 		BM = fntMgr->BuildFBM
@@ -1078,7 +1077,7 @@ EditClass::EditClass(TextID theTextID,TextID theTitleID,int boxWidth,int boxHeig
 							   SOL_BLACK,
 							   SOL_WHITE,
 	                     SOL_SKIP,			
-							   SYSTEMFONT,
+							   systemFont,
 							   TEJUSTLEFT,
                         SOL_BLACK,
 								False
@@ -1837,8 +1836,7 @@ MsgBox(char* title, char* fmt, ...)
 		}
 	escape = WaitOnUser();
 #else
-	MBox(buf,title);
-	escape = False;
+	escape = MBox2(buf,title);
 #endif
 
 #ifdef DEBUG
@@ -1860,3 +1858,4 @@ MsgBox(char* title, char* fmt, ...)
 }
 
 #endif // #ifndef NETWORK
+

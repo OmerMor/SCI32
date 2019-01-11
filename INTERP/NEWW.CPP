@@ -208,8 +208,8 @@ int	cacheNum, entryNum;
 
 		case NEW_CACHE_MEMMGR:
 			p = (char *)p - HEADERSIZE;
-//			free(p);
-		  	memMgr->Free(memMgr->GetHandle(p));
+			free(p);
+//		  	memMgr->Free(memMgr->GetHandle(p));
 			if (SHOWNEWS)
 				cnt[4]--;
 			return;
@@ -376,8 +376,8 @@ void	*p;
 	}
 
 	// All else failed.  Get it from the memory manager.
-//	p = new char[size + HEADERSIZE];
-	p = memMgr->GetAddr(memMgr->Alloc(LOCKEDNOSAVE, size + HEADERSIZE, 0, 0, 0));
+	p = new char[size + HEADERSIZE];
+//	p = memMgr->GetAddr(memMgr->Alloc(LOCKEDNOSAVE, size + HEADERSIZE, 0, 0, 0));
 	if (!p)
 		msgMgr->Fatal("Can't allocate %u bytes in %s(%d)", size, file, line);
 

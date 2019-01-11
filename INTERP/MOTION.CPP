@@ -300,7 +300,11 @@ KDoBresen(argList)
 	client.SetIndexedProperty(actY, (Property) y);
 
 	// Check position validity for this cel.
-	if (blocker = pm.InvokeMethod(client, s_cantBeHere)) {
+
+//BEW CHANGED	if (blocker = pm.InvokeMethod(client, s_cantBeHere)) {
+
+	// MUST be cast as short or else CPP converts them signed (Bryan Waters)
+	if (blocker = invokeMethod( (unsigned short) client, s_cantBeHere, 0, pm.StackPtr)) {
 		/* Client can't be here -- restore the original state and
 			mark the client as blocked.
 		*/
@@ -329,7 +333,11 @@ KDoBresen(argList)
 		motion.SetIndexedProperty(motDI, (Property) di);
 	}
 	if (x == toX && y == toY)
-		pm.InvokeMethod(motion, s_moveDone);
+//BEW CHANGED		pm.InvokeMethod(motion, s_moveDone);
+
+		// MUST be cast as short or else CPP converts them signed (Bryan Waters)
+		invokeMethod((unsigned short) motion, s_moveDone, 0, pm.StackPtr);
+
 	pm.acc = blocker;
 }
 
@@ -468,3 +476,4 @@ DirLoop(ObjectID actor, int angle)
 			actor.SetIndexedProperty(actLoop, (Property) loop);
 	}
 }
+

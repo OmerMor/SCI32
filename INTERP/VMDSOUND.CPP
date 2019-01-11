@@ -119,9 +119,7 @@ union {
 
 	CallDAC(DAC_RELEASE_MEM,0);
 
-	if ((size % 16) == 1)		//make sure we don't lose a byte
-		size+=1;
-	DACArgsIn[1] = (size)/2;
+	DACArgsIn[1] = size;
 	DACArgsIn[2] = (int)MyCallback;
 	if (CallDAC(DAC_SET_BUFF,2)) {
 		msgMgr->Alert(SrcLoc, Msg_NoAudio);
@@ -278,6 +276,8 @@ void GXstopSound(WORD)
   waveOutReset(hSnd2);
 #ifndef WIN32S
   _16waveOutUnprepareHeader (hSnd2, wHdr_alias, sizeof(WAVEHDR));
+	FreeAlias16((DWORD)wHdr_alias);
+	FreeAlias16((DWORD)lpt_alias);
 #else
   waveOutUnprepareHeader(hSnd2,&OneWaveout,sizeof(WAVEHDR));
 #endif

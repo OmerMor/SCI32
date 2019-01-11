@@ -4,11 +4,12 @@
 #ifndef KERNEL_HPP
 #define KERNEL_HPP
 
-#ifndef PMSTACK_HPP
-#include	"pmstack.hpp"
-#endif
+//BEW REMOVED #ifndef PMSTACK_HPP
+//BEW REMOVED #include	"pmstack.hpp"
+//BEW REMOVED #endif
 
-typedef PMStack::Ptr	kArgs;
+//BEW CHANGED typedef PMStack::Ptr	kArgs;
+typedef SCIWord*	kArgs;
 
 #define arg(n) 	args[n]
 #define kArgc		arg(0)
@@ -35,7 +36,6 @@ void	KLock(argList);
 void	KResCheck(argList);
 void	KPurge(argList);
 void	KMarkMemory(argList);
-void	KPreloadResource(argList);
 void	KNewRoom(argList);
 void  KLoadChunk(argList);
 void	KSetLanguage(argList);
@@ -152,6 +152,9 @@ void	KWinHelp(argList);
 void	KMessageBox(argList);
 void	KGetSierraProfileString(argList);
 void	KGetSierraProfileInt(argList);
+void	KSetWindowsOption(argList);
+void	KGetWindowsOption(argList);
+void	KWinDLL(argList);
 #endif
 
 // Motion functions.
@@ -179,6 +182,7 @@ void	KCheckIntegrity(argList);
 void	KTestPoly(argList);
 #endif
 
+void	KMonoOut(argList);
 
 //	Memory functions
 void	KMemoryInfo(argList);
@@ -224,7 +228,8 @@ void	KMorphOn(argList);
 void	KPlayVMD(argList);
 void	KSetHotRectangles(argList);
 
-extern KernelCall	kernelCalls[];
+//BEW CHANGED extern KernelCall	kernelCalls[];
+extern "C"	KernelCall	kernelCalls[];
 extern int			kernelMax;
 
 #endif

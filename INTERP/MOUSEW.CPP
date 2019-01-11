@@ -91,67 +91,43 @@ void
 MouseWin::SetPos(const SOL_Point& p)
 {
 SOL_Point	tmp;
-Bool			prevInCage;
+Bool	prevInCage;
 Bool	outSide;
 
-	outSide = False;
-	if (p.x < 0)
-		outSide = True;
-	if (p.y < 0)
-		outSide = True;
-
-	tmp = p;
-
-	// allow for the black border
-	if (tmp.x > gameBorder)
-		tmp.x -= gameBorder;
+	// See if we are outside the game window
+	if ((p.x < gameBorder) 	||
+		 (p.y < gameBorder)	||
+		 (p.x > (gameWidth  + gameBorder)) ||
+		 (p.y > (gameHeight + gameBorder)))
+			outSide = True;
 	else
-		tmp.x = 0;
-	if (tmp.y > gameBorder)
-		tmp.y -= gameBorder;
-	else
-		tmp.y = 0;
+			outSide = False;
 
-	// restrict the coordinates to the game window and set a flag 
-	// if we are outside.
-	if (tmp.x < 0) {
-		outSide = True;
-		tmp.x = 0;
-	}
-	if (tmp.x > gameWidth-1) {
-		outSide = True;
-		tmp.x = gameWidth-1;
-	}
-	if (tmp.y < 0) {
-		outSide = True;
-		tmp.y = 0;
-	}
-	if (tmp.y > gameHeight-1) {
-		outSide = True;
-		tmp.y = gameHeight-1;
-	}
-
-	// if we just left the game window, then hide the color cursor and
-	// do a ReleaseCapture so we don't get mouse move messages.
-
+	// if we just left the game window, then do a ReleaseCapture so we don't
+	// get mouse move messages.  If the Windows cursor was hidden, unhide it.
 	if (outSide && !outOfGame) {
 		outOfGame = True;
+		if (graphMgr->GCursor().GetHideCount())
+			ShowCursor (1);
 		if (!buttonState)
 			ReleaseCapture();
 	}
 
-	// if we just entered the game window, then show the color cursor and
-	// capture the the mouse so that the user can't sneak out without us
-	// knowing about it.
-
+	// if we just entered the game window, then capture the the mouse so
+	// that the user can't sneak out without us knowing about it.  If we
+	// are hiding the cursor, than hide it.
 	if (!outSide && outOfGame) {
 		outOfGame = False;
+		if (graphMgr->GCursor().GetHideCount())
+			ShowCursor (0);
 		SetCapture(hMyWnd);
 	}
 
 	// scale to sci dimensions
-//	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
-//	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
+	tmp = p;
+	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
+	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
+
 	tmp.x = (tmp.x * SCIRESX) / gameWidth;
 	tmp.y = (tmp.y * SCIRESY) / gameHeight;
 	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
@@ -186,13 +162,10 @@ Bool	outSide;
 	// If we move into the cage, hide the cursor if hideCount is > 0
 	if (inCage != prevInCage) {
 		if (!inCage) {
-//			MBox("went out","");
 			ShowCursor (1);
 		} else {
-//			MBox("went in","");
 			if (graphMgr->GCursor().GetHideCount())
 				ShowCursor (0);
-//			MBox("went in2","");
 		}
 	}
 }
@@ -224,12 +197,14 @@ SOL_Point	tmp;
 	tmp = p;
 
 	// scale to sci dimensions
-	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
-	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
+//	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
+//	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
+	tmp.x -= gameBorder;
+	tmp.y -= gameBorder;
 	tmp.x = (tmp.x * SCIRESX) / gameWidth;
 	tmp.y = (tmp.y * SCIRESY) / gameHeight;
-	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
-	tmp.y = (tmp.y > SCIRESY-1)? SCIRESY-1: tmp.y;
+//	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
+//	tmp.y = (tmp.y > SCIRESY-1)? SCIRESY-1: tmp.y;
 
 	// ignore if not within restrict rect
 	if (restrictFlag & !restrict.Intersect(tmp))
@@ -237,7 +212,8 @@ SOL_Point	tmp;
 
 	SetPos(p);
 
-	event.where = pos;
+//	event.where = pos;
+	event.where = tmp;
 
 	if ((iMessage == WM_LBUTTONDOWN) ||
 		 (iMessage == WM_MBUTTONDOWN) ||
@@ -295,6 +271,7 @@ short			MouseWinClr::zaxis = 0;
 short			MouseWinClr::pitch = 0;
 short			MouseWinClr::roll = 0;
 short			MouseWinClr::yaw = 0;
+Bool			MouseWinClr::paintFlag = False;
 //int			MouseWinClr::buttonState = 0;
 //SOL_Event	MouseWinClr::event;		//  Watcom 9.5 insisted that the interrupt
 											//  routine couldn't create one locally on
@@ -318,7 +295,10 @@ MouseWinClr::MouseWinClr()
 		ClearRestrictRect();
 	}
 	else
-		msgMgr->Fatal(Msg_NoMouseDriver);
+		msgMgr->Fatal("\nIn MS-DOS this game requires a mouse driver.\n"
+ 						  "This program could not find a driver that was loaded.\n"
+						  "Please load a mouse driver before launching the game.");
+
 }
 
 
@@ -411,75 +391,68 @@ MouseWinClr::Setup(SOL_Cursor& cur)
 void
 MouseWinClr::SetPos(const SOL_Point& p)
 {
-SOL_Point	tmp;
 Bool	outSide;
 
 	// Must do a SetCursor on every move even if it hasn't changed so that
 	// Windows will change it when entering client area.
 	SetCursor(hCurCur);
 
-	outSide = False;
-	if (p.x < 0)
-		outSide = True;
-	if (p.y < 0)
-		outSide = True;
-
-	tmp = p;
-
-	// allow for the black border
-	if (tmp.x > gameBorder)
-		tmp.x -= gameBorder;
+	// See if we are outside the game window
+	if ((p.x < gameBorder) 	||
+		 (p.y < gameBorder)	||
+		 (p.x > (gameWidth  + gameBorder)) ||
+		 (p.y > (gameHeight + gameBorder)))
+			outSide = True;
 	else
-		tmp.x = 0;
-	if (tmp.y > gameBorder)
-		tmp.y -= gameBorder;
-	else
-		tmp.y = 0;
+			outSide = False;
 
-	// restrict the coordinates to the game window and set a flag 
-	// if we are outside.
-	if (tmp.x < 0) {
-		outSide = True;
-		tmp.x = 0;
-	}
-	if (tmp.x > gameWidth-1) {
-		outSide = True;
-		tmp.x = gameWidth-1;
-	}
-	if (tmp.y < 0) {
-		outSide = True;
-		tmp.y = 0;
-	}
-	if (tmp.y > gameHeight-1) {
-		outSide = True;
-		tmp.y = gameHeight-1;
-	}
+	pos = p;
+	pos.x -= gameBorder;
+	pos.y -= gameBorder;
 
-	// if we just left the game window, then hide the color cursor and
-	// do a ReleaseCapture so we don't get mouse move messages.
+	// If in the game window, move the cursor
+	if (!outSide && useMouse && cursor) {
+//		pos = p;
+//		pos.x -= gameBorder;
+//		pos.y -= gameBorder;
+		cursor->DeviceMovedTo(pos);
+		// The following bit of kludge code is here because in Phantas, if
+		// the CD drawer is opened causing a "cannot read file, cancel, retry"
+		// message and retry is selected, then the game continues, but the
+		// Windows cursor is left on the screen.  I don't know why this is,
+		// but changing the cursor twice seems to fix the problem.  I do this
+		// on a Windows PAINT message since we always get this when the
+		// Windows dialog box disappears.
+		if (paintFlag) {
+			hCurCur = hAltCur;
+			SetCursor(hCurCur);
+			hCurCur = hNullCur;
+			SetCursor(hCurCur);
+		}
+	}
+	paintFlag = False;
 
+	// if we just left the game window, then hide the color cursor, show
+	// the Windows cursor, and do a ReleaseCapture so we don't get mouse
+	// move messages.
 	if (outSide && !outOfGame) {
 		outOfGame = True;
 		graphMgr->GCursor().Hide();
+		hCurCur = hAltCur;
+		SetCursor(hCurCur);
 		if (!buttonState)
 			ReleaseCapture();
 	}
 
-	// if we just entered the game window, then show the color cursor and
-	// capture the the mouse so that the user can't sneak out without us
-	// knowing about it.
-
+	// if we just entered the game window, then show the color cursor,
+	// hide the Windows cursor, and capture the the mouse so that the
+	// user can't sneak out without us knowing about it.
 	if (!outSide && outOfGame) {
 		outOfGame = False;
 		graphMgr->GCursor().UnHide();
+		hCurCur = hNullCur;
+		SetCursor(hCurCur);
 		SetCapture(hMyWnd);
-	}
-
-	pos = tmp;
-
-	if (useMouse)  {
-		if (cursor)
-			cursor->DeviceMovedTo(pos);
 	}
 } 
 
@@ -531,4 +504,5 @@ MouseWinClr::WinMouseButton(unsigned iMessage, const SOL_Point& p)
 	eventMgr->Post(&event);
 }
 
+
 

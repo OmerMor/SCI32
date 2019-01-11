@@ -212,7 +212,7 @@ SOL_List::Sort(int criterion, Bool descend)
 			// if the leastNode is not sorted, then put it in order
 			if (leastNode != node) {
 				Delete(leastNode);
-				AddBefore(node, leastNode, leastNode);
+				AddBefore(node, leastNode, ((KNodeID) leastNode)->val);
 			}
 		}
 
@@ -237,7 +237,7 @@ SOL_List::Sort(int criterion, Bool descend)
 
 			if (leastNode != node) {
 				Delete(leastNode);
-				AddBefore(node, leastNode, leastNode);
+				AddBefore(node, leastNode, ((KNodeID) leastNode)->val);
 			}
 		}
 	}
@@ -578,17 +578,24 @@ KList(argList)
 				//	set new current object
 				pm.object = obj;
 	
-				//	push the selector
-				pm.stack.Push(arg(3));
+//BEW REMOVED				//	push the selector
+//BEW REMOVED				pm.stack.Push(arg(3));
 	
-				//	push the number of arguments
-				pm.stack.Push(nArgs);
+//BEW REMOVED				//	push the number of arguments
+//BEW REMOVED				pm.stack.Push(nArgs);
 	
-				//	push the arguments
-				pm.stack.PushMany(&arg(4), nArgs);
+//BEW CHANGED				//	push the arguments
+//BEW CHANGED				pm.stack.PushMany(&arg(4), nArgs);
 	
+				//	push the selector, # of Args, ptr to arg list
+				pmPushMany( arg(3), nArgs, &arg(4));
+	
+//BEW CHANGED				//	call the method
+//BEW CHANGED				pm.QuickMessage(obj, nArgChars);
+
 				//	call the method
-				pm.QuickMessage(obj, nArgChars);
+				// MUST be cast as short or else CPP converts them signed (Bryan Waters)
+				pmQuickMessage( (unsigned short) obj, (unsigned short) nArgChars, pm.StackPtr);
 			}
 
 			//	restore current object
@@ -629,17 +636,24 @@ KList(argList)
 				//	set new current object
 				pm.object = obj;
 	
-				//	push the selector
-				pm.stack.Push(arg(3));
+//BEW REMOVED				//	push the selector
+//BEW REMOVED				pm.stack.Push(arg(3));
 	
-				//	push the number of arguments
-				pm.stack.Push(nArgs);
+//BEW REMOVED				//	push the number of arguments
+//BEW REMOVED				pm.stack.Push(nArgs);
 	
-				//	push the arguments
-				pm.stack.PushMany(&arg(4), nArgs);
+//BEW CHANGED				//	push the arguments
+//BEW CHANGED				pm.stack.PushMany(&arg(4), nArgs);
 	
+				//	push the selector, # of Args, ptr to arg list
+				pmPushMany( arg(3), nArgs, &arg(4));
+	
+//BEW CHANGED				//	call the method
+//BEW CHANGED				pm.QuickMessage(obj, nArgChars);
+
 				//	call the method
-				pm.QuickMessage(obj, nArgChars);
+				// MUST be cast as short or else CPP converts them signed (Bryan Waters)
+				pmQuickMessage( (unsigned short) obj, (unsigned short) nArgChars, pm.StackPtr);
 		
 				if (pm.acc) {
 					pm.acc = obj;
@@ -687,17 +701,24 @@ KList(argList)
 				//	set new current object
 				pm.object = obj;
 	
-				//	push the selector
-				pm.stack.Push(arg(3));
+//BEW REMOVED				//	push the selector
+//BEW REMOVED				pm.stack.Push(arg(3));
 	
-				//	push the number of arguments
-				pm.stack.Push(nArgs);
+//BEW REMOVED				//	push the number of arguments
+//BEW REMOVED				pm.stack.Push(nArgs);
 	
-				//	push the arguments
-				pm.stack.PushMany(&arg(4), nArgs);
+//BEW CHANGED				//	push the arguments
+//BEW CHANGED				pm.stack.PushMany(&arg(4), nArgs);
 	
+				//	push the selector, # of Args, ptr to arg list
+				pmPushMany( arg(3), nArgs, &arg(4));
+	
+//BEW CHANGED				//	call the method
+//BEW CHANGED				pm.QuickMessage(obj, nArgChars);
+
 				//	call the method
-				pm.QuickMessage(obj, nArgChars);
+				// MUST be cast as short or else CPP converts them signed (Bryan Waters)
+				pmQuickMessage( (unsigned short) obj, (unsigned short) nArgChars, pm.StackPtr);
 		
 				if (!pm.acc) {
 					pm.acc = False;

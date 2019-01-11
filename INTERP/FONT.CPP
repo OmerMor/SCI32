@@ -496,6 +496,9 @@ FontMgr::SetFont(int theFont)
 int
 FontMgr::StringWidth(MemID theString)
 {
+//	assert(!theString.IsZero());
+	assert(theString.IsValid());
+
 	text = theString;
 	return ((TextWidth(0,10000) * SCIRESX + xRes - 1) / xRes);
 }
@@ -504,6 +507,8 @@ void
 FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 {
 	// makes the rect large enough to hold the text str
+//	assert(!theString.IsZero());
+	assert(theString.IsValid());
 
 	theRect.A.x = 0;
 	theRect.B.x = 0;
@@ -512,7 +517,11 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 
    maxSize = maxSize * xRes/SCIRESX;
 
-#define DEFAULTWIDE     192
+//#define DEFAULTWIDE     192
+// change to something based on screen dimension
+	int DEFAULTWIDE = 3 * SCIRESX / 5;
+// I use a formula that maintains compatability with older low res
+
 	// set the width
 	//      if maxSize = 0 use DEFAULTWIDE
 	//      if maxSize > 0 use maxSize
@@ -546,7 +555,7 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 	      fore = currentcolor;
 			int length = TextWidth(start,count);
 			if (length > longest)
-			longest = length;
+				longest = length;
 			currentfont = font;
 			currentmode = mode;
 	      currentcolor = fore;
@@ -745,7 +754,10 @@ FontMgr::ClearChar(uchar theChar)
 void
 FontMgr::BuildFontTable(int theFont)
 {
-	if (font == theFont)    return;
+	assert(theFont >= 0);
+	if (font == theFont)
+		return;
+
 	font = theFont;
 	// Build the table of font widths and initializes the font pointSize
 
@@ -758,9 +770,12 @@ FontMgr::BuildFontTable(int theFont)
 
 #else
 
-	if(font == SYSTEMFONT) {
+	if (font == SYSTEMFONT)
+	{
 		fontHeader = (FontHeader *) sciSystemFont;
-	} else {
+	}
+	else
+	{
 		MemID fontID = resMgr->Get(MemResFont,font);
 		fontHeader = (FontHeader *) memMgr->GetAddr(fontID);
 	}
@@ -768,20 +783,33 @@ FontMgr::BuildFontTable(int theFont)
 #endif
 	
 	// initialize the font constants
+	assert(fontHeader != NULL);
 	pointSize = fontHeader->pointSize;
 	lowChar = fontHeader->lowChar;
 	highChar = fontHeader->highChar;
+	if (highChar > 255)
+		highChar = 255;			//  DDF - Yuck! Font Editor can return 256 here, but lower values
+										//  seem correct
 
 	Int16* charRecsAddr = (Int16*) &fontHeader->charRecs;
+	assert(charRecsAddr != NULL);
+	assert(lowChar >= 0);
+	assert(lowChar < MAXFONTSIZE);
+	assert(lowChar < highChar);
+	assert(highChar > 0);
+	assert(highChar < MAXFONTSIZE);
 
 	// fill in the font widths table
-	for (int i = 0;i < lowChar;++i) {
+	for (int i = 0;i < lowChar;++i)
+	{
 		fontWidths[i] = 0;
 	}
-	for (i = highChar+1;i < MAXFONTSIZE;++i) {
+	for (i = highChar+1;i < MAXFONTSIZE;++i)
+	{
 		fontWidths[i] = 0;
 	}
-	for (i = lowChar;i <= highChar;++i) {
+	for (i = lowChar;i <= highChar;++i)
+	{
 		fontWidths[i] = *((uchar *) fontHeader + charRecsAddr[i]);
 	}
 }
@@ -904,10 +932,10 @@ FontMgr::DrawTextBox()
 	penY = textBox.A.y;
 
 	int strOffset = 0;
-   if (!GetLongest(&strOffset,wide))
-		msgMgr->Fatal ( "DrawTextBox GetLongest=0" );
+//       if (!GetLongest(&strOffset,wide))
+//    		msgMgr->Fatal ( "DrawTextBox GetLongest=0" );
 //		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
-	strOffset = 0;
+//    	strOffset = 0;
 
 	int start = 0;
 	while (*str) { 
@@ -1111,6 +1139,22 @@ FontMgr::DrawChar(uchar theChar)
 	int skip = BMWidth - cWide;
 
 	int inCharPenY = penY;
+
+	#ifdef DEBUG
+		// Lets check for writing outside of the bitmap
+		uchar* bitMapEnd = (uchar*) memMgr->GetAddr(BM);
+		bitMapEnd += BMWidth*BMHeight + CELHEADERSIZE;
+		if ((penAddr + (cHigh-1)*BMWidth + cWide) >= bitMapEnd) {
+			msgMgr->Alert ("Character \"%c\" height exceeds font %d's point size",theChar,font);
+			// Let's shorten the character
+			cHigh = (bitMapEnd-1-cWide-penAddr)/BMWidth + 1;
+			if (cHigh < 0)
+				// This could happen if the cWide was
+				// greater than the bitmap width
+				cHigh = 0;
+		}
+	#endif
+
 	while (cHigh) {
 		// Draw a line of pattern
 		signed char mask = 0xff;
@@ -1276,8 +1320,12 @@ FontMgr::GetLongest(int* strOffset,int maxPixels)
 		fore = oldcolor;
 		mode = oldmode;
 		if (!lastCount &&  (TextWidth(first,count) > maxPixels)) {
-			last += --count;
-			*strOffset = last;
+			if (--count) {
+				last += count;
+				*strOffset = last;
+			} else {
+				msgMgr->Fatal("Text box too small for first character");
+			}
 			break;
       }
 	}
@@ -1343,7 +1391,6 @@ KText(argList)
 
 			fontMgr->SetFont(arg(4));
 			fontMgr->TextSize((MemID) arg(3),width,r,scale);
-
 			SCIWord* data = (SCIWord*) ((ArrayID) arg(2)).Data();
 
 			data[0] = r.A.x;
@@ -1401,5 +1448,8 @@ KFont(argList)
 }
 
 // The font manager
-FontMgr*        fontMgr;
+FontMgr*       fontMgr;
+// The system font
+ushort			systemFont = SYSTEMFONT;
+
 

@@ -4,9 +4,6 @@
 #ifndef PMACHINE_HPP
 #define PMACHINE_HPP
 
-#include <setjmp.h>
-#include <stdlib.h>
-
 #ifndef GLOBALS_HPP
 #include "globals.hpp"
 #endif
@@ -19,14 +16,6 @@
 #include "object.hpp"
 #endif
 
-#ifndef PMIP_HPP
-#include "pmip.hpp"
-#endif
-
-#ifndef PMSTACK_HPP
-#include "pmstack.hpp"
-#endif
-
 #ifndef SAVEABLE_HPP
 #include	"saveable.hpp"
 #endif
@@ -35,55 +24,70 @@
 #include	"script.hpp"
 #endif
 
-typedef SCIWord	Acc;
+typedef long	Acc;
 
-class SendStack;
+extern "C" {
 
-struct PMachine : Saveable {
-	void	Run();
-	void	End();
+void			pmRun();
+void			pmEnd();
+ 
+void			pmRestartBuf();
+void			pmTossMemID( unsigned, unsigned );
+#pragma aux pmTossMemID parm [ECX] [EAX];
 
-	Bool			CheckIntegrity(char* note);
-	Property&	Global(GlobalNum);
+Property&	pmGameSetProp(Selector select, unsigned int value);
+#pragma aux pmGameSetProp parm [EAX] [EDX];
 
-	static void		Call(PMIP ip, unsigned nArgChars);
-	static void		Dispatch(unsigned scriptNum, unsigned entryNum,
-							unsigned nArgChars);
-	static Acc		InvokeMethod(const ObjectID&, Selector,
-							unsigned nArgChars = 0, ...);
-	static void		QuickMessage(const ObjectID&, unsigned nArgChars);
-	static void		Messager(const ObjectID&);
+Property&	pmGlobal(GlobalNum);
+#pragma aux pmGlobal parm [EDX];
 
-	void	SaveRestoreBefore(SaveGame*, Bool);
-	void	SaveRestoreDo(Saveable::Func func, SaveGame* saveGame, Bool save);
-	void	SaveRestoreAfter(SaveGame*, Bool);
+Bool			pmCheckIntegrity(char* note);
 
-	Acc			acc;
-	unsigned		curScriptNum;
-#ifdef MACINTOSH
-	char			curSourceFile[32];
-#else
-	char			curSourceFile[_MAX_PATH];
-#endif
-	int			curSourceLineNum;
-	ObjectID		game;
-	VariableID	globals;
-	Property*	globalPtr;
-	VariableID	locals;
-	PMIP			ip;
-	ObjectID		object;
-	Acc			prevAcc;
-	int			restArgs;
-	PMStack		stack;
-	SendStack*	sendStack;
+void			pmDispatch(unsigned scriptNum, unsigned entryNum, unsigned nArgChars);
 
-	jmp_buf		restartBuf;
+Acc			invokeMethod(unsigned Obj, unsigned select, unsigned nArgChars, void * a);
+#pragma aux invokeMethod parm [EBX] [EDX] [ECX] [EDI];
 
-protected:
-	static void		ExecuteCode();
+void			pmQuickMessage(unsigned Obj, unsigned nArgChars, void * a);
+#pragma aux pmQuickMessage parm [EBX] [ECX] [EDI];
 
+void			pmPushMany(Selector select, unsigned nArgs, short* ptrs);
+#pragma aux pmPushMany parm [EDX] [ECX] [ESI];
+
+void			pmSaveRestoreBefore(SaveGame*, Bool);
+void			pmSaveRestoreAfter(SaveGame*, Bool);
+}
+
+//static void		Messager(const ObjectID&);
+
+_Packed struct PMachine {
+	Int16			game;
+	Int16			object;
+	
+	Int32		 	acc;
+	Int32		 	prevAcc;
+
+	Property* 	StackPtr;
+ 	Property* 	TempPtr;
+ 	Property* 	GlobalPtr;
+ 	Property* 	ParmPtr;
+
+ 	VariableID 	Locals;
+	VariableID	Globals;
+
+	Int16			disposeTossRet;
+ 	unsigned		RestArgs;
+
+	Int16			curScriptNum;
+	char			curSourceFile[256];
+	Int16			curSourceLineNum;
+	Int32			restart[4];
 };
-extern PMachine pm;
+
+const uchar	OP_BYTE		= 0x01;		// char operation if set, int otw
+
+extern "C" PMachine pm;
 
 #endif
 
+

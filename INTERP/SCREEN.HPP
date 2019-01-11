@@ -26,23 +26,23 @@ class Screen
 	Screen&	operator=(const Screen&);
 
 	//  Const
-	const	SOL_Rect& ScreenRect() 			{return screenRect;}
-	int	TopPlane() 							{return planes.TopPlane();}
-	int	TopSCIPlane() 						{return planes.TopSCIPlane();}
-	int	TopScreenItem(int planeID);
-	void	NowSeen(int id,int planeID,SOL_Rect& nowSeen);
-	PlaneList& Planes() 						{return planes;}
-	const PlaneList& Planes() const		{return planes;}
-	void	PlaneRect(int planeID,SOL_Rect& planeRect);
+	const	SOL_Rect& ScreenRect() const	{return screenRect;}
+	int	TopPlane() const					{return planes.TopPlane();}
+	int	TopSCIPlane() const				{return planes.TopSCIPlane();}
+	int	TopScreenItem(int planeID) const;
 	int	Xdim() const						{return xDim;}
 	int	Ydim() const						{return yDim;}
+	const PlaneList& Planes() const		{return planes;}
+
+	PlaneList& Planes() 						{return planes;}
+	void	PlaneRect(int planeID, SOL_Rect& planeRect) const;
 
 	//  Normal methods
-	void	AbortPlane(Plane*);
-	void	AddScreenItem(ScreenItem*);
-	void	AddPlane(Plane*);
-	int	AddPic(long planeID,int thePic,SOL_Point& thePoint,int mirror);
-	void	CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[],SOL_Rect& dirtyRect);
+	void	AbortPlane(const Plane*);
+	void	AddScreenItem(ScreenItem*);			//  Cant be const
+	void	AddPlane(Plane*);							//  Cant be const
+	int	AddPic(long planeID, int thePic, const SOL_Point&, int mirror);
+	void	CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[], const SOL_Rect& dirtyRect);
 	void	Clear();
 #ifdef MACINTOSH
 	void	ClearForRestoreGame();
@@ -86,3 +86,4 @@ Screen::operator=(const Screen& src)
 
 
 #endif
+

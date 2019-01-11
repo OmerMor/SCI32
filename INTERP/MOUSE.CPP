@@ -110,12 +110,6 @@ KSetHotRectangles(argList)
 }
 
 void
-SOL_Mouse::SetHotRectangleStatus(int status)
-{
-	hotOn = status;
-}
-
-void
 SOL_Mouse::SetupHotRectangles(int count, MemID handle)
 {
 	hotRectangleCount = count;
@@ -160,4 +154,3 @@ SOL_Mouse::CheckHotRectangles(SOL_Point & pos)
 	}
 }
 #pragma on (check_stack)
-

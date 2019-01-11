@@ -108,7 +108,8 @@ RmResList::Add(MemType resType, ResNum resourceID, int length)
 	if (room == -1)
 		return;
 	if (!handsOn && room != 0) {
-		ObjectID user = pm.Global(g_user);
+//BEW CHANGED		ObjectID user = pm.Global(g_user);
+		ObjectID user = pmGlobal(g_user);
 		if (user.IsObject() && user.GetProperty(s_input))
 			handsOn = True;
 	}

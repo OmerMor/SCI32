@@ -288,8 +288,7 @@ const	s_numLines        			= 139;
 //const	s_BLANK				= 105;
 //const s_struct				= 120;
 
-const s_input				= 508;
+const s_input				= 503;
 
 #endif
 
-

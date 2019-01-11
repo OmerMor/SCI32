@@ -4,7 +4,7 @@
 #endif
 
 #include <DOS.H>
-#include <IO.H>
+// #include <IO.H>
 #include <STRING.H>
 #include <STDIO.H>
 #include <BIOS.H>
@@ -13,3 +13,4 @@
 #include <CONIO.H>
 #include "compiler.hpp"
 #pragma hdrstop
+

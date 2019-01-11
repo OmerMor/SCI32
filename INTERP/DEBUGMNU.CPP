@@ -123,7 +123,7 @@ DebugMenu::Show()
 	
 		const height = 14*YSCALE;
 		window = New EventWindow(SOL_Rect(0, SCIRESY - height , SCIRESX-1, SCIRESY-1), *buf, 0,
-			255, SYSTEMFONT, TEJUSTLEFT, False);
+			255, systemFont, TEJUSTLEFT, False);
 	
 		buf.Free();
 	}

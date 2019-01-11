@@ -9,9 +9,12 @@
 #include "audio.hpp"
 #include "config.hpp"
 #include "dos.hpp"
+#include "graphmgr.hpp"
 #include	"kernel.hpp"
 #include "memid.hpp"
 #include "memmgr.hpp"
+#include "msg.hpp"
+#include "newroom.hpp"
 #include "pmachine.hpp"
 #include "resource.hpp"
 #include	"time.hpp"
@@ -21,6 +24,36 @@
 #include	"kbdmgr.hpp"
 #include	"msg.hpp"
 #endif
+
+extern "C" {
+void Merge(void far *, void *, int, char, char);
+void Distort(void far *, int, char, char);
+void Volume(void far *, int, char, char, char);
+void Silence(void far *, int, char);
+char Decomp4To8(void *, void *, int, char);
+int  Decomp8To16(void *, void *, int, int);
+void Conv16To8(void *, void *, int);
+void Conv8To16(void *, int);
+void Conv11KTo22K(void *, int, char);
+void Conv22KTo11K(void *, void *, int, char);
+void CopyEOS(void *, void *, int, char);
+void DupeChannel(void *, int, int, char);
+int  MonitorNoise(void *, int, char);
+}
+
+#pragma aux (PushArgs) Merge;
+#pragma aux (PushArgs) Distort;
+#pragma aux (PushArgs) Volume;
+#pragma aux (PushArgs) Silence;
+#pragma aux (PushArgs) Decomp4To8;
+#pragma aux (PushArgs) Decomp8To16;
+#pragma aux (PushArgs) Conv16To8;
+#pragma aux (PushArgs) Conv8To16;
+#pragma aux (PushArgs) Conv11KTo22K;
+#pragma aux (PushArgs) Conv22KTo11K;
+#pragma aux (PushArgs) CopyEOS;
+#pragma aux (PushArgs) DupeChannel;
+#pragma aux (PushArgs) MonitorNoise;
 
 union {
 	void *data;
@@ -71,6 +104,7 @@ struct Sample {
 	int		fd;
 	uchar		fillToggle;
 	MemID		id;
+	int		intHbufferSize;
 	int		length;
 	Bool		loop;
 	ResNum	module;
@@ -79,6 +113,7 @@ struct Sample {
 	int		offset;
 	int		pausedLoc;
 	int		rate;
+	int		restartLoc;
 	Bool		robot;
 	Bool		scrambled;
 	uchar		sequ;
@@ -100,22 +135,29 @@ RobotAudInfo rbot;
 int		activeSamples = 0;
 Bool		audioInstalled = False;
 int		audVolFD = -1;
+int		bytesPerTick;
 MemID		convBuff = 0;
+Bool		critical = False;
 int		distortion = 0;
 int		DACArgsIn[DAC_ARGS_IN];
 int		DACHbufferSize;
 int		intHbufferSize;
 int		globalLoc;
 Bool		lastDAC;
+int		mbTickCount = 0;
 Bool		mixCheck = True;
+int		noiseOfs;
 int		pausedLoc = 0;
 int		preLoad = 0;
+MemID		priorityID;
 int		prioritySample = -1;
 int		rate = 0, bits = 0, channels = 0, volume = MAXVOLUME;
 int		rateMax, bitsMax, channelsMax, volumeMax;
 Bool		rateSet = False, bitsSet = False, channelsSet = False;
+int		robotCallBacks;
 Bool		robotsPaused = False;
 int		sfxVolFD = -1;
+Bool		staticFilter = False;
 
 void		AudioBits(int);
 void		AudioChannels(int);
@@ -128,10 +170,10 @@ void		AudioPlay();
 void		AudioRate(int);
 Bool		AudioResume(int);
 int		AudioSelect(int);
-void		AudioStop(int);
 void		AudioUnLoad();
 void		AudioVolume(int,int);
 Bool		CallDAC(int,int);
+int		CheckNoise(void);
 void		CheckRawFormat(int);
 Bool		CheckSOLFormat(int);
 Bool		CheckWAVEFormat(int);
@@ -147,7 +189,7 @@ void		GetConvBuff(int);
 char		GetDigit36(int);
 unsigned GetDACDefaultSize(void);
 void*		LoadAudioDrv(void);
-void		MergeBuffer(int,int);
+Bool		MergeBuffer(int,int);
 Bool		MergeBuffers(void);
 void		VolumeBuffer(int,char far *);
 #ifdef DEBUG
@@ -226,7 +268,7 @@ KDoAudio(argList)
 					sample[n].volume = arg(8);
 				else {
 					sample[n].volume = MAXVOLUME;
-					if (argCount >= 4)
+					if (argCount >= 8)
 						prioritySample = n;
 				}
 			}
@@ -243,6 +285,14 @@ KDoAudio(argList)
 		case STOP:
 			pm.acc = activeSamples;
 			AudioStop(FindSampleN(args,0,argCount>2?arg(3):0));
+			break;
+		case LOOP:
+			n = FindSampleN(args,1,argCount>3?arg(4):0);
+			if (n >= 0 && n < activeSamples)
+				if (argCount >= 2 && arg(2) != 1)
+					sample[n].loop = arg(2);
+				else
+					sample[n].loop = 0;
 			break;
 		case PAUSE:
 			pm.acc = AudioPause(FindSampleN(args,0,argCount>2?arg(3):0));
@@ -287,6 +337,11 @@ KDoAudio(argList)
 			if (argCount > 1)
 				mixCheck = (Bool) arg(2);
 			pm.acc = mixCheck;			
+			break;
+		case DACCRITICAL:
+			if (argCount > 1)
+				critical = (Bool) arg(2);
+			pm.acc = critical;			
 			break;
 		case DISTORT:
 			if (argCount > 1)
@@ -359,6 +414,9 @@ KDoAudio(argList)
 			sample[n].fadeLoc = timeMgr->GetTickCount();
 			pm.acc = sample[n].fadeStep * sample[n].fadeTicks;
 			break;
+		case NOISE:
+			pm.acc = (Acc) CheckNoise();
+			break;
 		default:
 			msgMgr->Alert(SrcLoc, Msg_NoAudio);
 			pm.acc = 0;
@@ -400,6 +458,28 @@ FindSampleN(argList,int argn,int tag)
 			return n;
 	}
 	return NO_SAMPLES;
+}
+
+Bool
+QueryAudRobot(RobotAudStatus *buff)
+{
+	for (int n = 0; n < activeSamples; n++) {
+		if (sample[n].robot) {
+			_disable();
+			buff->bytesPlayed = robotCallBacks * DACHbufferSize;
+			buff->bytesPlaying = buff->bytesPlayed +
+				(timeMgr->GetTickCount() - mbTickCount) * rate / 60;
+			_enable();
+			buff->bytesSubmitted = buff->bytesPlayed + DACHbufferSize * 2;
+			if (buff->bytesPlaying > buff->bytesSubmitted)
+				buff->bytesPlaying = buff->bytesSubmitted;
+			buff->rate = rate;
+			buff->bits = bits;
+			return True;
+		}
+	}
+	buff->bytesPlayed = buff->bytesPlaying = buff->bytesSubmitted = 0;
+	return False;
 }
 
 Bool
@@ -648,9 +728,7 @@ AudioSelect(int n)
 				fd != sfxVolFD) {
 			sample[n].fd = sample[n].audFD = fd;
 			#ifdef DEBUG   
-			if (n > 0 && configMgr->Get(configMgr->AudioMonitor))
-				if (!msgMgr->Alert("Loading %d.AUD",sample[n].num))
-					msgMgr->Fatal("User abort");
+			CheckDiscStreaming(pathName);
 			#endif
 
 		// FOURTH: Searh for .WAV file via 'wave=' dir list
@@ -658,18 +736,15 @@ AudioSelect(int n)
 				fd != sfxVolFD) {
 			sample[n].fd = sample[n].audFD = fd;
 			#ifdef DEBUG   
-			if (n > 0 && configMgr->Get(configMgr->AudioMonitor))
-				if (!msgMgr->Alert("Loading %d.WAV",sample[n].num))
-					msgMgr->Fatal("User abort");
+			CheckDiscStreaming(pathName);
 			#endif
 
 		// LAST CHANCE: Search for AUD/WAV resource in SFX Resource Volume
 		} else if ((sample[n].offset = FindAudEntry((ResNum)sample[n].num)) != -1) {
 			sample[n].fd = sfxVolFD;
 			#ifdef DEBUG   
-			if (n > 0 && configMgr->Get(configMgr->AudioMonitor))
-				if (!msgMgr->Alert("Loading %d.AUD",sample[n].num))
-					msgMgr->Fatal("User abort");
+			sprintf(pathName,"%d from SFX",sample[n].num);
+			CheckDiscStreaming(pathName);
 			#endif
 
 		// AUD/WAV resource NOT FOUND!
@@ -683,13 +758,11 @@ AudioSelect(int n)
 		// FIRST: Search for @ file via 'audio=' dir list
 		MakeName36(MemResAudio, pathName, (ResNum)sample[n].module, sample[n].noun,
 			sample[n].verb, sample[n].cond, sample[n].sequ);
-		if ((fd = resMgr->Open(MemResAudio36, 0, pathName)) != -1 &&
+		if ((fd = resMgr->Open(MemResAudio36, -1, pathName)) != -1 &&
 				fd != audVolFD && fd != sfxVolFD) {
 			sample[n].fd = sample[n].audFD = fd;
 			#ifdef DEBUG   
-			if (n > 0 && configMgr->Get(configMgr->AudioMonitor))
-				if (!msgMgr->Alert("Loading %s",pathName))
-					msgMgr->Fatal("User abort");
+			CheckDiscStreaming(pathName);
 			#endif
 
 		// LAST CHANCE: Search for @ resource in AUD Resource Volume */
@@ -698,9 +771,7 @@ AudioSelect(int n)
 					!= -1) {
 			sample[n].fd = audVolFD;
 			#ifdef DEBUG   
-			if (n > 0 && configMgr->Get(configMgr->AudioMonitor))
-				if (!msgMgr->Alert("Loading %s",pathName))
-					msgMgr->Fatal("User abort");
+			CheckDiscStreaming(pathName);
 			#endif
 
 		// @ resource NOT FOUND!
@@ -708,8 +779,12 @@ AudioSelect(int n)
 			return 0;
 	}
 
-	if (!sample[n].robot && !CheckSOLFormat(n) && !CheckWAVEFormat(n))
-		CheckRawFormat(n);
+	if (!sample[n].robot && !CheckSOLFormat(n) && !CheckWAVEFormat(n)) {
+		if (sample[n].module == SFXMODNUM)
+			msgMgr->Fatal("Invalid audio file format: %d",sample[n].num);
+		else
+			msgMgr->Fatal("Invalid audio file format: %s",pathName);
+	}
 
 	if (preLoad && n+1 >= preLoad && sample[n].fd > 0) {
 		sample[n].id.Get(MemAudioBuffer, sample[n].length, AUDIO_TEMP);
@@ -722,7 +797,8 @@ AudioSelect(int n)
 	sample[n].offset = sample[n].start;
 	sample[n].bytesToRead = sample[n].length;
 	sample[n].bytesRead = 0;
-	sample[n].bufferSize = intHbufferSize;
+	sample[n].intHbufferSize = intHbufferSize * (sample[n].robot? 2 : 1);
+	sample[n].bufferSize = sample[n].intHbufferSize;
 	sample[n].bytesBuffered = 0;
 	sample[n].bufferNumber = 0;
 	sample[n].fillToggle = 0;
@@ -782,7 +858,14 @@ AudioSelect(int n)
 	} else
 		sample[n].do11KConv22K = False;
 
-	sample[n].buffID.Get(MemAudioBuffer, intHbufferSize * 2, AUDIO_TEMP);
+	sample[n].buffID.Get(MemAudioBuffer, sample[n].intHbufferSize * 2, AUDIO_TEMP);
+	sample[n].buffID.Critical(True);
+	if (prioritySample == n) {
+		priorityID.Get(MemAudioBuffer, DACHbufferSize, AudioPriorityHandle);
+		bytesPerTick = rate * (bits/8) / 60;
+		if (bits == 16)
+			bytesPerTick &= 0xfffe;
+	}
 	FillBuffer(n);
 	FillBuffer(n);
 
@@ -794,13 +877,68 @@ AudioSelect(int n)
 void
 GetConvBuff(int n)
 {
-	int size = sample[n].robot? intHbufferSize * 2 : sample[n].bufferSize;
+	int size = sample[n].robot? sample[n].intHbufferSize * 2 : sample[n].bufferSize;
 
 	if (!convBuff)
 		convBuff.Get(MemAudioBuffer, size, AudioConvBufHandle);
 	else if (convBuff.Size() < size)
 		convBuff.Realloc(size);
 }
+
+#ifdef DEBUG   
+void
+CheckDiscStreaming(char* str)
+{
+	char	pathName[MaxPath + 1];
+	Bool	dump = False;
+
+	if (configMgr->Get(configMgr->AudioMonitor)) {
+		if (!configMgr->Arg(configMgr->AudioMonitor) ||
+				configMgr->Val(configMgr->AudioMonitor) == 0)
+			return;
+		if (configMgr->Val(configMgr->AudioMonitor) == 1)
+			dump = True;
+	}
+	if (graphMgr &&
+		 graphMgr->RobotStatus() != ROBOT_UNUSED &&
+		 graphMgr->GRobot().IsRobotRealTime()) {
+		if (dump) {
+			msgMgr->Dump("Loading %s while playing %d.RBT in room #%d\n",
+				str,graphMgr->GRobot().GetResNum(),currentRoom);
+		} else if (!msgMgr->Alert
+				("Loading %s while playing %d.RBT in room #%d\r(Press ESC/No to quit)",
+					str,graphMgr->GRobot().GetResNum(),currentRoom)) {
+			msgMgr->Fatal("User abort");
+		}
+	}
+	for (int n = 0; n < activeSamples; n++) {
+		if (!sample[n].id && !sample[n].robot) {
+			if (sample[n].module == SFXMODNUM) {
+				if (dump) {
+					msgMgr->Dump("Loading %s while playing audio #%d in room #%d\n",
+						str,sample[n].num,currentRoom);
+				} else if (!msgMgr->Alert
+					("Loading %s while playing audio #%d in room #%d\r(Press ESC/No to quit)",
+						str,sample[n].num,currentRoom)) {
+					msgMgr->Fatal("User abort");
+				}
+			} else {
+				MakeName36(MemResAudio, pathName, (ResNum)sample[n].module,
+				 sample[n].noun, sample[n].verb, sample[n].cond, sample[n].sequ);
+				if (dump) {
+					msgMgr->Dump("Loading %s while playing %s in room #%d\n",
+						str,pathName,currentRoom);
+				} else if (!msgMgr->Alert
+						("Loading %s while playing %s in room #%d\r(Press ESC/No to quit)",
+							str,pathName,currentRoom)) {
+					msgMgr->Fatal("User abort");
+				}
+			}
+		}
+	}
+	return;
+}
+#endif
 
 void
 MakeName36(MemType type, char* fname, ResNum module, uchar noun,
@@ -810,6 +948,10 @@ MakeName36(MemType type, char* fname, ResNum module, uchar noun,
 		fname[0] = 'S';
 	else
 		fname[0] = 'A';
+	if (module >= 36*36*36) {
+		fname[0]++;
+		module %= 36*36*36;
+	}
 	ConvBase36(&fname[1],module,3);
 	ConvBase36(&fname[4],(int)noun,2);
 	ConvBase36(&fname[6],(int)verb,2);
@@ -858,6 +1000,7 @@ FindAudEntry(ResNum id)
 	if (!resMgr->Check(MemResMap, SFXMODNUM))
 		return -1;
 	map = resMgr->Get(MemResMap, SFXMODNUM);
+	map.SetNotDiscardable();
 
 	offset = 0;
 	for (entry = (ResAudEntry *)*map; entry->id != (ushort)-1; ++entry) {
@@ -916,10 +1059,28 @@ AudioPlay()
 		MergeBuffers();
 		DACArgsIn[1] = MergeBuffers();
 		CallDAC(DAC_PLAY,1);  // begin playing...
+		mbTickCount = timeMgr->GetTickCount();
+		sample[activeSamples-1].restartLoc = 0;
+	} else if (sample[activeSamples-1].robot && rateSet && bitsSet && !critical) {
+		CallDAC(DAC_STOP,0);
+		DACBuffer.adr.ofs = DACBuffer.adr.ofsOrig;
+		MergeBuffers();
+		for (int n = 0; n < activeSamples-1; n++) {
+			if (sample[n].bytesBuffered <= sample[n].intHbufferSize &&
+					sample[n].bytesToRead)
+				FillBuffer(n);
+		}
+		DACArgsIn[1] = MergeBuffers();
+		CallDAC(DAC_PLAY,1);  // begin playing...
+		mbTickCount = timeMgr->GetTickCount();
+		sample[activeSamples-1].restartLoc = 0;
 	} else if (lastDAC) {
 		lastDAC = False;
 		// continue playing (i.e. ignore prior "LAST BUFFER" message)
 		CallDAC(DAC_CONTINUE,0);
+		sample[activeSamples-1].restartLoc = 1;
+	} else {
+		sample[activeSamples-1].restartLoc = 2;
 	}
 	sample[activeSamples-1].startLoc = timeMgr->GetTickCount();
 	if (activeSamples == 1)
@@ -967,8 +1128,10 @@ DropSample(int n)
 		sample[n].audFD = -1;
 	}
 	sample[n].buffID.Free();
-	if (n == prioritySample)
+	if (n == prioritySample) {
 		prioritySample = -1;
+		priorityID.Free();
+	}
 }
 
 Bool
@@ -1019,8 +1182,7 @@ AudioResume(int n)
 			if (sample[n].robot) {
 				sample[n].startLoc += ticks - sample[n].pausedLoc;
 				sample[n].pausedLoc = 0;
-				if (activeSamples == 1)
-					AudioPlay();
+				AudioPlay();
 				return True;
 			}
 		}
@@ -1053,8 +1215,11 @@ AudioLoc(int n)
 		return sample[n].pausedLoc - sample[n].startLoc;
 	else if (pausedLoc)
 		return pausedLoc - sample[n].startLoc;
-	else
+	else {
+		if (sample[n].restartLoc)
+			return 0;
 		return ticks - sample[n].startLoc;
+	}
 }
 
 void
@@ -1110,14 +1275,25 @@ MergeBuffers()
 {
 	int	n, cnt = 0;
 
+	mbTickCount = timeMgr->GetTickCount();
+
 	if (!activeSamples)
 		return False;
 
 	lastDAC = False;
-	if (!pausedLoc)
-		for (n = 0; n < activeSamples; n++)
+	if (!pausedLoc) {
+		for (n = 0; n < activeSamples; n++) {
+			if (sample[n].restartLoc) {
+				sample[n].restartLoc--;
+				sample[n].startLoc = timeMgr->GetTickCount();
+			}
+			if (prioritySample != -1 && prioritySample != n)
+				continue;
 			if (sample[n].bytesBuffered && !sample[n].pausedLoc)
-				MergeBuffer(n,cnt++);
+				if (MergeBuffer(n,cnt))
+					cnt++;
+		}
+	}
 	if (cnt) {
 		DistortBuffer(ALL_SAMPLES,DACBuffer.ptr);
 		VolumeBuffer(ALL_SAMPLES,DACBuffer.ptr);
@@ -1136,7 +1312,7 @@ MergeBuffers()
 	return False;
 }
 
-void
+Bool
 MergeBuffer(int n, int cnt)
 {
 
@@ -1144,10 +1320,16 @@ MergeBuffer(int n, int cnt)
 		sample[n].bufferNumber * DACHbufferSize;
 
 	if (sample[n].robot) {
+		if (robotsPaused)
+			return False;
 		static int bufferNumber;
 		if (rbot.min == 0)
 			bufferNumber = 0;
 		bufferNumber++;
+		if (bufferNumber > 2)
+			robotCallBacks++;
+		else
+			robotCallBacks = 0;
 		rbot.min += DACHbufferSize * (16/bits);
 		rbot.max += DACHbufferSize * (16/bits);
 		if (rbot.min > rbot.hwm[1]) {
@@ -1167,14 +1349,21 @@ MergeBuffer(int n, int cnt)
 
 	DistortBuffer(n,(char far *)buffer);
 	VolumeBuffer(n,(char far *)buffer);
-	if (n == prioritySample || !cnt)
+	if (prioritySample == -1)
+		if (!cnt)
+			_fmemmove(DACBuffer.ptr,(char far *)buffer,DACHbufferSize);
+		else
+			Merge(DACBuffer.ptr,buffer,DACHbufferSize,bits,mixCheck);
+	else if (n == prioritySample) {
 		_fmemmove(DACBuffer.ptr,(char far *)buffer,DACHbufferSize);
-	else if (prioritySample == -1)
-		Merge(DACBuffer.ptr,buffer,DACHbufferSize,bits,mixCheck);
+		memmove(*priorityID,buffer,DACHbufferSize);
+		noiseOfs = sample[n].bufferNumber * DACHbufferSize;
+	}
 
-	if (++sample[n].bufferNumber == intHbufferSize / DACHbufferSize * 2)
+	if (++sample[n].bufferNumber == sample[n].intHbufferSize / DACHbufferSize * 2)
 		sample[n].bufferNumber = 0;
 	sample[n].bytesBuffered -= Min(DACHbufferSize,sample[n].bytesBuffered);
+	return True;
 }
 
 void
@@ -1188,7 +1377,7 @@ FillBuffer(int n)
 	}
 		
 	int	len;
-	int	fillOfs = sample[n].fillToggle * intHbufferSize;
+	int	fillOfs = sample[n].fillToggle * sample[n].intHbufferSize;
 	int	t = sample[n].bufferSize -
 		loopOfs * (sample[n].do16Conv8? 2:1) * (sample[n].do22KConv11K? 2:1) /
 		((sample[n].do8Conv16? 2:1) * (sample[n].do11KConv22K? 2:1) *
@@ -1279,7 +1468,7 @@ FillBuffer(int n)
 		return;
 	}
 	
-	if (len < intHbufferSize && !loopOfs) {
+	if (len < sample[n].intHbufferSize && !loopOfs) {
 		// pad this partial buffer to next DAC-buffer boundary and adjust len
 		int newlen = (len + DACHbufferSize - 1) / DACHbufferSize * DACHbufferSize;
 		Silence((char far *)&sample[n].buffID[fillOfs+loopOfs+len],newlen-len,bits);
@@ -1288,6 +1477,55 @@ FillBuffer(int n)
 	sample[n].bytesBuffered += len;
 	sample[n].fillToggle = 1 - sample[n].fillToggle;
 	return;
+}
+
+int
+CheckNoise()
+{
+	static int check;
+	int t, len, bytesPlayed, ofs, n;
+
+	if (prioritySample == -1)
+		return 0;
+	n = prioritySample;
+	if (!sample[n].bytesBuffered)
+		return 0;
+	bytesPlayed = (timeMgr->GetTickCount()-mbTickCount +1) * bytesPerTick;
+	len = bytesPerTick;
+//	if (len > sample[n].bytesBuffered)
+//		len = sample[n].bytesBuffered;
+
+	if (bytesPlayed < DACHbufferSize) {
+		ofs = bytesPlayed;
+		if (bytesPlayed + len <= DACHbufferSize) {
+			check = MonitorNoise(&priorityID[ofs],len,bits);
+			return check;
+		}
+		t = bytesPlayed + len - DACHbufferSize;
+		check = MonitorNoise(&priorityID[ofs],len - t,bits);
+		if (check)
+			return check;
+		bytesPlayed += len - t;
+		len = t;
+	}
+
+	ofs = noiseOfs + bytesPlayed;
+	if (noiseOfs + bytesPlayed + len > sample[n].buffID.Size()) {
+		t = noiseOfs + bytesPlayed + len - sample[n].buffID.Size();
+		if (t < len) {
+			check = MonitorNoise(&sample[n].buffID[ofs],len - t,bits);
+			if (check) {
+				return check;
+			}
+			len = t;
+			ofs = 0;
+		} else {
+			ofs = t - len;
+		}
+	}
+	check = MonitorNoise(&sample[n].buffID[ofs],len,bits);
+
+	return check;
 }
 
 void
@@ -1320,7 +1558,7 @@ VolumeBuffer(int n, char far *buffer)
 		Silence(buffer,DACHbufferSize,bits);
 		return;
 	}
-	Volume(buffer,DACHbufferSize,bits,vol/8);
+	Volume(buffer,DACHbufferSize,bits,vol/8,staticFilter?0x7f:0x80);
 }
 
 Bool
@@ -1479,6 +1717,8 @@ CheckWAVEFormat(int n)
 		}
 
 		// Unknown chunk type -- skip over it:
+		if (!okRIFF)
+			break;
 		if (sptr) {
 			sptr += chunk.len + (chunk.len & 1);
 			slen -= chunk.len + (chunk.len & 1);
@@ -1492,7 +1732,6 @@ CheckWAVEFormat(int n)
 void
 CheckRawFormat(int n)
 {
-
 	if (sample[n].id) {
 		sample[n].length = sample[n].id.Size();
 	} else {
@@ -1564,6 +1803,16 @@ InitAudioDriver()
 
 	audioInstalled = True;
 	
+	AudioRate(22050);
+	rateSet = True;
+	AudioBits(16);
+	bitsSet = True;
+
+	char* str = configMgr->Get("staticFilter");
+	if (str && (!strnicmp(str,"y",1) || !strnicmp(str,"t",1) || !strncmp(str,"1",1)))
+		staticFilter = True;
+	else
+		staticFilter = False;
 #ifdef DEBUG
 	if (configMgr->Get(configMgr->PlayAudio))
 		DACPlay();
@@ -1575,18 +1824,30 @@ InitAudioDriver()
 void
 AdjustAudBuffSizes(unsigned *audioSize, unsigned *DACSize)
 {
-
+#ifdef WINDOWS
+	if (*audioSize != 0 && (*audioSize % *DACSize) == 0)
+		if (((*audioSize / *DACSize) % 2) == 0)
+			return;
+#endif
 	*audioSize = 65536;
-
-	*audioSize = ((*audioSize + 1023) / 1024) * 1024;
-	*DACSize   = ((*DACSize + 1023) / 1024) * 1024;
-	*DACSize   = *audioSize/((*audioSize/(*DACSize)+1)&0xfffffffe);
+	if (*DACSize >= 24*1024)
+		*DACSize = 32*1024;
+	else if (*DACSize >= 12*1024)
+		*DACSize = 16*1024;
+	else if (*DACSize >= 6*1024)
+		*DACSize = 8*1024;
+	else if (*DACSize >= 3*1024)
+		*DACSize = 4*1024;
+	else if (*DACSize >= 1024+512)
+		*DACSize = 2*1024;
+	else
+		*DACSize = 1*1024;
 }
 
 Bool
 GetDACBuffer()
 {
-	DACArgsIn[1] = DACHbufferSize;
+	DACArgsIn[1] = DACHbufferSize * 2;
 	DACArgsIn[2] = (int)MergeBuffers;
 	if (CallDAC(DAC_SET_BUFF,2)) {
 		msgMgr->Alert(SrcLoc, Msg_NoAudio);
@@ -1638,9 +1899,12 @@ DACPlay()
 	SOL_Event event;
 	
 	char* str = configMgr->Str(configMgr->PlayAudio);
-	if (strlen(str) == 12 && (str[0] == 'A' || str[0] == 'a')) {
+	if (strlen(str) == 12 &&
+		(str[0] == 'A' || str[0] == 'a' || str[0] == 'B' || str[0] == 'b')) {
 		sample[0].num = 0;
 		sample[0].module = GetBase36(&str[1],3);
+		if (str[0] == 'B' || str[0] == 'b')
+			sample[0].module += 36*36*36;
 		sample[0].noun = GetBase36(&str[4],2);
 		sample[0].verb = GetBase36(&str[6],2);
 		sample[0].cond = GetBase36(&str[9],2);
@@ -1651,24 +1915,22 @@ DACPlay()
 	}
 	sample[0].distortion = 0;
 	sample[0].volume = MAXVOLUME;
-	sample[0].loop = False;
-	printf("(%s)Press any key to stop audio playback...\n",str);
-	while (1) {
-		if (!AudioSelect(0)) {
-			printf("Not found\n");
-			while (!kbdMgr->Get(&event))
-				;
-			break;
+	sample[0].loop = True;
+	if (!AudioSelect(0)) {
+		Printf("%s not found.  Press any key...\n",str);
+		while (!kbdMgr->Get(&event))
+			;
+		exit(1);
+	}
+	Printf("(%s)Press any key to stop audio playback...\n",str);
+	++activeSamples;
+	AudioPlay();
+	while (activeSamples) {
+		if (kbdMgr->Get(&event)) {
+			EndAudio();
+			exit(1);
 		}
-		++activeSamples;
-		AudioPlay();
-		while (activeSamples) {
-			if (kbdMgr->Get(&event)) {
-				AudioStop(ALL_SAMPLES);
-				exit(1);
-			}
-			AudioServer();
-		}
+		AudioServer();
 	}
 	exit(1);
 }
@@ -1725,7 +1987,7 @@ AudioServer()
 
 	AudioCheck();
 	for (n = 0; n < activeSamples; n++) {
-		if (sample[n].bytesBuffered <= intHbufferSize && sample[n].bytesToRead)
+		if (sample[n].bytesBuffered <= sample[n].intHbufferSize && sample[n].bytesToRead)
 			FillBuffer(n);
 		if (sample[n].fadeStep)
 			if (AudioFade(n))

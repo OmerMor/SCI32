@@ -18,6 +18,9 @@
 #include "sound.hpp"
 #include "string.hpp"
 #include "textid.hpp"
+#ifdef WINDOWS
+#include	"mbox.hpp"
+#endif
 
 MsgMgr*  msgMgr;
 
@@ -67,9 +70,9 @@ MsgMgr::AddFatalStr(char* str)
 void
 MsgMgr::AddPMIP(char* msg)
 {
-	if ((int) pm.game && pm.ip.IsValid())
-		sprintf(msg + strlen(msg), "\nScript %u/$%x", pm.curScriptNum,
-			pm.ip.ScriptOffset());
+	if ((int) pm.game) //BEW REMOVED && pm.ip.IsValid())
+		sprintf(msg + strlen(msg), "\nScript %u", pm.curScriptNum);
+//BEW REMOVED			pm.ip.ScriptOffset());
 }
 
 void
@@ -136,11 +139,19 @@ MsgMgr::Dump(char* fmt, ...)
 	static Bool inited;
 	
 	if (!inited) {
-		Unlink("C:\\DUMP");
+		if (Exists("C:\\DUMP.TXT"))
+#ifdef WINDOWS
+			if (msgMgr->Alert
+	("C:\\DUMP.TXT already exists.\rOverwrite? Select YES to overwrite\ror NO to append"))
+#else
+			if (msgMgr->Alert
+	("C:\\DUMP.TXT already exists.\rPress ENTER to overwrite\ror ESC to append"))
+#endif
+				Unlink("C:\\DUMP.TXT");
 		inited = True;
 	}
 	
-	FILE* fp = fopen("C:\\DUMP", "at");
+	FILE* fp = fopen("C:\\DUMP.TXT", "at");
 	va_list args;
 	va_start(args, fmt);
 	vfprintf(fp, fmt, args);
@@ -439,11 +450,30 @@ KSetFatalStr(argList)
 	msgMgr->SetSCIFatalStr(*(TextID) arg(1));
 }
 
+#endif
+
 void
 KMonoOut(argList)
 {
 	TextID formatID = arg(1);
 	msgMgr->MonoArgs(*formatID, *MakeVprintfArgs(*formatID, &arg(2)));
 }
+
+//BEW CHANGED #endif
+
+int
+Printf(char* fmt, ...)
+{
+	char	buf[MsgMgr::MaxStr+1];
+
+	va_list args;
+	va_start(args, fmt);
+	vsprintf(buf, fmt, args);
+#ifdef WINDOWS
+	SciDisplay(buf);
+#else
+	printf(buf);
 #endif
+	return strlen(buf);
+}
 

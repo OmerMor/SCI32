@@ -42,6 +42,7 @@ Bool	FirstFile(const char* spec, uint atr, FindBuffer*);
 Bool	NextFile(FindBuffer*);
 char*	GetCWD(char* dir);
 Bool	ExistDrive(char);
+char*	FullPath(char* dest, const char* fileName);
 void	ResetDisk();
 ulong	RGetFreeSpace(char drive);
 Bool	IsDriveAOrB(const char*);

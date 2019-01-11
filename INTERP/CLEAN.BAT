@@ -1,0 +1,17 @@
+del *.ob?
+del *.?pp
+del *.h
+del *.i
+del *.asm
+del *.map
+del *.lst
+del *.exe
+del makefile
+del makeinit
+del sierra.err
+del vcscfg.bat
+del vcs.cfg
+del *.rc
+del *.res
+del *.rex
+del *.ico

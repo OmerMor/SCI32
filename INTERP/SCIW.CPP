@@ -17,6 +17,8 @@
 #include "sound.hpp"
 #include "timew.hpp"
 
+extern int vmdSkipOn;
+
 struct SCIWin : SCI {
 	void					InitAudio();
 	void					InitInterrupts();
@@ -69,7 +71,7 @@ SCIWin::InitSound()
 ConfigMgr*
 SCIWin::MakeConfigMgr(int argc, char* argv[])
 {
-	ConfigMgr* configM = New ConfigMgr(argc, argv);
+	ConfigMgr* configM = New ConfigMgr("resource.win", argc, argv);
 
 	// add the Windows patch directory so it will be searched first
 	configM->AddTokenToFront("patchDir",szWinPatchDir);
@@ -139,7 +141,7 @@ ErrorMgr*
 SCIWin::MakeErrorMgr()
 {
 //	return New ErrorMgr();
-	return (ErrorMgr*)0;
+	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -147,6 +149,17 @@ SCIWin::MakeErrorMgr()
 int
 scimain(int argc, char* argv[])
 {
+	// BUGBUG - JL - 8/7/95 - The following code is a temp fix for Phantas
+	// Turns the vmdSkipOn to False for Win95.  Can be overriden via 
+   // resource.win
+
+	assert(LOBYTE(LOWORD(GetVersion())) == 3);  	// version 3 quirk with
+																// Win 95
+	if (HIBYTE(LOWORD(GetVersion())) >= 95)
+	{
+		vmdSkipOn = False;
+	}
+
 	sci = &sciWin;
 
 	sci->Run(argc, argv);

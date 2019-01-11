@@ -52,9 +52,17 @@ SOL_ResType::Check(ResNum resNum)
 void
 SOL_ResType::Load(ResTag& tag, Bool lock)
 {
-	if ((fd = Open(tag.resNum)) == -1)
-		msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
-
+	if ((fd = Open(tag.resNum)) == -1) {
+		if ((tag.resNum == 999) && (GetType() == MemResPalette))
+			// This is usually the first resource accessed.
+			msgMgr->Fatal("\nCan not find 999.pal resource.\n"
+							  "If this is a CD-ROM game please\n"
+							  "make sure that a CD-ROM is loaded.\n"
+							  "If you continue to experience this dialog make\n"
+							  "sure your CD-ROM drivers are loaded properly.");
+		else
+			msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
+	}
 	MemAttrs attrs = lock ? GetAttrs() & ~MOVEABLE : GetAttrs();
 	tag.id.Get(GetType(), resLength + 1, attrs, tag.resNum, resMgr);
 
@@ -157,6 +165,8 @@ SOL_ResType::Open(ResNum num, char* path)
 			Read(&type, 1);
 			ConfirmType((MemType)(type & 0xff));
 			resOffset = SeekToData();
+			if (GetType() == MemResAudio || GetType() == MemResWAVE)
+				LSeek(fd,resOffset,SEEK_SET);
 			resLength = GetFileSize() - resOffset;
 #ifdef DEBUG	
 		   if (tracking)
@@ -344,7 +354,7 @@ SOL_ResType::ConfirmType(MemType type) const
 	if(fd == -1)
 		msgMgr->Fatal(SrcLoc, Msg_InvalidResFileHandle, label);
 
-	if (GetFileType() == MemResAudio)
+	if (GetFileType() == MemResAudio || GetFileType() == MemResVMD)
 		return;
 
 // Delete the next line when robot resources are converted to the proper type
@@ -488,5 +498,12 @@ ResAudio::SeekToData() const
 int
 ResAudio36::SeekToData() const
 {
+	return 0;
+}
+
+int
+ResVMD::SeekToData() const
+{
+	LSeek(fd,0,SEEK_SET);
 	return 0;
 }

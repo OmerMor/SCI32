@@ -10,16 +10,14 @@ extern "C"
 	void	ShowRect(const SOL_Rect *, uchar *);
 	void	ShowMovieRect(SOL_Rect *,uchar*,int,SOL_Point*);
 	void	ShowMovieRectDbl(SOL_Rect *,uchar*,int,SOL_Point*);
-	void	ShowMovieBlack(SOL_Rect *,uchar*,int,SOL_Point*,int);
-	void	ShowMovieBlackDbl(SOL_Rect *,uchar*,int,SOL_Point*,int);
+	void	ShowMovieBlack(SOL_Rect *,uchar*,int,SOL_Point*);
+	void	ShowMovieBlackDbl(SOL_Rect *,uchar*,int,SOL_Point*);
+	void	BlackOutScreen(SOL_Rect *);
 
 	void	MemcpyDBL(uchar* ptrD,uchar* ptrS,int s,int sx);
 	#pragma aux MemcpyDBL parm [EDI] [ESI] [ECX] [EBX];
 	void	MemcpyBlack(uchar* ptrD,uchar* ptrS,int s);
 	#pragma aux MemcpyBlack parm [EDI] [ESI] [ECX];
-
-	void	PutMovieRect(uchar*,uchar*,int,SOL_Rect*,SOL_Point*);
-	void	PutMovieRectDbl(uchar*,uchar*,int,SOL_Rect*,SOL_Point*);
 	void	ReadVideoRect(const SOL_Rect *,uchar *);
 	void	WriteVideoRect(const SOL_Rect *,uchar *, int);
 	int	SetupVesa();

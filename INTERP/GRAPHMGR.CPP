@@ -17,9 +17,9 @@
 #include "pmachine.hpp"
 #include "cursor.hpp"
 #include "shwstyle.hpp"
+#include "video.hpp"
 
 GraphicsMgr* graphMgr = NULL;
-Bool GraphicsMgr::drawToPriMap = False;
 
 DrawList	*drawLists[100];
 RectList	*eraseLists[100];
@@ -28,7 +28,6 @@ GraphicsMgr::~GraphicsMgr()
 {
 	delete robot;
 }
-
 
 GraphicsMgr::GraphicsMgr(int xdim,int ydim) : next(xdim,ydim)
 {
@@ -67,7 +66,7 @@ GraphicsMgr::UpdateScreenItem(ScreenItem* si)
 }
 
 void
-GraphicsMgr::DeleteScreenItem(ScreenItem* si,int planeId)
+GraphicsMgr::DeleteScreenItem(ScreenItem* si, int planeId)
 {
 	// Assume we have a valid screen item
 
@@ -76,6 +75,7 @@ GraphicsMgr::DeleteScreenItem(ScreenItem* si,int planeId)
 		// Just get rid of the screen item in the next screen
 		Plane* plane = GetPlaneNext(planeId);
 		plane->AbortScreenItem(si);
+		plane->PackSiArray();
 	}
 	else {
 		si->SetDeleteCount(graphMgr->ScreenCount());
@@ -89,10 +89,10 @@ GraphicsMgr::DeleteScreenItem(ScreenItem* si)
 {
 	// Make sure we have a valid screen item
 	int planeId = si->PlaneId();
-	if (si != graphMgr->NextScreen()->GetScreenItem(planeId,si->Id()))
+	if (si != graphMgr->NextScreen()->GetScreenItem(planeId, si->Id()))
 		msgMgr->Fatal(SrcLoc,Msg_ScreenItemNotExist);
 
-	DeleteScreenItem(si,planeId);
+	DeleteScreenItem(si, planeId);
 }
 
 void
@@ -101,7 +101,7 @@ GraphicsMgr::UpdatePlane(Plane* plane)
 	if (plane != GetPlaneNext(plane->Id()))
 		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,plane->Id());
 		
-	Plane* currentPlane = GetPlaneCurrent(plane->Id());
+	Plane* currentPlane = VisiblePlane(plane->Id());
 
 	plane->UpdatePlane(currentPlane);
 	plane->OnScreen().Clip(next.ScreenRect());
@@ -155,7 +155,8 @@ GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 	int palIndex = -1;
 	SOLPalette  myPal;
 	SOLPalette  thisPal;
-	int s = pm.Global(g_prevRoomNum);
+//BEW CHANGED	int s = pm.Global(g_prevRoomNum);
+	int s = pmGlobal(g_prevRoomNum);
 	myPal = GPalette().Next();
 
 	AlterVMAP(&myPal,&myPal,palIndex,palArray);	
@@ -196,8 +197,8 @@ GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 	lastRemapFlag = GPalette().UpdateForFrame();
 
 	// draw to vmap
+	vmapValid = False;
 	for (i = 0; i < nplanes; i++)  {
-		vmapValid = False;
 		DrawEraseList(*eraseLists[i],next.Planes()[i]);
 		DrawScreenItemList(*drawLists[i]);
 	}
@@ -309,10 +310,12 @@ GraphicsMgr::FrameOut(Bool showBits, SOL_Rect dirtyRect)
 
 	#endif
 
+	msgMgr->Mono("FrameOut->showBits	%x\n", showBits);
 	if (robot)
 		robot->DoRobot();
 
 	int nplanes = next.Planes().Length();
+	msgMgr->Mono("FrameOut->nplanes1	%x\n", nplanes);
 
 	for (int i = 0;i < nplanes;i++)  {
 		drawLists[i] = New DrawList;
@@ -326,6 +329,7 @@ GraphicsMgr::FrameOut(Bool showBits, SOL_Rect dirtyRect)
 
 	// The number of planes may have been reduced by CalcLists
 	nplanes = next.Planes().Length();
+	msgMgr->Mono("FrameOut->nplanes2	%x\n", nplanes);
 
 	// Sort the draw lists
 	for (i = 0; i < nplanes; i++)
@@ -340,6 +344,7 @@ GraphicsMgr::FrameOut(Bool showBits, SOL_Rect dirtyRect)
 	}
 
 	lastRemapFlag = GPalette().UpdateForFrame();
+	msgMgr->Mono("FrameOut->lastRemapFlag	%x\n", lastRemapFlag);
 
 	// draw to vmap
 	for (i = 0; i < nplanes; i++)  {
@@ -356,8 +361,10 @@ GraphicsMgr::FrameOut(Bool showBits, SOL_Rect dirtyRect)
 
 	// If not just a reference frame for a
 	// show style output changes to hardware
+	msgMgr->Alert("FrameOut->showBits	%x\n", showBits);
 	if (showBits)
 		ShowBits();
+
 	vmapValid = True;
 
 	if (robot)
@@ -410,16 +417,6 @@ GraphicsMgr::DrawScreenItemList(DrawList& drawList)
 
 	// Go through the entire list of screenItems
 	int drawListSize = drawList.Length();
-	drawToPriMap = False;
-	if (Remap::remapDepthOn && !PriMap().IsNull()) {
-		for (int i = 0;i < drawListSize;++i) {
-			if (drawList[i].SI().RemapState() == RemapInCel)  {
-				drawToPriMap = True;
-				break;
-			}
-		}
-	}
-
 	for (int i = 0;i < drawListSize;++i) {
 		MergeToShowList(drawList[i].OnScreen(),NextScreen()->ShowList(),pixelsPerCall);
 		drawList[i].Draw(*CurrBuffer());
@@ -453,7 +450,7 @@ GraphicsMgr::RobotStatus() const
 }
 
 Bool
-GraphicsMgr::IsOnMe(ScreenItem& si,Plane& plane,const SOL_Point& p,Bool checkSkip)
+GraphicsMgr::IsOnMe(ScreenItem& si, const Plane& plane, const SOL_Point& p, Bool checkSkip)
 {
 	Ratio scaleX(graphMgr->Xdim(), SCIRESX);
 	Ratio scaleY(graphMgr->Ydim(), SCIRESY);
@@ -573,4 +570,80 @@ GraphicsMgr::MergeToShowList(const SOL_Rect& r,RectList& rectList,int callOverhe
 	rectList.Add(rect1);
 }
 
+void
+GraphicsMgr::MovieFrameOut(uchar*	bmp,
+										int		bitmapWidth,
+										int 		bitmapX1,
+										int 		bitmapY1,
+										int 		bitmapX2,
+										int 		bitmapY2,
+										int 		screenX1,
+										int 		screenY1,
+										Bool		vmdDouble,
+										Bool		vmdBlackLines)
+{
+	// Draw from bitmap into frame buffer
+	SOL_Rect rect(bitmapX1,bitmapY1,bitmapX2,bitmapY2);
+	SOL_Point point(screenX1,screenY1);
+	SOL_Rect showRect(bitmapX1,bitmapY1,bitmapX2,bitmapY2);
+	if (vmdDouble) {
+		showRect.A.x = showRect.A.x<<1;
+		showRect.A.y = showRect.A.y<<1;
+		showRect.B.x = showRect.B.x<<1;
+		showRect.B.y = showRect.B.y<<1;
+	}
+	showRect.Offset(point.x,point.y);
+	vmapValid = False;
+
+	if (vmdDouble) {
+		if (vmdBlackLines)
+			PutMovieRectDblBlack(CurrBuffer()->start,bmp,bitmapWidth,&rect,&point);
+		else
+			PutMovieRectDbl(CurrBuffer()->start,bmp,bitmapWidth,&rect,&point);
+	}
+	else {
+		if (vmdBlackLines)
+			PutMovieRectBlack(CurrBuffer()->start,bmp,bitmapWidth,&rect,&point);
+		else
+			PutMovieRect(CurrBuffer()->start,bmp,bitmapWidth,&rect,&point);
+	}
+
+	// Put to hardware
+	next.ShowList().Add(showRect);
+	ShowBits();
+	vmapValid = True;
+}
+
+Bool
+GraphicsMgr::NowSeen(int id, int planeID, SOL_Rect& nowSeen) 
+{
+	// This is actually comming from the next screenItem.
+	// There is not enough information kept in the last 
+	// screenItem to properly calculate the now seen
+	// rectangle. Since it works fine this way and to add
+	// the information needed in the last screenItem would
+	// be a slow down	in the graphics engine I'm not going
+	// to change it. See the code below.
+	int index = next.Planes().Search(planeID);
+	if (index == -1)
+		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,planeID);
+	return next.Planes()[index].NowSeen(id,nowSeen);
+}
+
+
+//Bool
+//GraphicsMgr::NowSeen(int id, int planeID, SOL_Rect& nowSeen) 
+//{
+//	Screen& last =	VisibleScreen();
+//
+//	int index = last.Planes().Search(planeID);
+//	if (index == -1) {
+//		index = next.Planes().Search(planeID);
+//		if (index == -1)
+//			msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,planeID);
+//		next.Planes()[index].NowSeen(id,nowSeen);
+//		return False;
+//	}
+//	return last.Planes()[index].NowSeen(id,nowSeen);
+//}
 

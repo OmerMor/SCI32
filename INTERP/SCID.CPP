@@ -20,8 +20,10 @@
 #include "sound.hpp"
 #include "timed.hpp"
 #include "video.hpp"
+#include "uvbelib.h"
 
 Bool	WING = False;
+char vesabuf[80];
 
 static SCIDOS sciDOS;
 
@@ -79,7 +81,7 @@ SCIDOS::InitSound()
 ConfigMgr*
 SCIDOS::MakeConfigMgr(int argc, char* argv[])
 {
-	return New ConfigMgr(argc, argv);
+	return New ConfigMgr("resource.cfg", argc, argv);
 }  
 
 CritErrHandler*
@@ -99,11 +101,20 @@ SCIDOS::MakeGraphicsMgr()
 {
 	Bool usePri = False;
 
-#ifdef DEBUG
-	usePri = configMgr->Get(configMgr->PriScreen);
-#endif
+	#ifdef DEBUG
+		usePri = configMgr->Get(configMgr->PriScreen);
+	#endif
+
+	Bool test;
+	if (!VesaSupport()) {
+		test = UV_install(vesabuf ,0 );
+		atexit(EndVESA);
+	}
+
 	if (!VesaSupport())
-		msgMgr->Alert("No VESA support detected!");
+		msgMgr->Fatal("\nVesa was not enabled on your video card.\n" 
+						  "Please rerun the INSTALL and read the README file for more help\n");
+
 	if (*configMgr->Get("hires", 0))  {
 		int xres = atoi(configMgr->Get("hires", 0));
 		int yres = atoi(configMgr->Get("hires", 1));
@@ -147,15 +158,19 @@ SCIDOS::MakeErrorMgr()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+void EndVESA()
+{
+	UV_exit();
+}
 
 int
 main(int argc, char* argv[])
 {
 	sci = &sciDOS;
+	UV_getDriverPath(argv[0], vesabuf);
 
 	sci->Run(argc, argv);
 
 	return 0;
 }
-
 

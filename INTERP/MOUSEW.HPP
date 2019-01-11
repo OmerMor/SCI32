@@ -55,6 +55,7 @@ class MouseWinClr : public SOL_Mouse
 	Bool	IsSwift() const; 
 //	void	Vibrate(int duration, int on = 1, int off = 1) const;
 	void	WinMouseButton(unsigned, const SOL_Point&);
+	void	SetPaintFlag()		{paintFlag = True;}
 
  protected:
 	void	InitMouse();
@@ -73,6 +74,7 @@ class MouseWinClr : public SOL_Mouse
 	static	short			roll;
 	static	short			yaw;
 	static	uchar*		stackBuff;
+	static	Bool			paintFlag;
 };
 
 extern SOL_Mouse* clrMouse;

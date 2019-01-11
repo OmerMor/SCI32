@@ -592,7 +592,8 @@ TossScript(ScriptID sp, Bool checkClones)
 	sp->codeFixups.Free();
 
 	if ((int) sp->code) {
-		PMIP::TossMemID(sp->code, n);
+//BEW CHANGED		PMIP::TossMemID(sp->code, n);
+		pmTossMemID( (unsigned short) sp->code, n);
 		sp->code.Free();
 	}
 

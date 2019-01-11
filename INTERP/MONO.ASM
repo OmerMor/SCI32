@@ -107,6 +107,28 @@ ms9:
 
 MonoStr	endp
 
+MonoChar proc public uses ebx edi es, check:byte
+; This routine can be safely called from a hardware interrupt
+	mov	edi, dBase
+	add	edi, dOff
+	mov	ebx, dBase
+	add	ebx, 4000
+	mov	ax, ds
+	mov	es, ax
+	mov	al, check
+	stosb
+	inc	edi
+	cmp	edi, ebx
+	jl	sh1
+	call	MonoScroll
+	mov	edi, dBase	
+	add	edi, dOff
+sh1:
+	sub	edi, dBase
+	mov	dOff, edi
+	ret
+MonoChar endp
+
 MonoSet	proc uses ebx esi edi es, row:dword, col:dword
 ; specify row 1-25 (or 0 for no change)
 ; and column 1-80 (or 0 for no change)

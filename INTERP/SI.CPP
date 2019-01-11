@@ -369,9 +369,6 @@ ScreenItem::operator=(const ScreenItem& si)
 void
 ScreenItem::Update(Plane& plane)
 {
-	//
-	//  320x200 (LOWRES) coordinate system used here
-	//
 	if (useInsetRect)
 		insetRect.Clip(SOL_Rect(0,0,cel->Width() - 1,cel->Height() - 1));
 	else
@@ -404,9 +401,14 @@ ScreenItem::Update(Plane& plane)
 		return;
 	}
 
+	toDraw = insetRect;
+
 	if (cel->ResX() == LOWRESX  &&  cel->ResY() == LOWRESY)  {
+		//
+		//  320x200 (LOWRES) coordinate system used here
+		//
+
 		//  Flip origin if mirroring a non-pic Cel
-		toDraw = insetRect;
 		int xorg = cel->XOrg();
 		if ((userMirror ^ cel->Mirrored())  &&  !bitmap.IsPic())
 			xorg = cel->Width() - xorg - 1;
@@ -472,8 +474,6 @@ ScreenItem::Update(Plane& plane)
 		//  org:			Cel Res
 		//  
 
-		toDraw = insetRect;
-
 		if (useInsetRect)  {
 			Ratio scaleupX(cel->ResX(), SCIRESX);
 			Ratio scaleupY(cel->ResY(), SCIRESY);
@@ -520,8 +520,8 @@ ScreenItem::Update(Plane& plane)
 		toDraw.B.y = toDraw.B.y ^ cel2vidY;
 
 		//  Make x1, y1 upper left of cel
-		x1 = (pos.x ^ Ratio(graphMgr->Xdim(), SCIRESX)) - xorg;
-		y1 = (pos.y ^ Ratio(graphMgr->Ydim(), SCIRESY)) - yorg;
+	  	x1 = (pos.x ^ Ratio(graphMgr->Xdim(), SCIRESX)) - xorg;
+	  	y1 = (pos.y ^ Ratio(graphMgr->Ydim(), SCIRESY)) - yorg;
 		toDraw.Offset(x1, y1);
 
 		if ((userMirror ^ cel->Mirrored())  &&  bitmap.IsPic())  {
@@ -569,7 +569,6 @@ ScreenItem::Update(Plane& plane)
 	if (!fixedPriFlag)
 		priority = pos.y + z;
 }
-
 
 void	
 ScreenItem::NowSeen(Plane& plane,SOL_Rect& nowSeen)

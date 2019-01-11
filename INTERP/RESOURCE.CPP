@@ -261,10 +261,9 @@ ResourceMgr::Get(MemType resType, ResNum resNum, Bool lock)
 		graphMgr->FrameOut();
 		loadingDiskCursor = False;
 	}
-	if (configMgr->Get(configMgr->AudioMonitor) &&
-		(activeSamples || graphMgr && graphMgr->RobotStatus() != ROBOT_UNUSED))
-		if (!msgMgr->Alert("Loading %d%s",resNum,obj->GetExtension()))
-			msgMgr->Fatal("User abort");
+	char str[13];
+	sprintf(str,"%d%s",resNum,obj->GetExtension());
+	CheckDiscStreaming(str);
 #endif
 
 	ResTagID array = resources[resType].id;
@@ -422,8 +421,18 @@ ResourceMgr::Find(MemType resType, ResNum resNum)
 	ResTag* array = *resources[resType].id;
 	if (array[i].resNum == resNum)
 		return array[i].id;
-	else
-		return 0;
+	else if (resType == MemResAudio) {
+		i = GetIndex(MemResWAVE, resNum);
+		ResTag* array = *resources[MemResWAVE].id;
+		if (array[i].resNum == resNum)
+			return array[i].id;
+	} else if (resType == MemResWAVE) {
+		i = GetIndex(MemResAudio, resNum);
+		ResTag* array = *resources[MemResAudio].id;
+		if (array[i].resNum == resNum)
+			return array[i].id;
+	}
+	return 0;
 }
 
 char*
@@ -558,16 +567,8 @@ ResourceMgr::DeleteIndex(MemType resType, ResNum resNum)
 	// Check that it's in a resArray
 	int i = GetIndex(resType, resNum);
 	ResTag* array = *resources[resType].id;
-	while (array[i].resNum != resNum) {
-		if (resType == MemResAudio) {
-			resType = MemResWAVE;
-			i = GetIndex(resType, resNum);
-			array = *resources[resType].id;
-			if (array[i].resNum == resNum)
-				break;
-		}
+	if (array[i].resNum != resNum)
 		msgMgr->Fatal(SrcLoc, Msg_ResFreeErr, (int)resType, (int)resNum);
-	}
 
 	int arraySize = resources[resType].curSize;
 
@@ -723,36 +724,27 @@ ResourceMgr::LoadResMaps(uint volNum)
 			strcat(mapName,"\\");
 	}
 	strcpy(volName,mapName);
-	strcat(mapName,"RESMAP.");
-	strcat(mapName,str);
 
+	if (configMgr->Get(configMgr->OldNames)) {
+		strcat(mapName,"RESOURCE.MAP");
+	} else {
+		strcat(mapName,"RESMAP.");
+		strcat(mapName,str);
+	}
 	resourceMap.Free();
 	if (!resourceMap.Load(MemResMap, mapName, PERSIST | MOVEABLE, ResMapHandle))
-// some temporary code for backwards compatibility (CFS)...
-{
- mapName[strlen(mapName)-10] = '\0';
- strcat(mapName,"RESOURCE.MAP");
- if (!resourceMap.Load(MemResMap, mapName, PERSIST | MOVEABLE, ResMapHandle))
-// ...end of temporary code
 		return False;
-// some temporary code for backwards compatibility (CFS)...
-}
-// ...end of temporary code
 
-	strcat(volName,"RESSCI.");
-	strcat(volName,str);
+	if (configMgr->Get(configMgr->OldNames)) {
+		strcat(volName,"RESOURCE.000");
+	} else {
+		strcat(volName,"RESSCI.");
+		strcat(volName,str);
+	}
 	if ((resVolFD = ::Open(volName, O_RDONLY | O_BINARY)) == -1) {
-// some temporary code for backwards compatibility (CFS)...
- volName[strlen(volName)-10] = '\0';
- strcat(volName,"RESOURCE.000");
- if ((resVolFD = ::Open(volName, O_RDONLY | O_BINARY)) == -1) {
-// ...end of temporary code
 		resourceMap.Free();
 		return False;
 	}
-// some temporary code for backwards compatibility (CFS)...
-}
-// ...end of temporary code
 
 	// Open the 'preferred' resource-volume if specified
 	preVolLength = 0;
@@ -761,16 +753,13 @@ ResourceMgr::LoadResMaps(uint volNum)
 		char* cp = &volName[strlen(volName)-1];
 		if (*cp != ':' && *cp != '\\')
 			strcat(volName,"\\");
-		sprintf(str,"RESSCI.%03d",volNum);
-		strcat(volName,str);
-		resVolFDPre = ::Open(volName, O_RDONLY | O_BINARY);
-// some temporary code for backwards compatibility (CFS)...
-		if (resVolFDPre == -1) {
-			volName[strlen(volName)-10] = '\0';
+		if (configMgr->Get(configMgr->OldNames)) {
 			strcat(volName,"RESOURCE.000");
-			resVolFDPre = ::Open(volName, O_RDONLY | O_BINARY);
+		} else {
+			sprintf(str,"RESSCI.%03d",volNum);
+			strcat(volName,str);
 		}
-// ...end of temporary code
+		resVolFDPre = ::Open(volName, O_RDONLY | O_BINARY);
 		if (resVolFDPre != -1)
 			preVolLength = LSeek(resVolFDPre,0,SEEK_END);
 	}
@@ -785,46 +774,27 @@ ResourceMgr::LoadResMaps(uint volNum)
 	// Load the alternate-resource-map and Open the alternate-resource-volume
 	// (per optional patchDir specification)
 	alternateMap.Free();
-	sprintf(mapName,"RESFLMAP.%s",str);
-	sprintf(volName,"RESFLSCI.%s",str);
 	for (int dirNum = 0; dirNum <= configMgr->GetNTokens("patchDir"); dirNum++) {
 		char buf[MaxPath + 1];
+		if (configMgr->Get(configMgr->OldNames)) {
+			strcpy(mapName,"ALTRES.MAP");
+			strcpy(volName,"ALTRES.000");
+		} else {
+			sprintf(mapName,"RESFLMAP.%s",str);
+			sprintf(volName,"RESFLSCI.%s",str);
+		}
 		if (dirNum < configMgr->GetNTokens("patchDir"))
 			sprintf(buf, "%s\\%s", configMgr->Get("patchDir",dirNum), mapName);
 		else
 			strcpy(buf,mapName);
 		if (!alternateMap.Load(MemResMap, buf, PERSIST | MOVEABLE, AltResMapHandle))
-// some temporary code for backwards compatibility (CFS)...
-{
- if (dirNum < configMgr->GetNTokens("patchDir"))
-  sprintf(buf, "%s\\ALTRES.MAP", configMgr->Get("patchDir",dirNum));
- else
-  strcpy(buf,"ALTRES.MAP");
- if (!alternateMap.Load(MemResMap, buf, PERSIST | MOVEABLE, AltResMapHandle))
-// ...end of temporary code
 			continue;
-// some temporary code for backwards compatibility (CFS)...
-}
-// ...end of temporary code
 		if (dirNum < configMgr->GetNTokens("patchDir"))
 			sprintf(buf, "%s\\%s", configMgr->Get("patchDir",dirNum), volName);
 		else
 			strcpy(buf,volName);
 		if ((altVolFD = ::Open(buf, O_RDONLY | O_BINARY)) == -1)
-// some temporary code for backwards compatibility (CFS)...
-{
- if (dirNum < configMgr->GetNTokens("patchDir"))
-  sprintf(buf, "%s\\ALTRES.000", configMgr->Get("patchDir",dirNum));
- else
-  strcpy(buf,"ALTRES.000");
- if ((altVolFD = ::Open(buf, O_RDONLY | O_BINARY)) == -1)
-// ...end of temporary code
 			alternateMap.Free();
-// some temporary code for backwards compatibility (CFS)...
- else
-  altDirNum = dirNum;
-}
-// ...end of temporary code
 		else
 			altDirNum = dirNum;
 		break;
@@ -901,7 +871,8 @@ ResourceMgr::BuildPatchTables()
 				if (strlen(fileinfo.name) != 12)
 					continue;
 				strupr(fileinfo.name);
-				if (fileinfo.name[0] != 'A' && fileinfo.name[0] != 'S')
+				if (fileinfo.name[0] != 'A' && fileinfo.name[0] != 'S' &&
+					 fileinfo.name[0] != 'B' && fileinfo.name[0] != 'T')
 					continue;
 				if (!(npatches36 % ALOC36) && npatches36 >= ALOC36) {
 					// increase the patch36 table size
@@ -968,66 +939,6 @@ ResourceMgr::DecompBuffer(int requestedSize)
 	else if (!requestedSize)
 		decompID.Realloc(decompBufferSize = defaultDecompBufferSize);
 	return decompID;
-}
-
-int
-ResourceMgr::FindOffset(MemType resType, ResNum resNum, int& location)
-{
-	//	SCI still uses the old numbers
-	SCI16ToSCI32ResType(resType);
-
-	SOL_ResType*	obj = resources[resType].obj;
-
-	int dirNum = obj->FindPatchEntry(resNum);
-	int resOffset = obj->FindDirEntry(resNum, alternateMap);
-
-	if (dirNum != -1 && (resOffset == -1 || altDirNum >= dirNum)) {
-		location   = PATCH;
-		return(0);
-	}
- 
-	if(resOffset != -1) {
-		location   = ALTERNATE_VOLUME;
-		return(resOffset);
-	}
-
-	// check resource volume...
-
-	if (obj->GetType() == MemResAudio || obj->GetType() == MemResWAVE) {
-		location  = AUDIO;
-	   return(FindAudEntry(resNum));
-
-	} else if ((resOffset = obj->FindDirEntry(resNum, resourceMap)) != -1) {
-		location = RESOURCE_VOLUME;
-		return(resOffset);
-	}
-
-	// If it's another type of file, we're not interested in preloading
-	// it anyway.  This is not necessarily an error though
-
-	location = NOT_FOUND;
-	return(0);
-
-}
-
-int
-Compare(const void* ptr1, const void* ptr2)
-{
-	PreLoadObj *p1 = (PreLoadObj *)ptr1;
-	PreLoadObj *p2 = (PreLoadObj *)ptr2;
-
-	if ((*p1).volume < (*p2).volume)
-		return(-1);
-	if ((*p1).volume > (*p2).volume)
-		return(1);
-
-   if ((*p1).offset < (*p2).offset)
-		return(-1);
-
-   if ((*p1).offset > (*p2).offset)
-		return(1);
-
-	return(0);
 }
 
 void
@@ -1155,33 +1066,6 @@ KSetLanguage(argList)
 }
 
 void
-KPreloadResource(argList)
-{
-	if ((argCount/2) > 100)	{
-		msgMgr->Alert("PreLoad has exceeded 100\n");
-		return;
-	}
-
-	PreLoadObj loadArray[100];
-
-   int iterations = argCount/2;
-	int location;
-
-	for (int count=0;count<iterations;count++)	{
-		loadArray[count].resType = arg(2*count+1);
-		loadArray[count].resNum  = arg(2*count+2);
-	   loadArray[count].offset  = resMgr->FindOffset((MemType)loadArray[count].resType,(ResNum)loadArray[count].resNum,location);
-		loadArray[count].volume  = location;
-	}
-
-	qsort(loadArray,iterations,sizeof(PreLoadObj),Compare);
-	
-	for (count=0;count<iterations;count++)	{
-		pm.acc = (Acc) resMgr->Get((MemType)loadArray[count].resType,(ResNum)loadArray[count].resNum);
-	}
-}
-
-void
 KLoadChunk(argList)
 {
 
@@ -1252,16 +1136,6 @@ KResCheck(argList)
 	type = (MemType)arg(1);
 	SCI16ToSCI32ResType(type);
 	switch (type) {
-/*
-		case MemResSound:
-			for (count = 2; count <= argCount; ++count) {
-				type = GetSoundResType((ResNum) arg(count));
-				pm.acc = (Acc) resMgr->Check(type,(ResNum) arg(count));
-				if (!pm.acc)
-					return;
-			}
-			break;
-*/
 		case MemResSync36:
 			MakeName36(MemResSync, pathName, (ResNum)arg(2),
 				(uchar)arg(3), (uchar)arg(4), (uchar)arg(5), (uchar)arg(6));

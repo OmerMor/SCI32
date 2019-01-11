@@ -1,6 +1,7 @@
 // winthunk.cpp
 
 #define INCLUDE_MMSYSTEM_H
+#include "sol.hpp"
 #include "mbox.hpp"
 #include "sciwin.hpp"
 #include "winthunk.hpp"

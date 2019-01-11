@@ -193,11 +193,7 @@ DoIMD_VESA(IMD * Imd)
 				sx *= 2;
 				ptr2b = (UBYTE *)ptr2;
 				ptr0 = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
 				ptr0 += ((LONG)sx*2*((LONG)Imd->Bmp->SizeY - (LONG)(Imd->Y) - 1)+((LONG)Imd->X)*2L);
-#else
-				ptr0 += ((LONG)sx*(LONG)(Imd->Y)+(LONG)Imd->X)*2L;
-#endif
 				for (Y=0;Y<Imd->SizeY;Y++)
 				{
 	  				ptr=ptr0;
@@ -229,11 +225,7 @@ DoIMD_VESA(IMD * Imd)
 
 					if (SizeX > Imd->SizeX)
 				  		msgMgr->Fatal("case1 dbl overrun");
-#if defined(WINDOWS) && !defined(BITBLT)
 	  				ptr0 -= sx*2;
-#else
-	  				ptr0 += sx*2;
-#endif
 				}
       	}
       	else
@@ -241,7 +233,7 @@ DoIMD_VESA(IMD * Imd)
       	{
 				UBYTE*	ptr0;
 				ptr0 = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 				ptr0 += (LONG)Imd->Bmp->SizeX*((LONG)Imd->Bmp->SizeY - (LONG)Imd->Y - 1) + (LONG)Imd->X;
 #else
 				ptr0 += (LONG)Imd->Bmp->SizeX*(LONG)(Imd->Y)+(LONG)Imd->X;
@@ -272,7 +264,7 @@ DoIMD_VESA(IMD * Imd)
 	  				while (SizeX < Imd->SizeX);
 					if (SizeX > Imd->SizeX)
 				  		msgMgr->Fatal("case1 overrun");
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 	  				ptr0 -= Imd->Bmp->SizeX;
 #else
 	  				ptr0 += Imd->Bmp->SizeX;
@@ -293,20 +285,11 @@ DoIMD_VESA(IMD * Imd)
 #ifdef WINDOWS
 			if (vmdDouble)
 			{
-	  			WORD 		x1,y1;
 	  			UBYTE*	ptr;
 	  			WORD 		sx = Imd->Bmp->SizeX;
 				sx *= 2;
-	  			x1 = Imd->X;
-	  			y1 = Imd->Y;
-	  			x1 <<= 1;
-	  			y1 <<= 1;
 	  			ptr = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
-	  			ptr += (LONG)sx*2*((LONG)Imd->Bmp->SizeY - (LONG)y1 - 1)+(LONG)x1;
-#else
-	  			ptr += (LONG)sx*(LONG)y1+(LONG)x1;
-#endif
+	  			ptr += (LONG)sx*2*((LONG)Imd->Bmp->SizeY - (LONG)(Imd->Y) - 1)+((LONG)Imd->X)*2L;
 	  			for (Y=0;Y<Imd->SizeY;Y++)
 	  			{
 //	    			memcpyDBL((UBYTE *)ptr,(UBYTE *)ptr2,Imd->SizeX,sx);
@@ -314,11 +297,7 @@ DoIMD_VESA(IMD * Imd)
 						MemcpyBlack(ptr,ptr2,Imd->SizeX);
 					else
 						MemcpyDBL(ptr,ptr2,Imd->SizeX,sx);
-#if defined(WINDOWS) && !defined(BITBLT)
 	    			ptr -= sx<<1;
-#else
-	    			ptr += sx<<1;
-#endif
 	    			ptr2 += Imd->SizeX;
 	  			}
 			}
@@ -326,7 +305,7 @@ DoIMD_VESA(IMD * Imd)
 #endif
 			{
 	  			ptr = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 				ptr += (LONG)Imd->Bmp->SizeX*((LONG)Imd->Bmp->SizeY - (LONG)Imd->Y - 1) + (LONG)Imd->X;
 #else
 	  			ptr += (LONG)Imd->Bmp->SizeX*(LONG)Imd->Y+(LONG)Imd->X;
@@ -335,7 +314,7 @@ DoIMD_VESA(IMD * Imd)
 	  			{
 	    			memcpy(ptr,ptr2,Imd->SizeX);
 	    			ptr2 += Imd->SizeX;
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 	    			ptr -= Imd->Bmp->SizeX;
 #else
 	    			ptr += Imd->Bmp->SizeX;
@@ -363,11 +342,7 @@ DoIMD_VESA(IMD * Imd)
 				WORD   	sx = Imd->Bmp->SizeX;
 				sx *= 2;
 				ptr0 = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
 				ptr0 += ((LONG)sx*2*((LONG)Imd->Bmp->SizeY - (LONG)(Imd->Y) - 1)+(LONG)Imd->X)*2L;
-#else
-				ptr0 += ((LONG)sx*(LONG)(Imd->Y)+(LONG)Imd->X)*2L;
-#endif
 
 				for (Y=0;Y!=Imd->SizeY;Y++)
 				{
@@ -407,11 +382,7 @@ DoIMD_VESA(IMD * Imd)
 	  				}
 	  				while (SizeX < Imd->SizeX);
 
-#if defined(WINDOWS) && !defined(BITBLT)
 	  				ptr0 -= sx*2;
-#else
-	  				ptr0 += sx*2;
-#endif
 				}
 			}
 			else 
@@ -419,7 +390,7 @@ DoIMD_VESA(IMD * Imd)
 			{
 				UBYTE*	ptr0;
 				ptr0 = Imd->Bmp->Start;
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 				ptr0 += (LONG)Imd->Bmp->SizeX*((LONG)Imd->Bmp->SizeY - (LONG)(Imd->Y) - 1)+(LONG)Imd->X;
 #else
 				ptr0 += (LONG)Imd->Bmp->SizeX*(LONG)(Imd->Y)+(LONG)Imd->X;
@@ -457,7 +428,7 @@ DoIMD_VESA(IMD * Imd)
 	  				}
 	  				while (SizeX < Imd->SizeX);
 
-#if defined(WINDOWS) && !defined(BITBLT)
+#ifdef WINDOWS
 	    			ptr0 -= Imd->Bmp->SizeX;
 #else
 	    			ptr0 += Imd->Bmp->SizeX;

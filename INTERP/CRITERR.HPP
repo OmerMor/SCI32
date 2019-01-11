@@ -6,7 +6,7 @@
 class CritErrHandler {
 public:
 	CritErrHandler() : tripped(False) {}
-	virtual ~CritErrHandler() {}
+	virtual ~CritErrHandler();
 
 	//	how critical error should be handled
 	enum Method {

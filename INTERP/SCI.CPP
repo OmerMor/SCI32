@@ -27,6 +27,24 @@ SCI* sci;
 void
 SCI::Init(int argc, char* argv[])
 {
+// zero out pointers, so if we fail we can delete cleanly
+#ifdef DEBUG
+	debugger = 0;
+#endif
+	saveGame = 0;
+	timeMgr = 0;
+	mouse = 0;
+	errorMgr = 0;
+	fontMgr = 0;
+	graphMgr = 0;
+	eventMgr = 0;
+	resMgr = 0;
+	configMgr = 0;
+	memMgr = 0;
+	msgMgr = 0;
+	critErrHandler = 0;
+	heapLeakChecker = 0;
+
 #if CHECKHEAPLEAKS
 	heapLeakChecker= New HeapLeakChecker;
 #endif
@@ -83,13 +101,17 @@ SCI::InitPlane()
 FontMgr*
 SCI::MakeFontMgr()
 {
+	#ifdef DEBUG
+		if (configMgr->Claimed("systemFont"))
+			systemFont = configMgr->GetNum("systemFont",0,0);
+	#endif
 	return New FontMgr();
 }
 
 ResourceMgr*
 SCI::MakeResourceMgr()
 {
-#ifdef NOT_SHIPPING_VERSION
+#ifdef DEBUG
 	if (*configMgr->Get("thrashDetect", 0))  {
 		thrashDetectCount = atoi(configMgr->Get("thrashDetect", 0));
 		thrashReporting = False;
@@ -107,14 +129,16 @@ SCI::Run(int argc, char* argv[])
 		resMgr->ExtractResources();
 	else
 #endif
-	pm.Run();
+//BEW CHANGED	pm.Run();
+	pmRun();
 }
 
 SCI::~SCI()
 {
 	if (graphMgr)
 		graphMgr->KillRobot();
-	pm.End();  
+//BEW CHANGED	pm.End();  
+	pmEnd();  
 
 #ifdef DEBUG
 	delete debugger;
@@ -137,5 +161,4 @@ SCI::~SCI()
 	delete heapLeakChecker;
 #endif
 }
-
 

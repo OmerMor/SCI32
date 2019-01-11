@@ -3,29 +3,34 @@
 
 .data
 
-	passCount	dw 0
-	VESAName		db	"VESA"
-	grainsPerBank	dd 0
+	passCount				dw 0
+	VESAName					db	"VESA"
+	grainsPerBank			dd 0
 	public windowNo
-	windowNo		dw  0
-	public bankSize
-	bankSize		dd	0
-	public granularity
-	granularity		dd 0
-	vesaInfoSegment dw 0
-	vesaInfoSelector dw 0
-	modeInfoSegment dw 0
-	public modeInfoSelector
-	modeInfoSelector dw 0
-	public readWindow
-	readWindow	db	0
-	public readSegment
-	readSegment	dd 0
-	public writeSegment
-	writeSegment dd 0  
-	stAddrSav	dw	0
+	windowNo					dw  0
+	public currentWindowNo
+	currentWindowNo 		dw -1
+	public currentReadWindowNo
+	currentReadWindowNo		dw -1
 
-	vmapWidth	dd 0
+	public bankSize
+	bankSize					dd	0
+	public granularity
+	granularity				dd 0
+	vesaInfoSegment 		dw 0
+	vesaInfoSelector 		dw 0
+	modeInfoSegment 		dw 0
+	public modeInfoSelector
+	modeInfoSelector 		dw 0
+	public readWindow
+	readWindow				db	0
+	public readSegment
+	readSegment				dd 0
+	public writeSegment
+	writeSegment 			dd 0  
+	stAddrSav				dw	0
+
+	vmapWidth				dd 0
 	
 	VgaInfoBlock struc 1
 		VESASignature db 4 dup (?)
@@ -181,189 +186,26 @@ SetVGAPal	endp
 
 ;---------------------------------------------------------------------------
 
-ShowRectX 			proto rectptr:dword, vmap:dword
-ShowRect320 		proto rectptr:dword, vmap:dword
-ShowRectVesa 		proto rectptr:dword, vmap:dword
-ShowMovieRect 		proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
-ShowMovieRectDbl	proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
-ShowMovieBlack		proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,black:DWORD
-ShowMovieBlackDbl	proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,black:DWORD
-PutMovieRect 		proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
-PutMovieRectDbl 	proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+ShowRectVesa 			proto rectptr:dword, vmap:dword
+ShowMovieRect 			proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
+ShowMovieRectDbl		proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
+ShowMovieBlack			proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,black:DWORD
+ShowMovieBlackDbl		proto rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,black:DWORD
+PutMovieRect 			proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+PutMovieRectDbl 		proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+PutMovieRectBlack		proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+PutMovieRectDblBlack	proto screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
 
 ;----------------------
 
 ShowRect proc public rectptr:DWORD, vmap:DWORD
-	.if currentVideoMode == 1
-		invoke	ShowRectX, rectptr, vmap
-		ret
-	.elseif currentVideoMode == 0
-		invoke ShowRect320, rectptr, vmap
-		ret
-	.elseif currentVideoMode == 80h		; VESA
-		invoke ShowRectVesa, rectptr, vmap
-		ret
-
-	.endif
+	invoke ShowRectVesa, rectptr, vmap
 	ret
 ShowRect endp
 
 ;----------------------
 
-ShowRect320 proc rectptr:DWORD, vmap:DWORD
-
-	push	ebx
-	push	esi
-	push	edi
-
-
-	; Calculate the pointer	to the rectangle
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-	mov	ecx, [esi].x2
-	or		ecx, 1
-	mov	edi, [esi].x1
-	and	edi, 0FFFEH
-	sub	ecx, edi
-	inc	ecx			; ecx = xlen
-
-	mov	ebx, [esi].y2
-	mov	eax, [esi].y1
-	sub	ebx, eax
-	inc	ebx			; ebx = ylen
-
-	assume si:nothing
-
-	mov	edx, HRESOLUTION
-	mul	edx			; eax = 320 * y1
-	add	edi, eax		; edi += 320 * y1
-	mov	esi, vmap
-	add	esi, edi		; 
-	add	edi, 0A0000H
-
-	mov	edx, HRESOLUTION
-	sub	edx, ecx
-	shr	ecx, 1
-
-	; ecx = hRun
-	; ebx = vRun
-	; edx = skip to next line value
-	; edi = target video
-	; esi = source video
-loopa:
-	cmp	ebx, 0
-	; get the pointer to the RGB colors
-	je	exita
-	push	ecx
-	rep	movsw
-	pop	ecx
-	add	edi, edx
-	add	esi, edx
-	dec	ebx
-	jmp	loopa
-exita:
-
-	pop	edi
-	pop	esi
-	pop	ebx
-	ret
-
-ShowRect320 endp
-
-;----------------------
-
 SelectBank proto
-
-ShowRectX proc uses ebx esi edi, rectptr:DWORD, vmap:DWORD 
-
-	; ModeX (vertical)
-
-	local currBank:dword
-
-	mov	currBank, 0	
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-
-	; adjust start location for bank 0 and ending locations for bank 3
-	and	[esi].x1, 0fffch	; mod 4, start with bank 0
-	or		[esi].x2, 3
-
-	; this routine works for modeX vertical only!
-	mov	eax, [esi].y1
-	mov	edx, HRESOLUTION
-	mul	edx
-	add	eax, [esi].x1
-	push	eax			; save the row/col offset for later use by esi
-	shr	eax, 1
-	shr	eax, 1			; offsets are /4 because of video paging
-	mov	edi, eax
-	add	edi, 0a0000h	; now pointing to page0 mode x
-
-	; set horizontal run count (line) in cx
-	mov	ecx, [esi].x2	; right end
-	sub	ecx, [esi].x1	; left end
-	inc ecx
-	
-	; set vertical run count in DX
-	mov	edx, [esi].y2	; bottom
-	sub	edx, [esi].y1	; top
-	inc	edx
-
-	shr	cx, 1		; count/4 = count per bank (always forced even)
-	shr	cx, 1
-
-	pop	eax				; the row/col offset
-	assume esi:nothing
-	mov	esi, eax
-	add	esi, vmap
-
-	.while currBank < 4
-
-		push	edi
-		push	esi
-		push	dx
-
-		mov	eax, currBank
-		call	SelectBank	; make the bank addressable in video memory
-
-		add	esi, currBank	; point to data for this bank (every 4th byte)
-
-		showByteY:
-
-			push	edi
-			push	ecx
-			push	esi
-			; transfer an entire line of rectangle
-			.repeat
-				mov	al,[esi]
-				stosb
-				add	esi, 4
-			.untilcxz
-		
-	
-			pop	esi
-			add	esi, HRESOLUTION
-			pop	ecx
-			pop	edi
-			add	edi, 80		; 320/4 = # bytes per row
-			; add width of vMap line to SI
-
-			dec	dx			; line count
-
-		jne	showByteY 	; more lines?
-		
-		pop	dx			; row count
-		pop	esi			; original data location
-		pop	edi			; original video location
-
-		inc	currBank
-
-	.endw
-		
-
-	ret
-
-ShowRectX endp
 
 ;----------------------
 
@@ -467,7 +309,7 @@ loopa:
 	sub	edx, lineOffset
 	.if carry? || zero?
 		mov	eax, edx
-		inc	windowNo;
+		inc	windowNo
 		call	SetWindow
 		add	edx, bankSize
 		mov	edi, writeSegment
@@ -608,7 +450,7 @@ loopa:
 	sub	edx, lineOffset
 	.if carry? || zero?
 		mov	eax, edx
-		inc	windowNo;
+		inc	windowNo
 		call	SetWindow
 		add	edx, bankSize
 		mov	edi, writeSegment
@@ -631,14 +473,9 @@ ShowMovieRect endp
 
 ;----------------------
 
-ShowMovieBlack proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,blackLines:DWORD
-;; The rectPtr is the bitmap relative rectangle to blit
-;; The bitmap is the address of the bitmap
-;; The bitmapWidth is the width of the bitmap
-;; The screenPos is the position of the bitmap within the screen	
-;; blackLines determines if the black line are to be drawn
+BlackOutScreen proc public,rectPtr:DWORD
+;; Blacks out the given rectangle of the screen
 	local	lineOffset:dword
-	local	sourceOffset:dword
 
 	push	ebx
 	push	esi
@@ -647,19 +484,12 @@ ShowMovieBlack proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPo
 
 	mov	esi, rectPtr
 	assume	esi:ptr IRect
-	mov	edi, screenPos
-	assume	edi:ptr IRect
+
+	; make the entire rectangle black
 
 	; make the screen rectangle start and end on a 2 byte boundry
 	or		[esi].x2, 1
 	and	[esi].x1, 0FFFEH
-
-	mov	eax,	blackLines
-	cmp	eax, 0
-	je		noBlack
-
-	; make the entire rectangle black
-	; Assume we get the entire bitmap on this frame
 
 	; Calculate x run length
 	mov	ecx, [esi].x2
@@ -673,8 +503,8 @@ ShowMovieBlack proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPo
 
 	; Calculate the screen relative destination
 	mov	eax, 640
-	mul 	[edi].y1			; eax = 640 * (Screen.y1)
-	add	eax, [edi].x1	; eax = 640 * (Screen.y1) + Screen.x1
+	mul 	[esi].y1			; eax = 640 * (Screen.y1)
+	add	eax, [esi].x1	; eax = 640 * (Screen.y1) + Screen.x1
 	mov	edi, eax			; edi = 640 * (Screen.y1) + Screen.x1
 
 ;	mov	eax, edi			; find the starting window #
@@ -700,9 +530,9 @@ ShowMovieBlack proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPo
 	; edx = running count of remaining in bank
 	; edi = target video
 
-loopb:
+loop1:
 	cmp	ebx, 0
-	jle	noBlackExit
+	jle	Exit
 
 	push	ecx
 
@@ -744,21 +574,41 @@ loopb:
 	.endif
 
 	dec	ebx
-	jmp	loopb
+	jmp	loop1
 
 
-noBlackExit:
+Exit:
 	pop	ecx
 	pop	edi	
 	pop	esi
 	pop	ebx
 	ret
+BlackOutScreen endp
 
-noBlack:
-;	mov	esi, rectPtr
+;----------------------
+
+ShowMovieBlack proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
+;; The rectPtr is the bitmap relative rectangle to blit
+;; The bitmap is the address of the bitmap
+;; The bitmapWidth is the width of the bitmap
+;; The screenPos is the position of the bitmap within the screen	
+;; blackLines determines if the black line are to be drawn
+	local	lineOffset:dword
+	local	sourceOffset:dword
+
+	push	ebx
+	push	esi
+	push	edi	
+	push	ecx
+
+	mov	esi, rectPtr
 	assume	esi:ptr IRect
 	mov	edi, screenPos
 	assume	edi:ptr IRect
+
+	; make the screen rectangle start and end on a 2 byte boundry
+	or		[esi].x2, 1
+	and	[esi].x1, 0FFFEH
 
 	; Only do the even numbered lines
 	and	[esi].y1, 0FFFEH
@@ -1111,7 +961,7 @@ ShowMovieRectDbl endp
 
 ;----------------------
 
-ShowMovieBlackDbl proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD,blackLines:DWORD
+ShowMovieBlackDbl proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,screenPos:DWORD
 ;; The rectPtr is the bitmap relative rectangle to blit
 ;; The bitmap is the address of the bitmap
 ;; The bitmapWidth is the width of the bitmap
@@ -1134,115 +984,6 @@ ShowMovieBlackDbl proc public,rectPtr:DWORD,bitmap:DWORD,bitmapWidth:DWORD,scree
 	or		[esi].x2, 1
 	and	[esi].x1, 0FFFEH
 	
-	mov	eax,	blackLines
-	cmp	eax, 0
-	je		noBlack
-
-	; make the entire rectangle black
-	; This is not trying to be fast!!
-
-	; Assume we get the entire bitmap on this frame
-
-	; Calculate x run length
-	mov	ecx, [esi].x2
-	sub	ecx, [esi].x1
-	inc	ecx			; ecx = xlen
-	shl	ecx, 1
-
-	; Calculate y run length
-	mov	ebx, [esi].y2
-	sub	ebx, [esi].y1
-	inc	ebx			; ebx = ylen
-	shl	ebx, 1
-
-	; Calculate the screen relative destination
-	mov	eax, 640
-	mul 	[edi].y1			; eax = 640 * (Screen.y1)
-	add	eax, [edi].x1	; eax = 640 * (Screen.y1) + Screen.x1
-	mov	edi, eax			; edi = 640 * (Screen.y1) + Screen.x1
-
-;	mov	eax, edi			; find the starting window #
-	xor	edx, edx
-	div	bankSize			; ax now has the starting window #
-	mov	windowNo, ax
-	call	SetWindow
-	mov	edi, edx			; the offset is the remainder
-	mov	eax, bankSize
-	sub	eax, edx			; how much of the bank is consumed at the start
-	mov	edx, eax			; keep it here for quick access
-
-	add	edi, writeSegment
-
-	mov	eax, 640
-	sub	eax, ecx
-	mov	lineOffset, eax
-
-	shr	ecx, 1			; doin a word at a time since banks are always even
-
-	; ecx = hRun
-	; ebx = vRun
-	; edx = running count of remaining in bank
-	; edi = target video
-
-loopb:
-	cmp	ebx, 0
-	jle	noBlackExit
-
-	push	ecx
-
-	; if we can do a row without changing banks, do it quickly
-	mov	eax, ecx
-	shl	eax, 1
-	.if edx >= eax	 	
-		sub	edx, eax
-		mov	ax,  0
-		rep	stosw
-	.else				; need to change banks in this row
-		mov	ax,  0
-		xchg 	ecx, edx
-		shr	ecx, 1		; bytes = words in the old bank
-		sub	edx, ecx 	; leftover words for the new bank
-		rep	stosw		; do the old bank
-		mov 	ecx, edx	; words in new bank
-		inc	windowNo	
-		call SetWindow
-		mov	edi, writeSegment
-		mov	edx, bankSize
-		sub	edx, ecx	; twice to subtract in bytes, not words
-		sub	edx, ecx
-		rep	stosw		; output the new bank
-	.endif
-
-	pop	ecx
-	add	edi, lineOffset
-	sub	edx, lineOffset
-
-	.if carry? || zero?
-		mov	eax, edx
-		inc	windowNo;
-		call	SetWindow
-		add	edx, bankSize
-		mov	edi, writeSegment
-		neg	eax			; how far we went over is now our offset
-		add	edi, eax
-	.endif
-
-	dec	ebx
-	jmp	loopb
-
-noBlackExit:
-	pop	ecx
-	pop	edi	
-	pop	esi
-	pop	ebx
-	ret
-
-noBlack:
-;	mov	esi, rectPtr
-	assume	esi:ptr IRect
-	mov	edi, screenPos
-	assume	edi:ptr IRect
-
 	; Only do the even numbered lines
 	and	[esi].y1, 0FFFEH
 
@@ -1419,8 +1160,8 @@ PutMovieRect proc public,screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWO
 	assume	edi:ptr IRect
 
 	; make the screen rectangle start and end on a 4 byte boundry
-	or		[esi].x2, 1
-	and	[esi].x1, 0FFFEH
+	or		[esi].x2, 3
+	and	[esi].x1, 0FFFCH
 
 	; Calculate x run length
 	mov	ecx, [esi].x2
@@ -1498,6 +1239,121 @@ exita:
 	ret
 
 PutMovieRect endp
+
+;----------------------
+
+PutMovieRectBlack proc public,screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+;; The screen is the address of the framebuffer
+;; The bitmap is the address of the bitmap
+;; The bitmapWidth is the width of the bitmap
+;; The rectPtr is the bitmap relative rectangle to blit
+;; The screenPos is the position of the bitmap within the framebuffer	
+
+;; For SPEED
+;; The source rectangle is going to be made to start on a 2 byte
+;; boundry and be a multiple of 2 bytes wide.
+;; The bitmap is going to be assumed to start on a 2 byte boundry
+;; and be a multiple of 2 bytes wide.
+;; The screen position is going to be assumed to be at a 2 byte boundry
+
+
+
+	push	ebx
+	push	esi
+	push	edi	
+	push	ecx
+
+	mov	esi, rectPtr
+	assume	esi:ptr IRect
+	mov	edi, screenPos
+	assume	edi:ptr IRect
+
+	; make the screen rectangle start and end on a 4 byte boundry
+	or		[esi].x2, 3
+	and	[esi].x1, 0FFFCH
+
+	; Only do the even numbered lines
+	and	[esi].y1, 0FFFEH
+
+	; Calculate x run length
+	mov	ecx, [esi].x2
+	sub	ecx, [esi].x1
+	inc	ecx				; ecx = xlen
+
+	; Calculate y run length
+	mov	ebx, [esi].y2
+	sub	ebx, [esi].y1
+	inc	ebx 				; ebx = ylen
+
+	; Update the bitmap start by the inset rectangle of the bitmap
+	mov	eax, [esi.x1]
+	add	[edi.x1], eax
+	add	eax, bitmap
+	push	eax
+	mov	eax, [esi.y1]
+	push	eax
+	add	[edi.y1], eax
+
+	; Calculate the screen relative destination
+	mov	eax, vmapWidth
+	mul 	[edi].y1			; eax = vmapWidth * (Screen.y1)
+	add	eax, [edi].x1	; eax = vmapWidth * (Screen.y1) + Screen.x1
+	mov	edi, eax			; edi = vmapWidth * (Screen.y1) + Screen.x1
+	add	edi, screen
+
+	; Calculate the bitmap relative source offset
+	pop 	eax
+	mov 	edx, bitmapWidth
+	mul	edx				; edx = rectPtr.y1*bitmapWidth
+	pop	esi				; esi = rectPtr.x1 + bitmap
+	add	esi, eax			; esi = bitmap + rectPtr.y1*bitmapWidth + rectPtr.x1
+
+	assume edi:nothing
+	assume esi:nothing
+
+	; Calculate the screen offset
+	mov	edx, vmapWidth
+	shl	edx, 1
+	sub	edx, ecx
+
+	; Calculate the bitmap offset
+	mov 	eax, bitmapWidth
+	shl	eax, 1
+	sub 	eax, ecx
+
+	shr	ecx, 2			; do 4 bytes at a time
+	shr	ebx, 1			; do every other line
+
+	; ecx = hRun
+	; ebx = vRun
+	; eax = sourceOffset
+	; edx = lineOffset
+	; edi = target video
+	; esi = source video
+
+loopa:
+	cmp	ebx, 0
+	je	exita
+
+	; move ecx double words
+	push	ecx
+	rep	movsd
+
+	pop	ecx
+	add	edi, edx
+	add	esi, eax
+	dec	ebx
+	jmp	loopa
+exita:
+
+	pop	ecx
+	pop	edi
+	pop	esi
+	pop	ebx
+
+	ret
+
+PutMovieRectBlack endp
 
 ;----------------------
 
@@ -1629,170 +1485,135 @@ PutMovieRectDbl endp
 
 ;----------------------
 
+PutMovieRectDblBlack proc public,screen:DWORD,bitmap:DWORD,bitmapWidth:DWORD,rectPtr:DWORD,screenPos:DWORD
+;; The screen is the address of the framebuffer
+;; The bitmap is the address of the bitmap
+;; The bitmapWidth is the width of the bitmap
+;; The rectPtr is the bitmap relative rectangle to blit
+;; The screenPos is the position of the bitmap within the framebuffer	
+
+;; For SPEED
+;; The source rectangle is going to be made to start on a 2 byte
+;; boundry and be a multiple of 2 bytes wide.
+;; The bitmap is going to be assumed to start on a 2 byte boundry
+;; and be a multiple of 2 bytes wide.
+;; The screen position is going to be assumed to be at a 2 byte boundry
+
+
+
+	push	ebx
+	push	esi
+	push	edi	
+	push	ecx
+
+	mov	esi, rectPtr
+	assume	esi:ptr IRect
+	mov	edi, screenPos
+	assume	edi:ptr IRect
+
+	; make the screen rectangle start and end on a 4 byte boundry
+	or		[esi].x2, 1
+	and	[esi].x1, 0FFFEH
+
+	; Only do the even numbered lines
+	and	[esi].y1, 0FFFEH
+
+	; Calculate x run length
+	mov	ecx, [esi].x2
+	sub	ecx, [esi].x1
+	inc	ecx			; ecx = xlen
+
+	; Calculate y run length
+	mov	ebx, [esi].y2
+	sub	ebx, [esi].y1
+	inc	ebx			; ebx = ylen
+
+	; Update the bitmap start by the inset rectangle of the bitmap
+	mov	eax, [esi.x1]
+	add	[edi.x1], eax
+	add	[edi.x1], eax
+	add	eax, bitmap
+	push	eax
+	mov	eax, [esi.y1]
+	push	eax
+	add	[edi.y1], eax
+	add	[edi.y1], eax
+
+	; Calculate the screen relative destination
+	mov	eax, vmapWidth
+	mul 	[edi].y1			; eax = vmapWidth * (Screen.y1)
+	add	eax, [edi].x1	; eax = vmapWidth * (Screen.y1) + Screen.x1
+	mov	edi, eax			; edi = vmapWidth * (Screen.y1) + Screen.x1
+	add	edi, screen
+
+	; Calculate the bitmap relative source offset
+	pop 	eax
+	mov 	edx, bitmapWidth
+	mul	edx				; edx = rectPtr.y1*bitmapWidth
+	pop	esi				; esi = rectPtr.x1 + bitmap
+	add	esi, eax			; esi = bitmap + rectPtr.y1*bitmapWidth + rectPtr.x1
+
+	assume edi:nothing
+	assume esi:nothing
+
+	; Calculate the screen offset
+	mov	edx, vmapWidth
+	shl	edx, 1
+	sub	edx, ecx
+	sub	edx, ecx
+
+	; Calculate the bitmap offset
+	mov 	eax, bitmapWidth
+	sub 	eax, ecx
+
+
+	; ecx = hRun
+	; ebx = vRun
+	; eax = sourceOffset
+	; edx = lineOffset
+	; edi = target video
+	; esi = source video
+
+loopa:
+	cmp	ebx, 0
+	je	exita
+
+	push	eax
+	push	ecx
+
+loop1:		 	
+	lodsb
+	mov	ah, al
+	stosw
+ 	loop	loop1
+
+	pop	ecx
+	pop	eax
+	add	edi, edx
+	add	esi, eax
+	dec	ebx
+	jmp	loopa
+exita:
+
+	pop	ecx
+	pop	edi
+	pop	esi
+	pop	ebx
+
+	ret
+
+PutMovieRectDblBlack endp
+
+;----------------------
+
 ReadVideoRectX proto rectptr:dword, buffer:dword
 ReadVideoRect320 proto rectptr:dword, buffer:dword
 ReadVideoRectVesa proto rectptr:dword, buffer:dword
 
 ReadVideoRect proc public, rectptr:dword, buffer:dword
-
-	.if currentVideoMode == 1
-		invoke	ReadVideoRectX, rectptr, buffer
-		ret
-	.elseif currentVideoMode == 0
-		invoke ReadVideoRect320, rectptr, buffer
-		ret
-	.elseif currentVideoMode == 80h
-		invoke ReadVideoRectVesa, rectptr, buffer
-		ret
-	.endif
-
+	invoke ReadVideoRectVesa, rectptr, buffer
 	ret
-
 ReadVideoRect endp
-
-;----------------------
-
-ReadVideoRect320 proc public uses ebx esi edi, rectptr:dword, buffer:dword
-
-	local lineOffset:dword
-
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-	mov	eax, [esi].x1
-	mov	ecx, [esi].x2
-	sub	ecx, eax
-	inc	ecx
-	mov	eax, 320
-	sub	eax, ecx
-	mov	lineOffset, eax
-
-	mov	ebx, [esi].y2
-	mov	eax, [esi].y1
-	sub	ebx, eax
-	inc	ebx
-
-	mov	edx, 320
-	mul edx		; eax has row
-	mov	esi, [esi].x1
-	add	esi, eax
-	add	esi, 0A0000H
-
-	mov	edi, buffer
-
-	cld
-
-	.while ebx
-
-		push ecx
-		rep movsb
-		pop ecx
-		add	esi, lineOffset
-		dec ebx
-
-	.endw
-
-	ret
-
-ReadVideoRect320 endp
-
-;----------------------
-
-ReadVideoRectX proc public  uses ebx esi edi, rectptr:dword, buffer:dword
-
-	local columnCount:dword
-	local xOffset:dword
-	local sourceWidth:dword
-
-	mov	ecx, 0
-
-	; setup read mode
-	mov	al, 5
-	mov	dx, 03ceh	; graphics reg/set mode
-	out	dx, al
-	mov	dx, 3cfh
-	in		al, dx
-	and	al, 0f7h		; mask out bit 3 for read mode 0
-	out	dx, al
-
-	mov	dx, 3ceh
-	mov	al, 4
-	out	dx, al
-	mov	dx, 3cfh
-
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-	mov columnCount, 0
-
-	mov	eax, [esi].x1
-	mov	xOffset, eax
-	mov	ecx, [esi].x2
-	sub	ecx, eax
-	inc	ecx
-	mov	sourceWidth, ecx
-
-	mov	ebx, [esi].y2
-	mov	eax, [esi].y1
-	sub	ebx, eax
-	inc	ebx
-
-
-	assume esi:nothing
-	mov	edx, 80
-	mul edx		; eax has row
-	mov	esi, eax
-	add	esi, 0a0000h
-	mov	edi, buffer
-
-	; ecx = x length
-	; ebx = y length
-	; esi = video memory row start address
-	; edi = start of buffer
-	; xOffset = absolute x offset
-	; columnCount = 0 - counts number of columns processed
-	; sourceWidth = setup
-
-	.while ecx
-
-		push esi
-		push edi
-		push ebx
-
-		mov	eax, xOffset
-		and	eax, 3			; find the bank No
-		call SelectReadBank
-		add edi, columnCount	; offset destination start by the column no
-		mov eax, xOffset
-		shr	eax, 2
-		add esi, eax	
-
-		inc	xOffset
-		inc columnCount
-
-		.while ebx
-
-			mov	al, byte ptr [esi]
-			mov	[edi], al
-			add esi, 80
-			add edi, sourceWidth
-
-			dec	ebx
-
-		.endw
-
-		pop	ebx
-		pop	edi				; buffer addr
-		pop	esi				; video mem start address 
-		dec ecx
-
-	.endw
-
-	mov	dx, 3cfh
-	mov	al, 3
-	out	dx, al
-	
-	ret
-
-ReadVideoRectX endp
 
 ;----------------------
 
@@ -1912,148 +1733,14 @@ ReadVideoRectVesa endp
 
 ;----------------------
 
-WriteVideoRectX proto rectptr:dword, buffer:dword, sourceYOffset:dword
-WriteVideoRect320 proto rectptr:dword, buffer:dword, sourceYOffset:dword
 WriteVideoRectVesa proto rectptr:dword, buffer:dword, sourceYOffset:dword
 
 WriteVideoRect proc public, rectptr:dword, buffer:dword, sourceXOffset:dword
 
-	.if currentVideoMode == 1
-		invoke	WriteVideoRectX, rectptr, buffer, sourceXOffset
-	.elseif currentVideoMode == 0
-		invoke WriteVideoRect320, rectptr, buffer, sourceXOffset
-	.elseif currentVideoMode == 80h
-		invoke WriteVideoRectVesa, rectptr, buffer, sourceXOffset
-	.endif
-
+	invoke WriteVideoRectVesa, rectptr, buffer, sourceXOffset
 	ret
+
 WriteVideoRect endp
-
-;----------------------
-
-WriteVideoRect320 proc public  uses ebx esi edi, rectptr:dword, buffer:dword, sourceXOffset:dword
-
-	local lineOffset:dword
-
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-	mov	eax, [esi].x1
-	mov	ecx, [esi].x2
-	sub	ecx, eax
-	inc	ecx
-	mov	eax, 320
-	sub	eax, ecx
-	mov	lineOffset, eax
-
-	mov	ebx, [esi].y2
-	mov	eax, [esi].y1
-	sub	ebx, eax
-	inc	ebx
-
-	mov	edx, 320
-	mul	edx 			; eax has row
-	mov	edi, eax
-	add	edi, [esi].x1
-	add	edi, 0a0000h
-
-	mov	esi, buffer
-
-	cld
-
-	.while ebx
-
-		push ecx
-		rep movsb
-		pop ecx
-		add	edi, lineOffset
-		add	esi, sourceXOffset
-		dec ebx
-
-	.endw
-
-
-	ret
-WriteVideoRect320 endp
-
-;----------------------
-
-WriteVideoRectX proc public  uses ebx esi edi, rectptr:dword, buffer:dword, sourceXOffset:dword
-
-	local columnCount:dword
-	local xOffset:dword
-	local sourceWidth:dword
-
-	mov	esi, rectptr
-	assume	esi:ptr IRect
-	mov columnCount, 0
-
-	mov	eax, [esi].x1
-	mov	xOffset, eax
-	mov	ecx, [esi].x2
-	sub	ecx, eax
-	inc	ecx
-	mov	sourceWidth, ecx
-
-	mov	ebx, [esi].y2
-	mov	eax, [esi].y1
-	sub	ebx, eax
-	inc	ebx
-
-	assume esi:nothing
-	mov	edx, 80
-	mul edx		; eax has row
-	mov	edi, eax
-	add	edi, 0a0000h
-
-	mov	esi, buffer
-
-	; ecx = x length
-	; ebx = y length
-	; edi = video memory row start address
-	; esi = start of buffer
-	; xOffset = absolute x offset
-	; columnCount = 0 - counts number of columns processed
-	; height = setup
-
-	.while ecx
-
-		push esi
-		push edi
-		push ebx
-
-		mov	eax, xOffset
-		and	eax, 3			; find the bank No
-		call SelectBank
-		mov eax, xOffset
-		shr	eax, 2
-		add edi, eax	
-		add esi, columnCount	; offset destination start by the column no
-
-		inc	xOffset
-		inc columnCount
-
-		.while ebx
-
-			mov	al, byte ptr [esi]
-			mov	[edi], al
-			add edi, 80
-			add	esi, sourceWidth
-			add esi, sourceXOffset
-
-			dec	ebx
-
-		.endw
-
-		pop	ebx
-		pop	edi				; buffer addr
-		pop	esi				; video mem start address 
-		dec ecx
-
-	.endw
-
-	ret
-WriteVideoRectX endp
-
 ;----------------------
 
 WriteVideoRectVesa proc public  uses ebx esi edi, rectptr:dword, buffer:dword, sourceXOffset:dword
@@ -2343,6 +2030,14 @@ SetVesaWindow proc public uses edi ebx ecx edx, theWindowNo:dword
 	
 	; must be called after SetVesa!
 
+
+	mov	ax, currentWindowNo 
+	mov	edx, theWindowNo
+	.if dx == ax	 	
+		ret
+	.endif
+	mov	currentWindowNo, dx
+
 	mov	edi, offset aRealStack
 	mov	[edi].r_eax, 4f05h
 	mov	[edi].r_ebx, 0 
@@ -2361,7 +2056,16 @@ SetVesaWindow proc public uses edi ebx ecx edx, theWindowNo:dword
 SetVesaWindow endp
 
 SetWindow proc public
+
 	pushad
+	mov	ax, currentWindowNo 
+	mov	dx, windowNo
+	.if dx == ax	 	
+		popad
+		ret
+	.endif
+	mov	currentWindowNo, dx
+
 	mov	edi, offset aRealStack
 	mov	[edi].r_eax, 4f05h
 	mov	[edi].r_ebx, 0
@@ -2384,10 +2088,27 @@ SetWindow endp
 
 SetReadWindow proc public, theWindow:word
 	pushad
+	mov	ax, currentReadWindowNo 
+	mov	dx, theWindow
+	.if !readWindow		; read window is WinA
+		.if dx == currentWindowNo
+			popad
+			ret		; read from WinA and WinA is current ...
+		.endif
+		mov	currentWindowNo, dx	; changes the write window (A) too!
+		mov currentReadWindowNo, dx
+	.else
+		.if dx == ax && dx == currentWindowNo
+			popad
+			ret
+		.endif
+		mov	currentReadWindowNo, dx
+	.endif
+
 	mov	edi, offset aRealStack
 	mov	[edi].r_eax, 4f05h
 	xor	eax, eax
-	mov	al, readWindow	; normally WindowB
+	mov	al, readWindow	; WinA or WinB
 	mov	[edi].r_ebx, eax
 	mov	eax, grainsPerBank
 	xor	edx, edx

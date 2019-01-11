@@ -875,7 +875,7 @@ ScrollWindow::ScrollWindow(SOL_Rect& theWindow,
 	entries.Get(size);
 	for (int i=0;i<size;++i) {
 		entries[i].textID = (TextID)0;
-		entries[i].font = SYSTEMFONT;
+		entries[i].font = systemFont;
 		entries[i].color = SOL_BLACK;
 		entries[i].mode = TEJUSTCENTER;
 	}
@@ -1197,101 +1197,101 @@ ScrollWindow::Get(int x, int y)
 	return (TextID)0;
 }
 */
-#if defined(DEBUG) || defined(NOT_SHIPPING_VERSION)
-EventWindow	*
-DebugWindow(char* 		text,
-				char* 		title,
-				int 			size,
-				SOL_Point& 	pt,
-				Bool 			wait,
-				Bool* 		escape)
-{
-	// text is the text for the main box
-	// title is the text for the title
-	// size is the maximum width in pixels
-	// pt is the screen position
-	// if wait == True wait for input
+#ifdef DEBUG
+	EventWindow	*
+	DebugWindow(char* 		text,
+					char* 		title,
+					int 			size,
+					SOL_Point& 	pt,
+					Bool 			wait,
+					Bool* 		escape)
+	{
+		// text is the text for the main box
+		// title is the text for the title
+		// size is the maximum width in pixels
+		// pt is the screen position
+		// if wait == True wait for input
 
-	SOL_Rect	sr;
-	SOL_Event dbgEvent;
-	TextID theText;
-	TextID theTitle;
+		SOL_Rect	sr;
+		SOL_Event dbgEvent;
+		TextID theText;
+		TextID theTitle;
 
-	if (escape)
-		*escape = False;
-	// Make copies of the character strings
-	theText.Add(text);
-	if (title)
-		theTitle.Add(title);
+		if (escape)
+			*escape = False;
+		// Make copies of the character strings
+		theText.Add(text);
+		if (title)
+			theTitle.Add(title);
 
-	// Calculate the title size
-	// Adjust for a 3 pixel border
-	fontMgr->SetFont(SYSTEMFONT);
-	// Check that the window size will fit the largest character
-	if (fontMgr->CharWidth('M') > (size - 4))
-		msgMgr->Fatal(SrcLoc,Msg_WindowSizeTooSmall);
+		// Calculate the title size
+		// Adjust for a 3 pixel border
+		fontMgr->SetFont(systemFont);
+		// Check that the window size will fit the largest character
+		if (fontMgr->CharWidth('M') > (size - 4))
+			msgMgr->Fatal(SrcLoc,Msg_WindowSizeTooSmall);
 
-	// check title will fit in the given size (adjust for border)
-	int titleWidth = title ? fontMgr->StringWidth(theTitle) + 4 : 0;
-	if (titleWidth > size)
-		msgMgr->Fatal(SrcLoc,Msg_WindowTitleTooBig);
-	int titleHeight = title ? fontMgr->PointSize() + 3 : 0;
+		// check title will fit in the given size (adjust for border)
+		int titleWidth = title ? fontMgr->StringWidth(theTitle) + 4 : 0;
+		if (titleWidth > size)
+			msgMgr->Fatal(SrcLoc,Msg_WindowTitleTooBig);
+		int titleHeight = title ? fontMgr->PointSize() + 3 : 0;
 
-	SOL_Rect windowRect;
-	fontMgr->TextSize(theText,size - 4,windowRect);
-	// Adjust for a border
-	windowRect.B.x = size -1;
-	windowRect.B.y += 4;
-	// Adjust the window rect to enclose the title rect
-	if (windowRect.Xlen() < titleWidth)
-		windowRect.B.x = titleWidth - 1;
-	windowRect.B.y += titleHeight + 1;
-	if (!title)
-		windowRect.B.y++;
+		SOL_Rect windowRect;
+		fontMgr->TextSize(theText,size - 4,windowRect);
+		// Adjust for a border
+		windowRect.B.x = size -1;
+		windowRect.B.y += 4;
+		// Adjust the window rect to enclose the title rect
+		if (windowRect.Xlen() < titleWidth)
+			windowRect.B.x = titleWidth - 1;
+		windowRect.B.y += titleHeight + 1;
+		if (!title)
+			windowRect.B.y++;
 
-	// Make the windowRect screen relative
-	windowRect.Offset(pt.x,pt.y);
+		// Make the windowRect screen relative
+		windowRect.Offset(pt.x,pt.y);
 
-	// If the window is too long for the screen reduce its height
-	if (
-		(windowRect.B.y > SCIRESY) &&
-		(windowRect.Ylen() > (fontMgr->PointSize() + titleHeight))
-		)
-		windowRect.B.y = SCIRESY - 15*YSCALE;
+		// If the window is too long for the screen reduce its height
+		if (
+			(windowRect.B.y > SCIRESY) &&
+			(windowRect.Ylen() > (fontMgr->PointSize() + titleHeight))
+			)
+			windowRect.B.y = SCIRESY - 15*YSCALE;
 
-	EventWindow* w =
-		title ? New EventWindow(windowRect,
-											 text,
-											 SOL_BLACK,
-											 SOL_WHITE,
-											 SYSTEMFONT,
-											 TEJUSTLEFT,
-											 title,
-											 SOL_WHITE,
-											 SOL_BLACK,
-											 SYSTEMFONT,
-											 True)
-		: New EventWindow(windowRect,
-											 text,
-											 SOL_BLACK,
-											 SOL_WHITE,
-											 SYSTEMFONT,
-											 TEJUSTLEFT,
-											 True);
+		EventWindow* w =
+			title ? New EventWindow(windowRect,
+											 	text,
+											 	SOL_BLACK,
+											 	SOL_WHITE,
+											 	systemFont,
+											 	TEJUSTLEFT,
+											 	title,
+											 	SOL_WHITE,
+											 	SOL_BLACK,
+											 	systemFont,
+											 	True)
+			: New EventWindow(windowRect,
+											 	text,
+											 	SOL_BLACK,
+											 	SOL_WHITE,
+											 	systemFont,
+											 	TEJUSTLEFT,
+											 	True);
 
-	// Get rid of string copies
-	theText.Free();
-	theTitle.Free();
+		// Get rid of string copies
+		theText.Free();
+		theTitle.Free();
 
-	if (!wait)
-		return w;
+		if (!wait)
+			return w;
 
-	Bool esc = WaitOnUser(w);
-	if (escape)
-		*escape = esc;
-	delete w;
-	return 0;
-}
+		Bool esc = WaitOnUser(w);
+		if (escape)
+			*escape = esc;
+		delete w;
+		return 0;
+	}
 #endif
 
 Bool

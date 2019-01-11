@@ -103,6 +103,7 @@ Carg4		dw 0	      	;
 Carg5		dw 0	      	;
 Carg6		dw 0	      	;
 baseIndex	dd 0	      	;Base Index value for ParseNode PROC
+currOffset	dd 0
 
 processSnds	db 0	      	;ON\OFF switch for SoundServer
 loChnl		db 0	      	;Lowest channel supported by driver
@@ -160,11 +161,15 @@ endif
 ;* getb macro
 ;*********************************************************
 getb		MACRO	arg1
-		mov	arg1,fs:[ebp]
-		inc	ebp
+		push	edi
+		mov	edi, baseIndex
+		add	edi, currOffset
+		mov	arg1,fs:[edi]
+		inc	currOffset
 		shl	si,1
 		inc	word ptr es:[ebx+esi].tIndex
 		shr	si,1
+		pop	edi
 		ENDM
 
 
@@ -3858,6 +3863,8 @@ switchOn:
 		push	es
 		push	ds
 		push	ebp
+		push	edx
+		push	ecx
 		push	ebx
 		push	eax
 
@@ -3938,8 +3945,11 @@ ifndef WINDOWS
 		CallDriver DService
 endif
 
+
 		pop	eax
 		pop	ebx
+		pop	ecx
+		pop	edx
 		pop	ebp
 		pop	ds
 		pop	es
@@ -4028,10 +4038,9 @@ endif
 regularParse:
 		;Get the pointer to the sound data in bp
 
-		Hnd2Ptr	es:[ebx].sMidiPtr32
-    ;		cmp	ebp,0800000h
-    ;		jge	outParse
-		mov	baseIndex,ebp
+;		Hnd2Ptr	es:[ebx].sMidiPtr32
+		lfs	esi,fword ptr es:[ebx].sMidiPtr32
+		mov	baseIndex,esi
 
 ;Step through tracks	until a channel# of 0ffh
 ;is encountered.  Skip any sample tracks, marked with 0feh
@@ -4086,20 +4095,26 @@ chOnList:
 restorePtr:     
 		;Point ds:bp to the location in the track data where we last left off
 
-		mov	ebp,baseIndex
+		push	ebx
+		mov	ebx,baseIndex
 		shl	si,1			;track index * 2
 
-		mov	dx,fs:[ebp+esi]		;get offset to track data
-		add	bp,dx			;add to sound data base address to get track address
-		jnc	help2
-		add	ebp,010000h
+;		mov	dx,fs:[ebp+esi]		;get offset to track data
+;		add	bp,dx			;add to sound data base address to get track address
+;		jnc	help2
+;		add	ebp,010000h
+;help2:		add	bp,es:[ebx+esi].tIndex	;then add our curent offset within that track
+;     	    	jnc     help
+;		add	ebp,010000h
+;help:		cmp	word ptr es:[ebx+esi].tIndex,0	;are we already done with this track?
 
+		xor	edx, edx
+		mov	dx,fs:[ebx+esi]		;get offset to track data
+		pop	ebx
+		add	dx,es:[ebx+esi].tIndex	;then add our curent offset within that track
+		mov	currOffset, edx		;and save it
 
-help2:		add	bp,es:[ebx+esi].tIndex	;then add our curent offset within that track
-     	    	jnc     help
-		add	ebp,010000h
-
-help:		cmp	word ptr es:[ebx+esi].tIndex,0	;are we already done with this track?
+		cmp	word ptr es:[ebx+esi].tIndex,0	;are we already done with this track?
 		jne	notFrozenTrk
 		shr	si,1
 		jmp	parseNext		;yes, so skip it
@@ -4162,7 +4177,8 @@ runningStat:
 		;and back up the data pointer
 
 		mov	dl,es:[ebx+esi].tCommand
-		dec	ebp
+;		dec	ebp
+		dec	currOffset
 		shl	si,1
 		dec	word ptr es:[ebx+esi].tIndex
 		shr	si,1
@@ -4845,7 +4861,8 @@ loopLoopPoint:
 		pop	esi				;restore control track index
 		shl	si,1
 		dec	word ptr es:[ebx+esi].tIndex	;back up the track ptr to the timing byte
-		dec	ebp
+;		dec	ebp
+		dec	currOffset
 		mov	word ptr es:[ebx+esi].tRest,0	;and pretend we never saw it...
 		shr	si,1
 		jmp	outConCh

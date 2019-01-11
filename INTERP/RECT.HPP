@@ -16,6 +16,9 @@ class SOL_Rect
 
 	//  Const Methods
 	int	IsEmpty() const;
+	Bool	IsValid() const;
+	Bool	IsValidPos() const;
+	Bool	IsWithin(int xdim, int ydim) const;
 	int	Xlen() const;
 	int	Ylen() const;
 	long	Area() const;
@@ -114,6 +117,22 @@ SOL_Rect::IsEmpty() const
 	if (B.x < A.x  ||  B.y < A.y)
 		return True;
 	return False;
+}
+
+inline int
+SOL_Rect::IsValid() const
+{
+	if (B.x < A.x  ||  B.y < A.y)
+		return False;
+	return True;
+}
+
+inline int
+SOL_Rect::IsValidPos() const
+{
+	if (B.x < A.x  ||  B.y < A.y)
+		return False;
+	return True;
 }
 
 //  MakeEmpty  -  Sets rectangle to emtpy state
