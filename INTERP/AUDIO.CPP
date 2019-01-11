@@ -110,7 +110,6 @@ int		DACHbufferSize;
 int		intHbufferSize;
 int		globalLoc;
 Bool		lastDAC;
-Bool		loop;
 Bool		mixCheck = True;
 int		pausedLoc = 0;
 int		preLoad = 0;
@@ -199,9 +198,13 @@ KDoAudio(argList)
 				sample[n].module = AUDMODNUM;
 				sample[n].num = arg(2);
 				if (argCount >= 3 && arg(3) != 1)
-					loop = arg(3);
+					sample[n].loop = arg(3);
 				else
-					loop = False;
+					sample[n].loop = False;
+				if (argCount >= 4 && arg(4) >= 0 && arg(4) <= MAXVOLUME)
+					sample[n].volume = arg(4);
+				else
+					sample[n].volume = MAXVOLUME;
 			} else {
 				sample[n].num = 0;
 				sample[n].module = arg(2);
@@ -210,9 +213,13 @@ KDoAudio(argList)
 				sample[n].cond = (uchar)arg(5);
 				sample[n].sequ = (uchar)arg(6);
 				if (argCount >= 7 && arg(7) != 1)
-					loop = arg(7);
+					sample[n].loop = arg(7);
 				else
-					loop = False;
+					sample[n].loop = False;
+				if (argCount >= 8 && arg(8) >= 0 && arg(8) <= MAXVOLUME)
+					sample[n].volume = arg(8);
+				else
+					sample[n].volume = MAXVOLUME;
 			}
 			sample[n].robot = False;
 			if (pm.acc = sample[n].ticks = AudioSelect(n)) {
@@ -399,7 +406,8 @@ AudRobot(RobotAudInfo buff)
 		sample[n].module = sample[n].num = 0;
 		sample[n].length = buff.blen;
 		sample[n].start = 0;
-		loop = False;
+		sample[n].loop = False;
+		sample[n].volume = MAXVOLUME;
 		sample[n].compressed = True;
 		sample[n].robot = True;
 		if (!AudioSelect(n))
@@ -616,8 +624,6 @@ AudioSelect(int n)
 	sample[n].bufferNumber = 0;
 	sample[n].fillToggle = 0;
 	sample[n].distortion = 0;
-	sample[n].volume = MAXVOLUME;
-	sample[n].loop = loop;
 
 	if (sample[n].id)
 		sample[n].bytesRead = sample[n].start;
@@ -1463,7 +1469,7 @@ DACPlay()
 	}
 	sample[0].distortion = 0;
 	sample[0].volume = MAXVOLUME;
-	loop = False;
+	sample[0].loop = False;
 	printf("(%s)Press any key to stop audio playback...\n",str);
 	while (1) {
 		if (!AudioSelect(0)) {

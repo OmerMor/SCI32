@@ -12,9 +12,7 @@
 #include "config.hpp"
 #include "array.hpp"
 #include "audio.hpp"
-#ifdef WIN32S
 #include "shiftpal.hpp"
-#endif
 
 Bool		AudioPause(int);
 Bool		AudioResume(int);
@@ -133,7 +131,6 @@ Robot::DoRobot()
 
 	audioList.SubmitDriverMax();
 //	delayTime.StartTiming();
-
 	SeekFrame(frameNum);
 	if (version == 2)
 		DoVersion2();
@@ -383,10 +380,9 @@ Robot::CreateCel(uchar* video, Bool usePalette)
 			memcpy(ptr, video + sizeof(VideoHeader), vh->xsize * vh->ysize);
 			break;
 	}
-#ifdef WIN32S
 	if (WING)
 		OffsetData(ptr, PALSHIFT);
-#endif
+
 	if (vertScaleFactor != 100)  {
 		ExpandData((uchar*) *bmHandle + CELHEADERSIZE, ptr);
 		temp.Free();
@@ -875,7 +871,7 @@ void
 Robot::AudioList::AddBlock(int pos, int size)
 {
 	if (blockCount == 10)  {
-		msgMgr->Mono("*"); //Fatal("Robot AudioList full!");
+//		msgMgr->Mono("*"); //Fatal("Robot AudioList full!");
 		delete array[oldestBlockIndex];
 		array[oldestBlockIndex] = NULL;
 		oldestBlockIndex++;
@@ -884,7 +880,7 @@ Robot::AudioList::AddBlock(int pos, int size)
 		blockCount--;
 	}
 
-	msgMgr->Mono("+");
+//	msgMgr->Mono("+");
 
 	//  If first block, init variables properly
 	if (!blockCount)

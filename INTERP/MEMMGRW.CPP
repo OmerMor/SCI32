@@ -10,6 +10,7 @@
 
 #include "sol.hpp"
 
+#include "config.hpp"
 #include "memmgrw.hpp"
 #include "mbox.hpp"
 #include "msg.hpp"
@@ -325,8 +326,10 @@ MemoryMgrWin::~MemoryMgrWin()
 #endif
 	UnloadDll();
 #ifdef DEBUG
-	sprintf(mbuff,"Min bytes required:%d in Room# %d\n",gameMaxAloc,gameMaxRoom);
-	MBox(mbuff,"");
+	if (configMgr->Get(configMgr->RoomMinK)) {
+		sprintf(mbuff,"Min bytes required:%d in Room# %d\n",gameMaxAloc,gameMaxRoom);
+		MBox(mbuff,"");
+	}
 #endif
 }
 
@@ -524,4 +527,3 @@ void FreeWinMem(void *lpMem, int pageLock)
 }
 #endif
 
-

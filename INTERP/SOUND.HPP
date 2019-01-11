@@ -153,7 +153,7 @@ MemType	GetSoundResType(ResNum);
 void		SuspendSounds(Bool);
 void		InitSnd(ObjectID);
 void		KillSnd(ObjectID);
-void		PlaySnd(ObjectID,int);
+void		PlaySnd(ObjectID);
 void		StopSnd(ObjectID);
 void		PauseSnd(ObjectID,Bool);
 void		FadeSnd(ObjectID,int,int,int,int);
@@ -164,9 +164,6 @@ void		SetSndLoop(ObjectID,int);
 void		UpdateCues(ObjectID);
 void		MidiSend(ObjectID,int,int,int,int);
 void		ChangeSndState(ObjectID);
-void		SampleCues(ObjectID);
-void		PlaySamp(ObjectID,int);
-void		InitSamp(ObjectID);
 
 // Platform-specific functions
 void	AllocSNodeData(Sound *);
@@ -182,5 +179,4 @@ void	SaveAllSounds(void);
 
 #endif
 
-
 

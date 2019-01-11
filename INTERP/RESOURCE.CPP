@@ -439,13 +439,14 @@ ResourceMgr::GetChecksum(SOL_Handle handle)
 
 	MemID id = (MemID)handle;
 	uchar* data = (uchar *)*(id);
+	uchar checksum = *data;
 
 #ifdef RESMGR_IN_LINE_ASM
-	// Asm code...
-	uchar checksum = Checksum((int)data,id.Size());
+	if (id.Size() > 1)
+		// Asm code...
+		checksum = Checksum((int)data,id.Size());
 #else
 	// C++ code...
-	uchar checksum = *data;
 	for (uint i = id.Size() - 1; i > 0; i--)
 		checksum += data[i];
 #endif

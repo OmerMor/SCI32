@@ -176,11 +176,12 @@ unsigned int AviOpen(int movieNo,char * filename)
 
 
 	if(errorCode) {
-#ifdef DEBUG
-		mciGetErrorString(errorCode,str,80);
-	   msgMgr->Alert(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
-#endif
-		msgMgr->Fatal(SrcLoc,Msg_AVIOpen);
+//#ifdef DEBUG
+		mciGetErrorString(errorCode,str,200);
+//	   msgMgr->Alert(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
+	   msgMgr->Fatal(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
+//#endif
+//		msgMgr->Fatal(SrcLoc,Msg_AVIOpen);
 		return AVI_OPEN_FAIL;
 
 	}

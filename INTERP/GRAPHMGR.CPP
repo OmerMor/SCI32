@@ -156,9 +156,10 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 	int palIndex = -1;
 	SOLPalette  myPal;
 	SOLPalette  thisPal;
+//	int s = pm.Global(g_prevRoomNum);
 	myPal = GPalette().Next();
 
-	AlterVMAP(&myPal,palIndex,palArray);	
+	AlterVMAP(&myPal,&myPal,palIndex,palArray);	
  	SOL_Rect	A(0,0,next.Xdim()-1,next.Ydim()-1);
 	next.ShowList().Add(A);
 	ShowBits();
@@ -217,6 +218,7 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 			}
 		}
 
+
 	GPalette().Submit(myPal);
 	GPalette().UpdateForFrame();
 	GPalette().UpdateHardware();
@@ -224,7 +226,7 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 // Fourth decimate new image in VMAP and output to screen
 
 	palIndex = 1;
-	AlterVMAP(&thisPal,palIndex,palArray);	
+	AlterVMAP(&thisPal,&myPal,palIndex,palArray);	
 
 	ShowBits();
 	vmapValid = True;

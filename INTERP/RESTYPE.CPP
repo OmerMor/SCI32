@@ -91,7 +91,6 @@ SOL_ResType::Load(ResTag& tag, Bool lock)
 void
 SOL_ResType::Decompress(ResTag& tag) const
 {
-	char* src;
 	MemID srcID = resMgr->DecompBuffer(compressedLength);
 	if (::ReadMemID(fd, srcID, compressedLength) != compressedLength)
 		msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
@@ -102,6 +101,7 @@ SOL_ResType::Decompress(ResTag& tag) const
 
 	Initcompress(workBuffer);
 
+	char* src = (char*)*srcID;
 	int result = ::Decompress(&src, &dest, &sourceLength,&destLength,workBuffer);
 
 	if (sourceLength != 0 || result != 1)

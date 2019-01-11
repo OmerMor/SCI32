@@ -89,7 +89,7 @@ class GraphicsMgr : public Saveable
 	virtual	void				FrameOut(Bool showBits = True);
 	virtual	SOL_Cursor&		GCursor() = 0;
 	virtual	PaletteMgr&		GPalette() = 0;
-	virtual  void     AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray=0) = 0;
+	virtual  void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex, char* palArray=0) = 0;
 	virtual  void	 	PalMorphFrameOut(char* palArray=0);
 	virtual	void		ClearLastScreen() = 0;
 	virtual	Plane* 	GetPlaneCurrent(int planeId) = 0;

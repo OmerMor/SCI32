@@ -48,7 +48,7 @@ class GraphicsMgrWin : public GraphicsMgr
 	SOL_Cursor&	GCursor()						{return *cursor;}
 	void		TimingTest();
 	Buffer& 	PriMap() 				{return pmap;}
-	void     AlterVMAP(SOLPalette* myPal,int palIndex,char* palArray);
+	void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
 
 	protected:
 	void			CalcLists(DrawList** drawLists,RectList** eraseLists)

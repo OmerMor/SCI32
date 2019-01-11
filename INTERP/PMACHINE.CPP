@@ -11,7 +11,6 @@
 #include "language.hpp"
 #include "msg.hpp"
 #include "memmgr.hpp"
-#include "newroom.hpp"
 #include "object.hpp"
 #include "opcodes.hpp"
 #include "pmachine.hpp"
@@ -34,7 +33,6 @@ PMachine::Run()
 	
 	setjmp(restartBuf);
 
-	rmResList->NewRoom(0);
 	if (!game) {
 		//	this code can't be executed twice unless we implement restart
 		LoadPropOffsets();

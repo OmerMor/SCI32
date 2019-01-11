@@ -1648,14 +1648,18 @@ int
 MemoryMgr::ThrashAdd(SOL_Handle theID)
 {
 	MemType	theType = desc[theID].memInfo.type;
+	ushort	theResNumber = desc[theID].resNumber;
 
 // HOOK
-// This show that 0.heap 0.hunk are thrashing early in the game!!	
+// This shows that 0.heap 0.hunk are thrashing early in the game!!	
 //	if (theType > MemResLast)
-	if ((theType != MemResView) && (theType != MemResPic))
+// This shows that some one is using resNumber 0 and type 0 illegally
+//	if ((theType != MemResView) && (theType != MemResPic))
+	if (
+		((theType != MemResView) && (theType != MemResPic))  ||
+		(theResNumber == 0))
 		return 0;
 
-	ushort	theResNumber = desc[theID].resNumber;
 
 	for (int i=0;i<ThrashListSize;++i) {
 		if ((thrashArray[i].count != 0)						&& 

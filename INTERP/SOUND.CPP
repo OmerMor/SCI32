@@ -130,7 +130,7 @@ RestoreAllSounds()
 			if(soundObject.GetIndexedProperty(sndLoop) == -1 &&
 					soundObject.GetIndexedProperty(sndHandle) != 0) {
 				soundObject.SetIndexedProperty(sndHandle,0);
-				PlaySnd(soundObject, 0);
+				PlaySnd(soundObject);
 			}
 /* put sample stuff here */
 		} else {
@@ -229,7 +229,7 @@ void KDoSound(argList)
 			break;
 
 		case	PLAYSOUND:
-			PlaySnd(soundObject,arg(3));
+			PlaySnd(soundObject);
 			break;
 
 		case	STOPSOUND:
@@ -385,7 +385,7 @@ KillSnd(ObjectID soundObject)
 }
 
 void
-PlaySnd(ObjectID soundObject, int how)
+PlaySnd(ObjectID soundObject)
 {
 
 	ResNum		soundNum;
@@ -484,16 +484,17 @@ PlaySnd(ObjectID soundObject, int how)
 		if (!snID->sSample) {		
 			AllocMidiData(*snID, sHandle.Size());
 			ChangeSndState(soundObject);
-			DoSound(SPlay,*snID,how);
+			DoSound(SPlay,*snID,0);
 			#ifdef DEBUG
 			memMgr->SetChecksum(snID->sPointer,1);
 			#endif
 
 		} else {
-			audArgs.count = 4;
+			audArgs.count = 5;
 			audArgs.func = PLAY;
 			audArgs.arg2 = soundObject.GetIndexedProperty(sndNumber);
 			audArgs.arg3 = soundObject.GetIndexedProperty(sndLoop);
+			audArgs.arg4 = soundObject.GetIndexedProperty(sndVol);
 			KDoAudio ((kArgs) &audArgs);
 		}
 		

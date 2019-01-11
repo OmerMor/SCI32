@@ -86,6 +86,7 @@ char            modSciwin[] = "sciwin";
 int             nHORZRES, nVERTRES, nCOLORS, nBITSPIXEL, nPLANES, nRASTERCAPS;
 int		forcePPC = 0;
 int		asyncCheckFreq = 10;
+int		monoDisp = 0;
 MSG myMsg;
 BOOL	  SHOWMEM   = FALSE;
 BOOL    LOCKMAIN   = FALSE;
@@ -318,6 +319,15 @@ void AsyncEventCheck ()
 	so that we can return when message queue exhausted.
 ***********************************************************************/
 {
+	while (GAMEPAUSED)
+		{
+		GetMessage (&myMsg, NULL, 0, 0);
+		if (myMsg.message == WM_QUIT)
+			exit (1);
+		TranslateMessage (&myMsg) ;
+		DispatchMessage (&myMsg) ;
+		}
+
 	if (!*timeToCheck)
 		return;
 	*timeToCheck = 0;
@@ -326,23 +336,14 @@ void AsyncEventCheck ()
 	if (!USEAUDIO)
 		if (writeCount)
 			AudioUpdate();
+
 	while (PeekMessage (&myMsg, NULL, 0, 0, PM_REMOVE))
 		{
-		if (myMsg.message == WM_QUIT) {
-			MBox("WM_QUIT","");
+		if (myMsg.message == WM_QUIT)
 			exit (1);
-		}
 		TranslateMessage (&myMsg) ;
 		DispatchMessage (&myMsg) ;
 		}
-		while (GAMEPAUSED)
-			{
-			GetMessage (&myMsg, NULL, 0, 0);
-			if (myMsg.message == WM_QUIT)
-				exit (1);
-			TranslateMessage (&myMsg) ;
-			DispatchMessage (&myMsg) ;
-			}
 }
 
 
@@ -422,6 +423,7 @@ char            buff[80];
 	DACSize			= GetPrivateProfileInt ((LPSTR)szInfo, "DACSize", GetDACDefaultSize(), (LPSTR)szIniFile);
    DACSize = ((DACSize + 1023) / 1024) * 1024;
 	asyncCheckFreq	= GetPrivateProfileInt ((LPSTR)szInfo, "asynccheckfreq", 10, (LPSTR)szIniFile);
+	monoDisp			= GetPrivateProfileInt ((LPSTR)szInfo, "monodisp", 0, (LPSTR)szIniFile);
 
 	CONFIRMDAC		= GetTFOption("confirmdac",FALSE);
 	REQUIREDAC		= GetTFOption("requiredac",FALSE);
@@ -530,6 +532,11 @@ HMIDIOUT                        hMidiOut;
 //MCI_GENERIC_PARMS     mciGenericParms;
 WORD                            wError;
 BOOL                            dlgResult;
+
+	if (SHOWMEM) {
+		sprintf(mbuff,"&CheckConfig:%08x",&CheckConfig);
+		MBox(mbuff,"");
+	}
 
 	if (!(nRASTERCAPS & RC_PALETTE))
 		TRUECOLOR = TRUE;
@@ -650,7 +657,6 @@ MBox (char* text, char* title)
 }
 
 
-//#ifdef DEBUG
 void SciDisplay (char* szFormat)
 /**********************************************************************
 	Display debug messages in a scroll box.
@@ -658,20 +664,28 @@ void SciDisplay (char* szFormat)
 {
 static int nIndex = 0;
 
-	if (!hWndList) {
-		hWndList = CreateWindow ("Listbox", NULL,
-						WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL
-						 | WS_THICKFRAME | WS_CAPTION | DS_NOIDLEMSG,
-						490, 240, 140, 200,
-//	before WIN32S	hMyWnd, 2,
-//						GetWindowWord (hMyWnd, GWW_HINSTANCE), NULL);
-						hMyWnd, NULL,
-						MyInstance, NULL);
+	if (!monoDisp) {
+		if (!hWndList) {
+			hWndList = CreateWindow ("Listbox", NULL,
+							WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL
+							 | WS_THICKFRAME | WS_CAPTION | DS_NOIDLEMSG,
+							490, 240, 140, 200,
+							hMyWnd, NULL,
+							MyInstance, NULL);
+		}
+
+		if (nIndex > 49)
+			SendMessage (hWndList, LB_DELETESTRING, nIndex - 50, (DWORD) NULL);
+		nIndex = (int)SendMessage (hWndList, LB_ADDSTRING, NULL, (DWORD)((LPSTR) szFormat));
+		SendMessage (hWndList, LB_SETCURSEL, nIndex, (DWORD) NULL);
+		return;
 	}
-	if (nIndex > 49)
-		SendMessage (hWndList, LB_DELETESTRING, nIndex - 50, (DWORD) NULL);
-	nIndex = (int)SendMessage (hWndList, LB_ADDSTRING, NULL, (DWORD)((LPSTR) szFormat));
-	SendMessage (hWndList, LB_SETCURSEL, nIndex, (DWORD) NULL);
+
+	OutputDebugString(szFormat);
+	if (monoDisp == 1)
+		OutputDebugString("/");
+	else
+		OutputDebugString("\n");
 }
 //#endif
 
@@ -858,6 +872,9 @@ struct {
 						// set global to allow the game to do any saves and then
 						// do its own terminate.
 						pm.Global(g_quit) = 2;
+						// if minimized, restore window to get close message
+						if (IsIconic(hMyWnd))
+							ShowWindow (hMyWnd, SW_RESTORE) ;
 						return 0L;
 					} else
 						break;
@@ -915,10 +932,19 @@ struct {
 			break;
 
 		case WM_QUERYENDSESSION:
-			sprintf(mbuff, "Please quit %s before terminating Windows", szTitle);
-			MBox(mbuff,"");
+  			if (TRAPCLOSE) {
+				if (MessageBox(NULL,"The game has not been saved.  Exit the game anyway?",szTitle,MB_YESNO | MB_ICONEXCLAMATION)
+					== IDYES)  
+					return 1L;
+				else
+					return 0L;
+			} else
+				return 0L;
+//			sprintf(mbuff, "Please quit %s before terminating Windows", szTitle);
+//			MBox(mbuff,"");
 //			DestroyWindow(hMyWnd);
-			return 0L;
+//			return 0L;
+//			break;
 
 		case WM_DESTROY:		/* terminate (ALT F4) */
 /*      Do exit instead of PostQuitMessage to avoid having to ReleaseDC */

@@ -55,7 +55,7 @@ class GraphicsMgrDOS : public GraphicsMgr
 	void			UpdateScreen()			   {last = next;}
 	Screen&		VisibleScreen()   		{return last;}
 
-	void     AlterVMAP(SOLPalette* myPal,int palIndex,char* palArray);
+	void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
 
 	protected:
 	void			CalcLists(DrawList** drawLists,RectList** eraseLists)

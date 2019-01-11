@@ -62,7 +62,7 @@ GraphicsMgrDOS::CreatePriMap()
 	}
 }
 void
-GraphicsMgrDOS::AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray)
+GraphicsMgrDOS::AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex, char* palArray)
 {
 	int test	= palIndex;
 
@@ -91,13 +91,35 @@ GraphicsMgrDOS::AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray)
 			}
 			pixels[i] = index;		
 		}
+		if ((palIndex == 1) && (palArray[i] == 0)) {
+			oldColor = (*myPal)[i];
+			oldVal = 65535 * 4; // get a number larger than we generate
+
+			for(j=0;j<236;j++) {
+					newColor = (*newPal)[j];
+					newVal   = (oldColor.red-newColor.red)*(oldColor.red-newColor.red) + 
+								  (oldColor.blue-newColor.blue)*(oldColor.blue-newColor.blue) +
+								  (oldColor.green-newColor.green)*(oldColor.green-newColor.green);
+								  // sum of squares difference
+					if (newVal < oldVal)	{
+						oldVal = newVal;
+						index  = j;
+					}
+		
+			}
+			pixels[i] = index;		
+		}
+
 	}
 
 	for(i=0;i<next.Xdim()*next.Ydim();i++)	{
 
-		if (palArray[buffer.start[i]] == palIndex) {	 // found odd pixel
-			buffer.start[i] = (uchar) pixels[buffer.start[i]];	
-		}
+		if ((palArray[buffer.start[i]] == palIndex)&&(palIndex==-1)) 	 // found odd pixel
+				buffer.start[i] = (uchar) pixels[buffer.start[i]];	
+
+		if (((palArray[buffer.start[i]] == palIndex)&&(palIndex==1))||
+			  ((palArray[buffer.start[i]] == 0)&&(palIndex==1)))	 	 // found odd pixel
+				buffer.start[i] = (uchar) pixels[buffer.start[i]];	
 	}
 
 }
