@@ -36,7 +36,7 @@ private:
 	int nEntries;
 
 #endif
-} extern * heapLeakChecker;
+};
+extern HeapLeakChecker * heapLeakChecker;
 
 #endif
-

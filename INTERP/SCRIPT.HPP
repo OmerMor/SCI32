@@ -24,7 +24,8 @@ struct ScriptMgr : Saveable {
 	void	SaveRestore(SaveGame*, Bool save);
 	void	SaveRestoreAfter(SaveGame*, Bool);
 	void	SaveRestoreDo(Saveable::Func, SaveGame*, Bool save);
-} extern scriptMgr;
+};
+extern ScriptMgr scriptMgr;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +36,7 @@ _Packed struct ScriptHeap {
 	Int16		vars;			// beginning of variables
 };
 
-typedef ID<ScriptHeap, MemResHeap> ScriptHeapID;
+FakeTemplateID(ScriptHeapID, ScriptHeap, MemResHeap)
 
 // struct of script hunk resource file
 _Packed struct ScriptHunk {
@@ -46,7 +47,7 @@ _Packed struct ScriptHunk {
 	UInt16	dispatches;	// beginning of dispatch table
 };
 
-typedef ID<ScriptHunk, MemResHunk> ScriptHunkID;
+FakeTemplateID(ScriptHunkID, ScriptHunk, MemResHunk)
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -61,10 +62,11 @@ struct DispatchTbl {
 	//	followed by variable number of DispatchEntrys
 };
 
-struct DispatchTblID : ID<DispatchTbl, MemDispatchTbl>
+FakeTemplateID(FakeDispatchTblID, DispatchTbl, MemDispatchTbl)
+struct DispatchTblID : FakeDispatchTblID
 {
 	DispatchTblID() {}
-	DispatchTblID(const MemID& id) : ID<DispatchTbl, MemDispatchTbl>(id) {}
+	DispatchTblID(const MemID& id) : FakeDispatchTblID(id) {}
 	DispatchEntry&	operator[](int s)
 		{ return ((DispatchEntry*) (**this + 1))[s]; }
 };
@@ -76,10 +78,11 @@ struct ScriptEntry {
 	MemID	id;
 };
 
-struct ScriptEntryID : ID<ScriptEntry, MemScriptEntry>
+FakeTemplateID(FakeScriptEntryID, ScriptEntry, MemScriptEntry)
+struct ScriptEntryID : FakeScriptEntryID
 {
 	ScriptEntryID() {}
-	ScriptEntryID(const MemID& id) : ID<ScriptEntry, MemScriptEntry>(id) {}
+	ScriptEntryID(const MemID& id) : FakeScriptEntryID(id) {}
 	ScriptEntry& operator[](int s) { return (**this)[s]; }
 };
 
@@ -90,10 +93,11 @@ struct Variable
 	Property	var;
 };
 
-struct VariableID : ID<Variable, MemVariables>
+FakeTemplateID(FakeVariableID, Variable, MemVariables)
+struct VariableID : FakeVariableID
 {
 	VariableID() {}
-	VariableID(const MemID& id) : ID<Variable, MemVariables>(id) {}
+	VariableID(const MemID& id) : FakeVariableID(id) {}
 	Property&	operator[](int s) { return (**this)[s].var; }
 };
 
@@ -116,7 +120,7 @@ struct Script : SOL_Node
 	size_t			codeOffset;	//	offset of code from beginning of .SCR
 };
 
-typedef ID<Script, MemScript> ScriptID;
+FakeTemplateID(ScriptID, Script, MemScript)
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -129,4 +133,3 @@ DispatchEntry	GetDispatchEntry(unsigned scriptNum, unsigned entryNum,
 						ScriptID* script = 0);
 
 #endif
-

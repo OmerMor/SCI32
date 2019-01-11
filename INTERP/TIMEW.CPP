@@ -22,6 +22,7 @@ static	Bool	timerEnabled = False;
 #ifndef WIN32S
 int far			*timeToCheck;
 HANDLE			hMylib32;			// kludge
+HINDIR			hWEP;
 #else
 int				*timeToCheck;
 #endif
@@ -63,6 +64,7 @@ HINDIR	hInitTimeMgr;
   hTickCount =   GetIndirectFunctionHandle( fp, INDIR_WORD, INDIR_CDECL, INDIR_ENDLIST );
   hTickSet =     GetIndirectFunctionHandle( fp, INDIR_DWORD, INDIR_WORD, INDIR_ENDLIST );
   hSetCheckTime = GetIndirectFunctionHandle( fp, INDIR_DWORD, INDIR_DWORD, INDIR_WORD, INDIR_WORD, INDIR_ENDLIST );
+  hWEP			= GetIndirectFunctionHandle(fp, INDIR_WORD, INDIR_ENDLIST );
 
   lpTimerCallback = (FARPROC)InvokeIndirectFunction(hInitTimeMgr, DLL_INIT);
 
@@ -221,6 +223,7 @@ void UnloadDll(void)
 // All this Thunk stuff should be put in a separate module
 // No time right now. TM 11/8/94
 #ifndef WIN32S
+	InvokeIndirectFunction(hWEP, DLL_WEP);
 	FreeLibrary( hMylib32 );
 #else
 	(*pUTUnRegister) (Main::hInstance);

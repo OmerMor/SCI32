@@ -77,6 +77,7 @@ class GraphicsMgrDOS : public GraphicsMgr
 	Bool				vesa;
 	Vga				vga;
 	MemID				vmapID;
+	uchar*			vmapPtr;
 };
 
 #endif

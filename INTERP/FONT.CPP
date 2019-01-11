@@ -1,11 +1,6 @@
-//      font.cpp
-
-#include <string.h>
 
 #ifndef MACINTOSH
-
 #include <mem.h>
-
 #endif
 
 #include "sol.hpp"
@@ -22,11 +17,10 @@
 #include "graphmgr.hpp"
 #include "object.hpp"
 #include "pmachine.hpp"
-#include "textid.hpp"
-#include "text.hpp"
 #ifdef WIN32S
 #include "shiftpal.hpp"
 #endif
+#include "textid.hpp"
 
 int	FontMgr::xRes = LOWRESX;
 int	FontMgr::yRes = LOWRESY;
@@ -210,7 +204,11 @@ FontMgr::BuildFBM
 	/*SOL_Rect textRect;
 	TextSize(theText,theWidth,textRect);
 	if ((textRect.Xlen() > theTextBox.Xlen()) || (textRect.Ylen() > theTextBox.Ylen()))
-		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
+		msgMgr->Fatal ( "BuildFBM textRect too big: (%d, %d)  (%d, %d)", 
+			textRect.Xlen(), theTextBox.Xlen(),
+			textRect.Ylen(), theTextBox.Ylen()
+			)
+//		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
 	*/
 	BMWidth = theWidth;
 	BMHeight = theHeight;
@@ -230,7 +228,6 @@ FontMgr::BuildFBM
 	// clip the textbox by the FBM
 	SOL_Rect rect(0,0,BMWidth-1,BMHeight-1);
 	textBox.Clip(rect);
-
 	// allocate memory for the bitmap
 	BM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
 
@@ -244,7 +241,7 @@ FontMgr::BuildFBM
 	   // frame the title box
 	   Frame(rect,frameSize,borderColor,False);
    }
-
+	
 	// put the text into the bitmap
 	DrawTextBox();
 
@@ -271,10 +268,9 @@ FontMgr::TitledFBM
 	int                theTitleFore,
 	int                theTitleBack,
 	int                theTitleFont,
-   Bool					scale
+	Bool					scale
 	)
 {
-
 #ifdef WIN32S
 	theFore = AddPalShift(theFore);
 	theBack = AddPalShift(theBack);
@@ -298,7 +294,7 @@ FontMgr::TitledFBM
 		msgMgr->Fatal(SrcLoc,Msg_NoWindowTitle);
    // calculate the title size
    SetFont(theTitleFont);
-	int titleHeight = pointSize+1;
+	int titleHeight = pointSize + 1;
 	// check title will fit in the given size (adjust for border)
    text = theTitleText;
 	int titleWidth = TextWidth(0,10000) + 2;
@@ -306,10 +302,11 @@ FontMgr::TitledFBM
       titleWidth += 2;
       titleHeight += 2;
    }
-	if (titleWidth > BMWidth)
-	   msgMgr->Fatal(SrcLoc,Msg_WindowTitleTooBig);
-	if (titleHeight > BMHeight)
-		msgMgr->Fatal(SrcLoc,Msg_WindowTitleTooBig);
+
+	if (titleWidth > BMWidth || titleHeight > BMHeight)
+//	   msgMgr->Fatal(SrcLoc,Msg_WindowTitleTooBig);
+		msgMgr->Fatal ( "title too big for window: (%d, %d)  (%d, %d)", titleWidth, titleHeight, BMWidth, BMHeight );
+
 	title = theTitleText;
 	titleSize = titleHeight;
 	titleFont = theTitleFont;
@@ -514,6 +511,7 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 		// we don't want word wrap
       
 		theRect.B.x = TextWidth(0,10000) - 1;
+		theRect.B.y = pointSize;
 	}
 	else {
 		if (!maxSize) maxSize = DEFAULTWIDE * xRes / LOWRESX;
@@ -542,13 +540,13 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 		theRect.B.y -= 1;
 		if (maxSize > longest) theRect.B.x = longest - 1;
 	}
-   if (scale) {
-      theRect.A.x = theRect.A.x * LOWRESX / xRes;
-      theRect.A.y = theRect.A.y * LOWRESY / yRes;
-      theRect.B.x = (theRect.B.x * LOWRESX + xRes - 1) / xRes;
-      theRect.B.y = (theRect.B.y * LOWRESY + yRes - 1) / yRes;
-   }
-   //theRect.Scale(LOWRESX,xRes,LOWRESY,yRes);
+	if (scale) {
+		theRect.A.x = theRect.A.x * LOWRESX / xRes;
+		theRect.A.y = theRect.A.y * LOWRESY / yRes;
+		theRect.B.x = (theRect.B.x * LOWRESX + xRes - 1) / xRes;
+		theRect.B.y = (theRect.B.y * LOWRESY + yRes - 1) / yRes;
+//		theRect.Scale(LOWRESX,xRes,LOWRESY,yRes);
+	}
 	SetFont(oldfont);
 	fore = oldcolor;
    mode = oldmode;
@@ -671,33 +669,9 @@ FontMgr::Frame(SOL_Rect& theRect,int thickness,uchar theColor,Bool scale)
 }
 
 void
-KInvertRect(argList)
-{
-	// Input
-	//      arg1-----the bitmap memID
-	//              arg2-----the rectangle x1
-	//              arg3-----the rectangle y1
-	//              arg4-----the rectangle x2
-	//              arg5-----the rectangle y2
-	//              arg6-----the bitmap width
-	//              arg7-----the foreground color
-	//              arg8-----the background color
-	//              
-	// Ouput
-	//    acc------the number of cels in the object's view,loop
-
-	SOL_Rect r(arg(2),arg(3),arg(4),arg(5));
-
-	fontMgr->InvertRect(arg(1),
-							  arg(6),
-							  r,
-							  arg(7),
-							  arg(8));
-}
-
-void
 FontMgr::InvertRect(MemID theBM,int theWidth,SOL_Rect theRect,char fore,char back,Bool scale)
 {
+	
 	// Switches the fore ground and background 
 	// colors for the given rectangles
    if (scale) {
@@ -706,8 +680,15 @@ FontMgr::InvertRect(MemID theBM,int theWidth,SOL_Rect theRect,char fore,char bac
    }
 
 	// Sanity check
+	int i = theRect.B.y;
+	int j = theRect.B.x;
+	CelHeader* celHeader = ((CelHeader*) memMgr->GetAddr(theBM));
 	if ((theRect.B.y*theWidth + theRect.B.x + CELHEADERSIZE) >= memMgr->GetSize(theBM))
-		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
+//		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
+		msgMgr->Fatal("InvertRect too big: %d >= %d",
+			theRect.B.y*theWidth + theRect.B.x + CELHEADERSIZE, 
+			memMgr->GetSize(theBM)
+			);
 
 	// Calculate the box address
 	char* penAddr = (char*) memMgr->GetAddr(theBM);
@@ -761,7 +742,7 @@ FontMgr::BuildFontTable(int theFont)
 #else
 
 	if(font == SYSTEMFONT) {
-		fontHeader = (FontHeader *) systemFont;
+		fontHeader = (FontHeader *) sciSystemFont;
 	} else {
 		MemID fontID = resMgr->Get(MemResFont,font);
 		fontHeader = (FontHeader *) memMgr->GetAddr(fontID);
@@ -806,14 +787,14 @@ FontMgr::TextWidth(int index,int count)
 			if(!(count-- > 0)) break;
 
 			if((*str == 'c' || *str == 'a' || *str == 'f') &&  count-- > 0) {
-		int action = *str;
+				int action = *str;
 				str++;
 				while(*str >= '0' && *str <= '9' && count) {
 					newNum *= 10;
 					newNum += *str++ - '0';
-	       count--;
+	   		   count--;
 				}
-	    if(count > 0)
+			   if(count > 0)
 				   switch(action) {
 					   case 'c':
 						   fore = newNum;
@@ -834,6 +815,7 @@ FontMgr::TextWidth(int index,int count)
 
 		} else 
 			width += fontWidths[*str];
+
       str++;
 	}
 	return width;
@@ -874,7 +856,7 @@ FontMgr::CharHeight(uchar theChar,Bool scale)
 #else
 
 	if(font == SYSTEMFONT) {
-		fontHeader = (FontHeader *) systemFont;
+		fontHeader = (FontHeader *) sciSystemFont;
 	} else {
 		MemID fontID = resMgr->Get(MemResFont,font);
 		fontHeader = (FontHeader *) memMgr->GetAddr(fontID);
@@ -906,7 +888,8 @@ FontMgr::DrawTextBox()
 
 	int strOffset = 0;
    if (!GetLongest(&strOffset,wide))
-		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
+		msgMgr->Fatal ( "DrawTextBox GetLongest=0" );
+//		msgMgr->Fatal(SrcLoc,Msg_WindowTextTooBig);
 	strOffset = 0;
 
 	int start = 0;
@@ -1084,7 +1067,7 @@ FontMgr::DrawChar(uchar theChar)
 #else
 
 	if(font == SYSTEMFONT) {
-		fontHeader = (FontHeader *) systemFont;
+		fontHeader = (FontHeader *) sciSystemFont;
 	} else {
 		MemID fontID = resMgr->Get(MemResFont,font);
 		fontHeader = (FontHeader *) memMgr->GetAddr(fontID);
@@ -1161,6 +1144,7 @@ FontMgr::GetLongest(int* strOffset,int maxPixels)
 
 	int first = *strOffset;
 	uchar* str = (uchar*) memMgr->GetAddr(text) + first;
+//msgMgr->Mono("maxPixels %d [%s]\n", maxPixels, (char*) *text);
 
 	int last = first;
 
@@ -1250,7 +1234,7 @@ FontMgr::GetLongest(int* strOffset,int maxPixels)
 				lastFont = font;
 				lastColor = fore;
 				lastMode = mode;
-			} 
+			}
 			else {
 				*strOffset = last;
 				// eliminate trailing spaces
@@ -1284,64 +1268,120 @@ FontMgr::GetLongest(int* strOffset,int maxPixels)
 }
 
 void
-KTextSize(argList)
-
-	// Input -
-	//              arg(1) = ArrayID to array for rect
-	//              arg(2) = TextID to string data
-	//              arg(3) = font
-	//              arg(4) = maximum width (0 is default of 192)
-	//              arg(5) = Scale or not
+KInvertRect(argList)
+{
+	// Input
+	//      arg1-----the bitmap memID
+	//              arg2-----the rectangle x1
+	//              arg3-----the rectangle y1
+	//              arg4-----the rectangle x2
+	//              arg5-----the rectangle y2
+	//              arg6-----the bitmap width
+	//              arg7-----the foreground color
+	//              arg8-----the background color
 	//
-	//      Returns -
-	//              Nothing.
+	// Ouput
+	//    acc------the number of cels in the object's view,loop
 
-{
-	uint width = 0;
-   Bool scale = True;
-   if (argCount >=5)
-      scale = arg(5);
-	if (argCount >= 4)
-		width = arg(4);
-	SOL_Rect r(0,0,0,0);
-	fontMgr->SetFont(arg(3));
-	fontMgr->TextSize((MemID) arg(2),width,r,scale);
+	SOL_Rect r(arg(2),arg(3),arg(4),arg(5));
 
-	SCIWord* data = (SCIWord*) ((ArrayID) arg(1)).Data();
-	data[0] = r.A.x;
-	data[1] = r.A.y;
-	data[2] = r.B.x;
-	data[3] = r.B.y;
+	fontMgr->InvertRect(arg(1),
+							  arg(6),
+							  r,
+							  arg(7),
+							  arg(8));
 }
 
 void
-KTextWidth(argList)
+KText(argList)
 {
-	// Input
-	//      arg1-----the MemID
-	//                arg2-----the font number
+	enum {
+		fTextSize,
+		fTextWidth,
+		fTextColors,
+		fTextFonts,
+	};
 
-	MemID memID = arg(1);
-	fontMgr->SetFont(arg(2));
-	pm.acc = fontMgr->StringWidth(memID);
+	switch ( arg(1) ) {
+		// Input -
+		//              arg(2) = ArrayID to array for rect
+		//              arg(3) = TextID to string data
+		//              arg(4) = font
+		//              arg(5) = maximum width (0 is default of 192)
+		//              arg(6) = Scale or not
+		//
+		//      Returns -
+		//              Nothing.
+		case fTextSize: {
+			uint width = 0;
+   		Bool scale = True;
+
+   		if (argCount >= 6)
+      		scale = arg(6);
+
+			if (argCount >= 5)
+				width = arg(5);
+
+			SOL_Rect r(0,0,0,0);
+
+			fontMgr->SetFont(arg(4));
+			fontMgr->TextSize((MemID) arg(3),width,r,scale);
+
+			SCIWord* data = (SCIWord*) ((ArrayID) arg(2)).Data();
+
+			data[0] = r.A.x;
+			data[1] = r.A.y;
+			data[2] = r.B.x;
+			data[3] = r.B.y;
+
+			break;
+		}
+
+		case fTextWidth: {
+			MemID memID = arg(2);
+			fontMgr->SetFont(arg(3));
+
+			pm.acc = fontMgr->StringWidth(memID);
+
+			break;
+		}
+
+		case fTextColors:
+		case fTextFonts:
+			break;
+
+		default:
+			msgMgr->Fatal ( "Unknown command in call to KText." );
+			break;
+	}
 }
 
-void
-KPointSize(argList)
+void 
+KFont(argList)
 {
-	// Input
-	//                arg1-----the font number
+	enum {
+		fPointSize,
+		fSetFontRes,
+	};
 
-	fontMgr->SetFont(arg(1));
-	pm.acc = fontMgr->PointSize();
-}
+	switch ( arg(1) ) {
+		case fPointSize: {
+			fontMgr->SetFont(arg(2));
+			pm.acc = fontMgr->PointSize();
 
-void
-KSetFontRes(argList)
-{ 
-   fontMgr->SetRes(arg(1),arg(2));
+			break;
+		}
+
+		case fSetFontRes: {
+		   fontMgr->SetRes(arg(2),arg(3));
+			break;
+		}
+
+		default:
+			msgMgr->Fatal ( "Unknown command in call to KFont." );
+			break;
+	}
 }
 
 // The font manager
 FontMgr*        fontMgr;
-

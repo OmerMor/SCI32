@@ -24,6 +24,8 @@
 #include "sound.hpp"
 #include "soundwin.hpp"
 #include "timew.hpp"
+#include "mmsystem.h"
+#include "moview.hpp"
 
 int scimain (int argc, PSTR argv[]);
 
@@ -37,6 +39,7 @@ BOOL                    FAR PASCAL _export testDlgProc (HWND, WORD, WORD, LONG);
 BOOL                    doDialog(int);
 void                    GetProfileInfo (void);
 BOOL                    GetTFOption (LPSTR, BOOL);
+int                     GetIntOption (LPSTR, int);
 void                    GetScreenInfo (void);
 void                    ReadCommandLine (LPSTR);
 void                    MBox (char *, char *);
@@ -104,6 +107,7 @@ BOOL	  TITLEBAR = TRUE;
 BOOL	  ALLOWRESIZE = TRUE;
 BOOL	  TRUECOLOR = FALSE;
 BOOL	  TRAPCLOSE = TRUE;
+BOOL	  COLORCURSOR = FALSE;
 Bool	  WING = FALSE;
 #ifdef WIN32S
 int     wingMinK = 3000;
@@ -138,12 +142,9 @@ int     sciMinK = 1500;
 int     sciMaxK = 8000;
 int     vmapWidth = 640;
 int     vmapHeight = 480;
-int	  DACSize = 10240;
-#ifndef COLORCUR
+int	  DACSize;
 int	  cursorViewAdd = 0;
-#else
 int	  maxCursorSize = 600;
-#endif
 Bool    isMaximized = False;
 Bool    minMaxFlag = False;
 extern	int	writeCount;
@@ -207,11 +208,11 @@ RECT            windRect;
 		wndclass.lpszMenuName   = NULL ;
 		wndclass.lpszClassName  = szAppName ;
 
-#ifndef COLORCUR
-		hAltCur = LoadCursor(NULL, IDC_WAIT);
-#else
+//#ifndef COLORCUR
+//		hAltCur = LoadCursor(NULL, IDC_WAIT);
+//#else
 		hAltCur = LoadCursor(NULL, IDC_ARROW);
-#endif
+//#endif
 		hCurCur = hAltCur;
 		SetCursor(hCurCur);
 
@@ -380,6 +381,7 @@ LPSTR   inChar;
 void GetProfileInfo (void)
 {
 char            buff[80];
+unsigned			 aSize, dSize;
 
 	if (!GetPrivateProfileString ((LPSTR)szInfo, "title", NULL, szTitle,
 											sizeof(szTitle), (LPCSTR)szIniFile))
@@ -413,15 +415,15 @@ char            buff[80];
 #ifdef WIN32S
 	wingMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "wingmink", 3000, (LPSTR)szIniFile);
 #endif
-#ifndef COLORCUR
 	cursorViewAdd	= GetPrivateProfileInt ((LPSTR)szInfo, "cursorviewadd", 0, (LPSTR)szIniFile);
-#else
 	maxCursorSize	= GetPrivateProfileInt ((LPSTR)szInfo, "maxCursorSize", 600, (LPSTR)szIniFile);
 	maxCursorSize = (((maxCursorSize + 3) >> 2) << 2);
-#endif
 	forcePPC			= GetPrivateProfileInt ((LPSTR)szInfo, "forceppc", 0, (LPSTR)szIniFile);
-	DACSize			= GetPrivateProfileInt ((LPSTR)szInfo, "DACSize", GetDACDefaultSize(), (LPSTR)szIniFile);
-   DACSize = ((DACSize + 1023) / 1024) * 1024;
+	dSize 			= (unsigned)GetIntOption ("DACSize", GetDACDefaultSize());
+	aSize				= GetIntOption ("audioSize", INT_HBUFFSIZE*2);
+	AdjustAudBuffSizes(&aSize,&dSize);
+	DACSize			= (int)dSize;
+
 	asyncCheckFreq	= GetPrivateProfileInt ((LPSTR)szInfo, "asynccheckfreq", 10, (LPSTR)szIniFile);
 	monoDisp			= GetPrivateProfileInt ((LPSTR)szInfo, "monodisp", 0, (LPSTR)szIniFile);
 
@@ -439,6 +441,7 @@ char            buff[80];
 	DOPPCTEST		= GetTFOption("doppctest",TRUE);
 	ALLOWRESIZE		= GetTFOption("allowresize",TRUE);
 	TRAPCLOSE		= GetTFOption("trapclose",TRUE);
+	COLORCURSOR		= GetTFOption("colorcursor",FALSE);
 #ifdef WIN32S
 	WING				= GetTFOption("wing",TRUE);
 #endif
@@ -460,6 +463,28 @@ char	TFBuff[10];
 	return defaultVal;
 }
 
+int	GetIntOption(LPSTR optionName, int defaultVal)
+{
+char	str[20];
+int	num;
+
+	GetPrivateProfileString ((LPSTR)szInfo, optionName, "q", str,
+									sizeof(str), (LPSTR)szIniFile);
+	if (str[0] == 'q')
+		return defaultVal;
+
+	if (strchr(str,'X') || strchr(str,'x'))
+		sscanf(str, "%x", &num);
+	else {
+		sscanf(str, "%d", &num);
+		if (strchr(str,'K') || strchr(str,'k'))
+			num *= 1024;
+		else if (strchr(str,'M') || strchr(str,'m'))
+			num *= 1024 * 1024;
+	}
+	return num;
+}
+
 void
 GetScreenInfo(void)
 {
@@ -474,6 +499,8 @@ int maxClientX, maxClientY;
 	nASPECTX = GetDeviceCaps (hMyDC, ASPECTX);
 	nASPECTY = GetDeviceCaps (hMyDC, ASPECTY);
 	nBITSPIXEL = GetDeviceCaps (hMyDC, BITSPIXEL);
+	if (nBITSPIXEL > 24)		//some drivers have reported 32 bits
+		nBITSPIXEL = 24;
 	nPLANES = GetDeviceCaps (hMyDC, PLANES);
 	nCOLORS = 1 << (nPLANES * nBITSPIXEL);
 	DeleteDC (hMyDC);
@@ -646,14 +673,12 @@ BOOL                            dlgResult;
 void
 MBox (char* text, char* title)
 {
-#ifdef COLORCUR
-	ShowCursor(1);
-#endif
+//	if (COLORCURSOR)
+//		ShowCursor(1);
 	OemToAnsiBuff((LPCSTR)text, (LPSTR)text, lstrlen((LPCSTR)text));
 	MessageBox (hMyWnd, (LPSTR)text, (LPSTR)title, MB_OK | MB_TASKMODAL);
-#ifdef COLORCUR
-	ShowCursor(0);
-#endif
+//	if (COLORCURSOR)
+//		ShowCursor(0);
 }
 
 
@@ -784,14 +809,17 @@ struct {
 			if (pm.game) {
 				mPoint.x = LOWORD(lParam);
 				mPoint.y = HIWORD(lParam);
-				((MouseWin*)mouse)->WinMouseButton(iMessage, mPoint);
+				if (COLORCURSOR)
+					((MouseWinClr*)mouse)->WinMouseButton(iMessage, mPoint);
+				else
+					((MouseWin*)mouse)->WinMouseButton(iMessage, mPoint);
 			}
 			break;
 
 		case WM_MOUSEMOVE:                      /* mouse movement event */
 			if (pm.game) {
-				mPoint.x = LOWORD(lParam);
-				mPoint.y = HIWORD(lParam);
+				mPoint.x = (short)LOWORD(lParam);
+				mPoint.y = (short)HIWORD(lParam);
 				mouse->SetPos(mPoint);
 			}
 			break;
@@ -880,6 +908,10 @@ struct {
 						break;
 				}
 			return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
+
+		case MM_MCINOTIFY:
+			AviNotify(wParam,lParam);
+			break;
 
 		case WM_PAINT:                                  /* re-paint client area */
 			hPaintDC = BeginPaint (hWnd, &ps);

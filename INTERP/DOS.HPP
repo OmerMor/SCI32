@@ -41,7 +41,7 @@ Bool	ExistDrive(char);
 void	ResetDisk();
 ulong	RGetFreeSpace(char drive);
 Bool	IsDriveAOrB(const char*);
-ulong	LSeek(int handle, ulong offset, int mode);
+long	LSeek(int handle, long offset, int mode);
 int	Creat(const char* name, uint mode);
 int	Open(const char* name, uint mode);
 int	ReadMemID(int file, MemID id, int length);

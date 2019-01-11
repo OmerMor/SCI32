@@ -23,7 +23,7 @@ protected:
 	Method			method;
 	volatile Bool	tripped;
 
-} extern * critErrHandler;
+};
+extern CritErrHandler * critErrHandler;
 
 #endif
-

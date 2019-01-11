@@ -95,6 +95,21 @@ struct PMIP
 		return c;
 	}
 	
+	void EnsureValid(const char* msg) const
+	{
+		//	make sure the instruction pointer is valid, and abort if it's not
+
+		if (!IsValid())
+			msgMgr->Fatal("%s: PMIP's id isn't valid\n", msg);
+		if (ptr < (char*) *id)
+			msgMgr->Fatal("%s: PMIP's ptr is less than start of code\n", msg);
+	}
+	
+	Bool IsValid() const
+	{
+		return id.IsValid() && id.GetMemType() == MemCode;
+	}
+	
 	size_t Offset() const
 	{
 		return ptr - (char*) *id;
@@ -145,7 +160,6 @@ struct PMIP
 	enum { MaxStack = 100 };
 
 private:
-//	PMIP(MemID id, char* ptr);
 	PMIP(MemID id, char* ptr) : id(id), ptr(ptr)
 	{
 	}

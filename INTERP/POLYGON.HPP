@@ -85,11 +85,10 @@ public:
 #define NAP 1  // Near point access polygon
 #define BAP 2  // Barred access polygon
 #define CAP 3  // Contained accessable polygon
-
-#define MTP 16 // Merged total access polygon
-#define MNP 17 // Merged near point access polygon
-#define MBP 18 // Merged barred access polygon
-#define MCP 19 // Merged contained accessable polygon
+#define MBP 4  // Merge this barred access polygon
+#define MTP 5 	// Merged total access polygon
+#define MNP 6 	// Merged near point access polygon
+#define MCP 7 	// Merged contained accessable polygon
 
 #define MAXOPTIMIZEDNODES 3
 // allows 1 x and/or y delta error
@@ -101,6 +100,7 @@ MemID GetPath(SCI_Point& A,SCI_Point& B,SOL_Polygon* polylist,int opt,SCI_Point&
 int   PointInterior(SCI_Point& M,SCI_Point* polygon,int n);
 MemID MergePoly(SCI_Point* polygon,SOL_Polygon* polylist);
 
+void			AddPolygon(MemID polyListID,SCI_Point* points,int size,uchar type);
 void        AvoidPath(SCI_Point&,SCI_Point&,SOL_Polygon*,int,SCI_Point*);
 PolyNode*   AvoidPolygons(SCI_Point&,SCI_Point&,SOL_Polygon*);
 MemID       BuildPolygonList(SOL_ListID,int);

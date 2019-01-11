@@ -8,9 +8,6 @@
 #include "rectlist.hpp"
 #include "screen.hpp"
 
-
-
-
 void
 Screen::AbortPlane(Plane* plane)
 {
@@ -96,6 +93,30 @@ Screen::Clear()
 	planes.Clear();
 	showList.Clear();
 }
+
+#ifdef MACINTOSH
+
+#define defaultPlaneID 20000
+
+void Screen::ClearForRestoreGame()
+{
+	long		i, j;
+	
+	j = planes.Length();
+	
+	for	(i = 0; i < j; i++)
+	{
+		if	(planes.Pointer(i)->Id() != defaultPlaneID)
+		{
+			
+			graphMgr->DeletePlane(planes.Pointer(i)->Id());
+			//planes.Delete(i);
+			//j--;
+		}
+
+	}
+}
+#endif
 
 void
 Screen::PlaneRect(int planeID,SOL_Rect& planeRect)
@@ -533,4 +554,3 @@ Screen::GetPlane(int planeId)
 		return NULL;
 	return &planes[index];
 }
-

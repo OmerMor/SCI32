@@ -38,6 +38,9 @@ class Plane
 	Plane(ObjectID);
 	Plane(const Plane&);
 	Plane(const SOL_Rect&);
+	
+	// Deconstructor
+	~Plane(){}
 
 	// Operators
 	Plane& 			operator=(const Plane&);
@@ -164,4 +167,4 @@ void	LocalToGlobal(int planeID, SOL_Point&);
 void	MergeToRectList(const SOL_Rect&, RectList& myEraseList);
 
 #endif
-
+

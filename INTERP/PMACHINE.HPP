@@ -60,7 +60,11 @@ struct PMachine : Saveable {
 
 	Acc			acc;
 	unsigned		curScriptNum;
+#ifdef MACINTOSH
+	char			curSourceFile[32];
+#else
 	char			curSourceFile[_MAX_PATH];
+#endif
 	int			curSourceLineNum;
 	ObjectID		game;
 	VariableID	globals;
@@ -78,8 +82,8 @@ struct PMachine : Saveable {
 protected:
 	static void		ExecuteCode();
 
-} extern pm;
+};
+extern PMachine pm;
 
 #endif
 
-

@@ -16,7 +16,9 @@ KbdMgr::MapToDir(SOL_Event* event) const
 		Kbd::Key		key;
 		Kbd::Key		shiftKey;
 		Direction	dir;
-	} static dirMap[] = {
+	};
+	
+	static DirMap dirMap[] = {
 		Kbd::Up,		Kbd::ShiftUp,		dirN,
 		Kbd::PgUp,	Kbd::ShiftPgUp,	dirNE,
 		Kbd::Right,	Kbd::ShiftRight,	dirE,
@@ -38,4 +40,3 @@ KbdMgr::MapToDir(SOL_Event* event) const
 		}
 	}
 }
-

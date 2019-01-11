@@ -32,12 +32,11 @@
 #ifdef DEBUG
 #include "debug.hpp"
 #endif
-#include "memmgr.hpp"
-#include "msg.hpp"
-#include "savegame.hpp"
 #include "kernel.hpp"
+#include "memmgr.hpp"
 #include "newroom.hpp"
 #include "pmachine.hpp"
+#include "savegame.hpp"
 
 #define	MAXIMUM_SYSTEM_MEMORY			8192* 1024
 #define	MINIMUM_SYSTEM_MEMORY			500 * 1024
@@ -46,7 +45,7 @@
 #define	EXCLUDE_CONVENTIONAL_MEMORY	200 * 1024
 
 // Count of the initial number of descriptors
-#define MAXDESCRIPTORS 2000
+#define NUMDESCRIPTORS 2000
 
 // Descriptors memory allocation attributes
 #define HANDLESATTRIBUTES HANDLEMEMORY+MOVEABLE
@@ -83,6 +82,8 @@ MemoryMgr::MemoryMgr()
 	assert(i == 1);
 	i = sizeof(Descriptor);
 	assert(i == 32);
+	i = SIGNATURESIZE & 3;
+	assert(i == 0);
 	totalMemory = 0;
 }
 
@@ -114,9 +115,14 @@ MemoryMgr::Init(size_t maxSize)
 		maxSize = MAXIMUM_SYSTEM_MEMORY;
 
   	// Get system memory
+	maxSize &= 0xfffffff0;
 	while (!(memoryBase = GetSysMem(maxSize)))
 		maxSize -= EXCLUDE_SYSTEM_MEMORY_INCR;
 	totalMemory = maxSize;
+	int t = totalMemory & 3;
+	assert(t == 0);
+	t = (int)memoryBase & 3;
+	assert(t == 0);
 
 	// Get conventional memory
 	char* convBase = 0;
@@ -132,9 +138,11 @@ MemoryMgr::Init(size_t maxSize)
 
 	mruList = mruListEnd = freeList = freeListEnd = ordList = ordListEnd = 0;
 
-	maxDescriptors = MAXDESCRIPTORS;
+	maxDescriptors = NUMDESCRIPTORS;
 	needMoreDescs = False;
-	size_t theDescriptorsSize  = maxDescriptors * sizeof(Descriptor) + SIGNATURESIZE;
+	size_t theDescriptorsSize = maxDescriptors * sizeof(Descriptor) + SIGNATURESIZE;
+	size_t ii = theDescriptorsSize & 3;
+	assert (ii == 0);
 
   	char* DescriptorsAddr = memoryBase;
 	desc = new(DescriptorsAddr) Descriptor;
@@ -561,6 +569,7 @@ theMemAttrs&0xff,theNumber);
 
 	// Set the attributes
 	desc[theID].memInfo.attributes = theMemAttrs & (~UNUSEDATTRS);
+	desc[theID].memInfo.bits.alignBytes = (4 - (theSize & 3)) & 3;
 
 	// Save the number
 	desc[theID].resNumber = theNumber;
@@ -588,33 +597,34 @@ MemoryMgr::GetLow(size_t theSize,ReservedHandle requestHandle)
 	// using a best fit algorithm
 	SOL_Handle 	bestFitID = 0;
 	int			bestFit = 0x7FFFFFFF;
+	int			alocSize = (theSize + 3) & 0xFFFFFFFC;
 
 	for (	SOL_Handle freeID = freeList;
 			freeID && desc[freeID].memInfo.bits.moveable;
 			freeID = desc[freeID].next) {
 
-		if (theSize < desc[freeID].size) {
+		if (alocSize < desc[freeID].size) {
 			int thisFit;
-			if ((thisFit = desc[freeID].size - theSize) < bestFit) {
+			if ((thisFit = desc[freeID].size - alocSize) < bestFit) {
 				bestFit = thisFit;
 				bestFitID = freeID;
 			}
-		} else if (theSize == desc[freeID].size) {
+		} else if (alocSize == desc[freeID].size) {
 			bestFit = 0;
 			bestFitID = freeID;
 			break;
 		}
 	}
 	if (!bestFitID) {
-		bestFitID = Purge(theSize);
+		bestFitID = Purge(alocSize);
 		if (!bestFitID)
 			msgMgr->Fatal("Out of Low memory; %u bytes requested",theSize);
-		bestFit = desc[bestFitID].size - theSize;
+		bestFit = desc[bestFitID].size - alocSize;
 	}
 
 	// need a handle for the allocated memory
 	SOL_Handle theID = GetNewDescriptor(requestHandle);
-	desc[theID].size = theSize;
+	desc[theID].size = alocSize;
 	desc[theID].data = desc[bestFitID].data;
 	AddBefore(theID,mruList,&mruList,&mruListEnd,bestFitID,True);
 
@@ -624,8 +634,8 @@ MemoryMgr::GetLow(size_t theSize,ReservedHandle requestHandle)
    	FreeDescriptor(bestFitID);
    } else {
 		// adjust the partially consumed free block
-		desc[bestFitID].size -= theSize;
-		desc[bestFitID].data += theSize;
+		desc[bestFitID].size -= alocSize;
+		desc[bestFitID].data += alocSize;
    }
 
 #ifdef DEBUG
@@ -641,7 +651,9 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 {
 	// using a first fit algorithm
 
-	if (!freeList && !Purge(theSize))
+	int alocSize = (theSize + 3) & 0xFFFFFFFC;
+
+	if (!freeList && !Purge(alocSize))
 		msgMgr->Fatal("Out of High memory; %u bytes requested",theSize);
 
 	SOL_Handle freeID;
@@ -649,7 +661,7 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 	Bool found = False;
 	for (	freeID = freeListEnd; freeID; freeID = desc[freeID].prev) {
 
-		if (theSize <= desc[freeID].size) {
+		if (alocSize <= desc[freeID].size) {
 			if (!desc[freeID].memInfo.bits.moveable ||
 				 !desc[freeID].nextO ||
 				 !desc[desc[freeID].nextO].memInfo.bits.moveable
@@ -662,7 +674,7 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 	}
 
   	if (!found) {
-		if (!Purge(theSize))
+		if (!Purge(alocSize))
 			msgMgr->Fatal("Out of High memory; %u bytes requested",theSize);
 		Pack();
 		freeID = freeList;
@@ -670,17 +682,17 @@ MemoryMgr::GetHigh(size_t theSize,ReservedHandle requestHandle)
 
 	// need a handle for the allocated memory
 	SOL_Handle theID = GetNewDescriptor(requestHandle);
-	desc[theID].size = theSize;
-	desc[theID].data = desc[freeID].data + desc[freeID].size - theSize;
+	desc[theID].size = alocSize;
+	desc[theID].data = desc[freeID].data + desc[freeID].size - alocSize;
 	AddBefore(theID,mruList,&mruList,&mruListEnd,freeID,False);
 
-	if (theSize == desc[freeID].size) {
+	if (alocSize == desc[freeID].size) {
    	// erradicate the consumed free block
    	DeleteFromList(freeID,&freeList,&freeListEnd);
    	FreeDescriptor(freeID);
 	} else {
 		// adjust the partially consumed free block
-		desc[freeID].size -= theSize;
+		desc[freeID].size -= alocSize;
 	}
 
 #ifdef DEBUG
@@ -769,7 +781,7 @@ MemoryMgr::Free(SOL_Handle theID)
 //				break;
 //		}
 		for (SOL_Handle id = freeList;
-			  (desc[id].data < desc[theID].data) && id;
+			  (id && desc[id].data < desc[theID].data);
 			  id = desc[id].next) {	}
 
 		if (!id) {
@@ -1063,7 +1075,7 @@ MemoryMgr::Move(SOL_Handle theID)
 	SOL_Handle theNewID = Alloc
 					(
 					attributes,
-					desc[theID].size - SIGNATURESIZE,
+					GetSize(theID),
 					desc[theID].resNumber,
 					desc[theID].client,
 					desc[theID].initChar
@@ -1075,7 +1087,7 @@ MemoryMgr::Move(SOL_Handle theID)
 //?	desc[theNewID].initChar = desc[theID].initChar;
 
 	// Move the data
-	memcpy(desc[theNewID].data,desc[theID].data,desc[theID].size - SIGNATURESIZE);
+	memcpy(desc[theNewID].data,desc[theID].data,GetSize(theID));
 
    // Lets switch handles now
 	Descriptor saveDescriptor = desc[theNewID];
@@ -1117,17 +1129,21 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 
 	CheckValid(theID);
 
-	size_t memorySize = theNewSize + SIGNATURESIZE;
+	size_t memorySize = ((theNewSize + 3) & 0xFFFFFFFC) + SIGNATURESIZE;
 
 	if (desc[theID].size < memorySize) {
 
 		// Expanding...
 
-		if (theNewID && desc[theNewID].memInfo.bits.freeMemory) {
-			// the very next block is free...
-			size_t moreBytes = memorySize - desc[theID].size;
+		size_t moreBytes = memorySize - desc[theID].size;
+		if (	theNewID && 
+				desc[theNewID].memInfo.bits.freeMemory &&
+				desc[theNewID].size >= moreBytes
+			) {
+			// the very next block is free and large enough...
+
 			if (desc[theNewID].size > moreBytes) {
-				// ...and more than large enough
+				// ...but *more* than large enough
 				desc[theNewID].data += moreBytes;
 				desc[theNewID].size -= moreBytes;
 #ifdef DEBUG
@@ -1146,9 +1162,8 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 #ifdef DEBUG
 				WriteSignature(theID);
 #endif
-				return;
-			} else if (desc[theNewID].size == moreBytes) {
-				// ...and just large enough
+			} else {
+				// ... but *exactly* large enough
 #ifdef DEBUG
 				EraseSignature(theID);
 #endif
@@ -1166,50 +1181,50 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 #endif
    			DeleteFromList(theNewID,&freeList,&freeListEnd);
    			FreeDescriptor(theNewID);
-				return;
 			}
 
+		} else {
+
+   		// Allocate a new area of memory large enough
+  			theNewID = 
+     			Alloc
+        			(
+					desc[theID].memInfo.attributes,
+         		memorySize,
+					desc[theID].resNumber,
+					desc[theID].client
+        			);
+			memcpy(desc[theNewID].data,desc[theID].data,desc[theID].size - SIGNATURESIZE);
+
+			// If initialize attribute then set the extra memory to the init character
+			if (desc[theID].memInfo.bits.initMemory) {
+     			memset
+        			(
+					desc[theNewID].data + desc[theID].size - SIGNATURESIZE,
+					desc[theID].initChar,
+					memorySize - desc[theID].size
+        			);
+      	}
+			if (theID == descID)	{
+				desc = (Descriptor*) desc[theNewID].data;
+				desc[theNewID].memInfo.attributes |= HANDLESATTRIBUTES;
+				desc[theNewID].memInfo.type = MemDescriptors;
+			}
+			// Lets switch the data that each handle is looking at!
+			char* data = desc[theNewID].data;
+			desc[theNewID].data = desc[theID].data;
+			desc[theID].data = data;
+
+			size_t size = desc[theNewID].size;
+			desc[theNewID].size = desc[theID].size;
+			desc[theID].size = size;
+
+			SwapOrderedLinks(theID,theNewID);
+
+   		// free the old memory allocation
+			desc[theNewID].client = 0;
+  			Free(theNewID);
 		}
-
-   	// Allocate a new area of memory large enough
-  		theNewID = 
-     		Alloc
-        		(
-				desc[theID].memInfo.attributes,
-         	theNewSize,
-				desc[theID].resNumber,
-				desc[theID].client
-        		);
-		memcpy(desc[theNewID].data,desc[theID].data,desc[theID].size - SIGNATURESIZE);
-
-		// If initialize attribute then set the extra memory to the init character
-		if (desc[theID].memInfo.bits.initMemory) {
-     		memset
-        		(
-				desc[theNewID].data + desc[theID].size - SIGNATURESIZE,
-				desc[theID].initChar,
-				memorySize - desc[theID].size
-        		);
-      }
-		if (theID == descID)	{
-			desc = (Descriptor*) desc[theNewID].data;
-			desc[theNewID].memInfo.attributes |= HANDLESATTRIBUTES;
-			desc[theNewID].memInfo.type = MemDescriptors;
-		}
-		// Lets switch the data that each handle is looking at!
-		char* data = desc[theNewID].data;
-		desc[theNewID].data = desc[theID].data;
-		desc[theID].data = data;
-
-		size_t size = desc[theNewID].size;
-		desc[theNewID].size = desc[theID].size;
-		desc[theID].size = size;
-
-		SwapOrderedLinks(theID,theNewID);
-
-   	// free the old memory allocation
-		desc[theNewID].client = 0;
-  		Free(theNewID);
 
    } else if (desc[theID].size > memorySize) {
 
@@ -1232,6 +1247,7 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
      	Free(theNewID);
 
 	} // (else no change in size)
+	desc[theID].memInfo.bits.alignBytes = (4 - (theNewSize & 3)) & 3;
 }
 
 //*************************************************************************
@@ -1614,7 +1630,8 @@ enum {
 	MIFreeK,
 	MIFreeLow,
 	MIFreeHigh,
-	MITotalType
+	MITotalType,
+	MIGetType
 };
 
 void
@@ -1635,6 +1652,13 @@ KMemoryInfo(argList)
 
 		case MITotalType:
 			pm.acc = memMgr->TotalType((MemType) arg(2));
+			break;
+
+		case MIGetType:
+			if (((MemID) arg(2)).IsValid())
+				pm.acc = ((MemID) arg(2)).GetMemType();
+			else
+				pm.acc = -1;
 			break;
 
 		default:

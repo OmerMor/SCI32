@@ -45,13 +45,14 @@ public:
 	virtual void	BuildPatchTables();
 	virtual Bool	Check(MemType, ResNum);
 	virtual void	CheckDiscNum(uint);
+	virtual int		Close(int);
 	virtual MemID	Find(MemType, ResNum);
 	virtual MemID	Get(MemType, ResNum, Bool = False);
 	virtual Bool	LoadResMaps(uint);
 	virtual void	Lock(MemType, ResNum);
 	virtual TextID	MakeDebugDisplayStr();
 	virtual char*	MakeName(MemType, ResNum);
-	virtual int		Open(MemType, ResNum, char*);
+	virtual int		Open(MemType, ResNum, char* = 0);
 	virtual void	Release(MemType, ResNum);
 	virtual void	SetDiscardable(MemType, ResNum);
 	virtual void	SetNotDiscardable(MemType, ResNum);
@@ -103,7 +104,9 @@ _Packed struct ResDirEntry {
 };
 
 extern ResourceMgr*	resMgr;
+extern int				preVolLength;
 extern int				resVolFD;
+extern int				resVolFDPre;
 extern MemID			resourceMap;
 extern int				altVolFD;
 extern MemID			alternateMap;
@@ -113,4 +116,3 @@ extern int				altDirNum;
 extern int				discNum;
 
 #endif  //RESOURCE_HPP
-

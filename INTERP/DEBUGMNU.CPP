@@ -1,6 +1,8 @@
 //	debugmnu.cpp
-#ifdef DEBUG
+
 #include "sol.hpp"
+
+#ifdef DEBUG
 
 #include "debug.hpp"
 #include "debugmnu.hpp"
@@ -216,5 +218,3 @@ DebugMenuCmd::Claim(SOL_Event& event, Bool visible)
 }
 
 #endif
-
-

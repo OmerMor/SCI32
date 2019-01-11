@@ -3,9 +3,7 @@
 #define INCLUDE_MMSYSTEM_H
 #include "sciwin.hpp"
 #include "sol.hpp"
-#ifdef COLORCUR
 #include "bufferw.hpp"
-#endif
 #ifdef WIN32S
 #include "shiftpal.hpp"
 #include "wingfunc.hpp"
@@ -55,11 +53,10 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 		else
 			palmgr = New PaletteMgrIWin();
 
-#ifndef COLORCUR
-		cursor = New CursorWin();
-#else
-		cursor = New CursorWin(buffer);
-#endif
+		if (COLORCURSOR)
+			cursor = (CursorWin *)New CursorWinClr(buffer);
+		else
+			cursor = New CursorWin();
 
 		// Set up the DIB header
 		bi.bmih.biSize =				(DWORD)sizeof(BITMAPINFOHEADER);
@@ -90,7 +87,11 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 		else
 			palmgr = New PaletteMgrIWin();
 
-		cursor = New CursorWin();
+
+		if (COLORCURSOR)
+			cursor = (CursorWin *)New CursorWinClr(buffer);
+		else
+			cursor = New CursorWin();
 	}
 #endif
 }
@@ -202,27 +203,27 @@ int	i;
 	if (!showListSize)
 		return;
 
-#ifdef COLORCUR
-	for (i = 0;i < showListSize; i++)  {
-		SOL_Rect rect = next.ShowList()[i];
-		rect.A.x &= 0x7FFE;
-		rect.B.x |= 1;
-		GCursor().GonnaPaint(rect);
+	if (COLORCURSOR) {
+		for (i = 0;i < showListSize; i++)  {
+			SOL_Rect rect = next.ShowList()[i];
+			rect.A.x &= 0x7FFE;
+			rect.B.x |= 1;
+			GCursor().GonnaPaint(rect);
+		}
+		GCursor().PaintStarting();
+		for (i = 0; i < showListSize; i++)  {
+			SOL_Rect rect = next.ShowList()[i];
+			rect.A.x &= 0x7FFE;
+			rect.B.x |= 1;
+			ShowRect(&rect, buffer.start);
+		}
+		GCursor().DonePainting();
+		next.ShowList().Clear();
+	} else {
+		for (i = 0; i < showListSize; i++)
+			ShowRect(&next.ShowList()[i], buffer.start);
+		next.ShowList().Clear();
 	}
-	GCursor().PaintStarting();
-	for (i = 0; i < showListSize; i++)  {
-		SOL_Rect rect = next.ShowList()[i];
-		rect.A.x &= 0x7FFE;
-		rect.B.x |= 1;
-		ShowRect(&rect, buffer.start);
-	}
-	GCursor().DonePainting();
-	next.ShowList().Clear();
-#else
-	for (i = 0; i < showListSize; i++)
-		ShowRect(&next.ShowList()[i], buffer.start);
-	next.ShowList().Clear();
-#endif
 }
 
 
@@ -406,5 +407,6 @@ KIsHiRes(kArgs)
 {
 	pm.acc = HIRES;
 }
+
 
 

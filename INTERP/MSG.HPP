@@ -28,8 +28,8 @@ const Msg_DiskErrors					= 4;
 const Msg_LastPreload				= 24;
 
 const Msg_Sorry						= 25;
-//const Msg_Oops							= 26;
-//const Msg_NoDebug						= 27;
+const Msg_InvalidFileHandle		= 26;
+const Msg_InvalidSaveFunc			= 27;
 const Msg_NoAudioDrv					= 28;
 const Msg_NoAudio						= 29;
 //const Msg_CantFind					= 30;
@@ -94,7 +94,7 @@ const Msg_CursorUnHide				= 88;
 const Msg_StackUnderflow			= 89;
 //const Msg_ConfigFileName			= 90;
 //const Msg_InvalidFlag				= 91;
-//const Msg_ConfigFileOpen			= 92;
+const Msg_ConfigFileOpen			= 92;
 const Msg_NoWindowTitle				= 93;
 const Msg_TooManyScreenItems		= 94;
 const Msg_InvalidScreenItemIndex	= 95;
@@ -162,6 +162,7 @@ public:
 	virtual void Init();
 	
 	void	AddFatalStr(char* str);
+	void	AddPMIP(char* msg);
 
 	//	Alerts are used to display text to a customer or programmer
 	Bool	Alert(int errNum, ...);
@@ -178,7 +179,7 @@ public:
 	
 	void	Dump(char* fmt, ...);
 
-	char*	Get(int errNum, char *buf);
+	virtual	char*	Get(int errNum, char *buf); //KGN added virtual
 
 	void				Mono(char* fmt, ...);
 	void				MonoArgs(char* fmt, va_list);
@@ -192,7 +193,6 @@ public:
 	void	SetQuitStr(char* str);
 
 protected:
-	void	AddPMIP(char* msg);
 	void	AddSrcLoc(char* msg, char* fileName, int lineNum);
 
 	virtual Bool	AlertOutput(char* msg);
@@ -216,13 +216,12 @@ protected:
 	char	quitStr[MaxStr + 1];
 	char	sciFatalStr[MaxStr + 1];
 
-} extern * msgMgr;
+};
+extern MsgMgr * msgMgr;
 
 //	use SrcLoc as the first argument to Fatal to display the source location
 //	in the error message
 #define SrcLoc	'a', __FILE__, __LINE__
 
 #endif
-
-
 

@@ -88,6 +88,7 @@ struct Sample {
 	uchar		sequ;
 	int		start;
 	int		startLoc;
+	int		tag;
 	int		ticks;
 	uchar		verb;
 	int		volume;
@@ -140,9 +141,9 @@ void		ConvBase36(char*,int,int);
 void		DistortBuffer(int,char far *);
 void		DropSample(int);
 void		FillBuffer(int);
-Bool		FillRbotBuffer(int);
-Bool		FillRbotChannel(int);
-int		FindSampleN(argList,int);
+void		FillRbotBuffer8(int);
+void		FillRbotBuffer16(int);
+int		FindSampleN(argList,int,int tag = 0);
 void		FreeAudioDrv(void);
 void		GetConvBuff(int);
 char		GetDigit36(int);
@@ -159,7 +160,7 @@ int		GetBase36(char*,int);
 void
 KDoAudio(argList)
 {
-	int	n, saveCount;
+	int	n, saveCount, tag;
 	Bool	pause = False;
 
 	if (!audioInstalled || argCount < 1) {
@@ -184,7 +185,7 @@ KDoAudio(argList)
 				pm.acc = activeSamples;
 				break;
 			}
-			if (FindSampleN(args,0) != NO_SAMPLES) {
+			if ((n = FindSampleN(args,0)) != NO_SAMPLES && sample[n].pausedLoc) {
 				AudioResume(n);
 				pm.acc = sample[n].ticks;
 				break;
@@ -205,6 +206,10 @@ KDoAudio(argList)
 					sample[n].volume = arg(4);
 				else
 					sample[n].volume = MAXVOLUME;
+				if (argCount == 5)
+					sample[n].tag = arg(5);
+				else
+					sample[n].tag = 0;
 			} else {
 				sample[n].num = 0;
 				sample[n].module = arg(2);
@@ -232,16 +237,16 @@ KDoAudio(argList)
 			break;
 		case STOP:
 			pm.acc = activeSamples;
-			AudioStop(FindSampleN(args,0));
+			AudioStop(FindSampleN(args,0,argCount>2?arg(3):0));
 			break;
 		case PAUSE:
-			pm.acc = AudioPause(FindSampleN(args,0));
+			pm.acc = AudioPause(FindSampleN(args,0,argCount>2?arg(3):0));
 			break;
 		case RESUME:
-			pm.acc = AudioResume(FindSampleN(args,0));
+			pm.acc = AudioResume(FindSampleN(args,0,argCount>2?arg(3):0));
 			break;
 		case LOC:
-			pm.acc = (Acc) AudioLoc(FindSampleN(args,0));
+			pm.acc = (Acc) AudioLoc(FindSampleN(args,0,argCount>2?arg(3):0));
 			break;
 		case RATE:
 			if (argCount > 1) {
@@ -284,7 +289,7 @@ KDoAudio(argList)
 			pm.acc = distortion;			
 			break;
 		case VOLUME:
-			n = FindSampleN(args,1);
+			n = FindSampleN(args,1,argCount>3?arg(4):0);
 			if (argCount >= 2 && arg(2) != -1)
 				AudioVolume(arg(2),n);
 			if (n >= 0 && n < activeSamples)
@@ -296,9 +301,10 @@ KDoAudio(argList)
 			pm.acc = False;
 			if (argCount < 5)
 				break;		
+			tag = argCount > 6? arg(7):0;
 			saveCount = argCount;
 			argCount = 2;
-			n = FindSampleN(args,0);
+			n = FindSampleN(args,0,tag);
 			argCount = saveCount;
 			if (n < 0 || n >= activeSamples || sample[n].module != AUDMODNUM)
 				break;
@@ -356,7 +362,7 @@ KDoAudio(argList)
 }
 
 int
-FindSampleN(argList,int argn)
+FindSampleN(argList,int argn,int tag)
 {
 	// argCount = # kernel args (subfunction takes one)
 	// argn = # additional args prior to possible file number(s)
@@ -371,9 +377,13 @@ FindSampleN(argList,int argn)
 		return NO_SAMPLES;
 
 	if (argCount - 1 - argn < 5) {
-		for (n = 0; n < activeSamples; n++)
-			if (sample[n].num == arg(2+argn) && sample[n].module == AUDMODNUM)
+		for (n = 0; n < activeSamples; n++) {
+			if (sample[n].num == arg(2+argn) && sample[n].module == AUDMODNUM) {
+				if (tag && tag != sample[n].tag)
+					continue;
 				return n;
+			}
+		}
 	} else for (n = 0; n < activeSamples; n++) {
 		if (!sample[n].robot &&
 				sample[n].num == 0 &&
@@ -395,16 +405,18 @@ AudRobot(RobotAudInfo buff)
 	if (!audioInstalled)
 		return True;
 	rbot.adr = buff.adr;
-	rbot.len = buff.blen;
+	rbot.len = buff.len;
 	rbot.floc = buff.floc;
+	rbot.ext = rbot.floc + rbot.len*4;
 	rbot.channel = rbot.floc % 4 ? 1 : 0;
 	if (rbot.floc == 0 && rbot.len != 0 && rbot.len != -1) {
-		rbot.hwm[0] = rbot.bofs[0] = 0;
-		rbot.hwm[1] = rbot.bofs[1] = bits/8;
+		AudioStop(ALL_SAMPLES);
+		rbot.hwm[0] = 0;
+		rbot.hwm[1] = 2;
 		if ((n=activeSamples) == MAXSAMPLES)
 			return False;
 		sample[n].module = sample[n].num = 0;
-		sample[n].length = buff.blen;
+		sample[n].length = rbot.len;
 		sample[n].start = 0;
 		sample[n].loop = False;
 		sample[n].volume = MAXVOLUME;
@@ -413,8 +425,9 @@ AudRobot(RobotAudInfo buff)
 		if (!AudioSelect(n))
 			return False;
 		rbot.id = sample[n].buffID;
-		rbot.blen = sample[n].buffID.Size();
-		rbot.pofs = 0;
+		rbot.blen = rbot.id.Size();
+		rbot.min = 0;
+		rbot.max = rbot.blen * (16/bits);
 		++activeSamples;
 	} else {
 		for (n = 0; n < activeSamples; n++)
@@ -428,72 +441,152 @@ AudRobot(RobotAudInfo buff)
 	else if (rbot.len == -1)
 		sample[n].bytesToRead = 0;
 	else {
+		if (rbot.ext <= Max(rbot.min,rbot.hwm[rbot.channel]) ||
+				rbot.max <= rbot.hwm[rbot.channel])
+			return False;
 		sample[n].bytesToRead = rbot.len;
-		Bool ret = FillRbotBuffer(n);
-		if (rbot.floc == 0) {
+		int ext = rbot.ext;
+		if (bits == 8)
+			FillRbotBuffer8(n);
+		else
+			FillRbotBuffer16(n);
+		if (ext > rbot.max)
+			return False;
+		if (rbot.floc == 2)
 			AudioPlay();
-		}
-		return ret;
 	}
 	return True;
 }
 
-Bool
-FillRbotBuffer(int n)
+void
+FillRbotBuffer8(int n)
 {
+	int	ofs, ext, len;
+
+	rbot.cofs = 0;
 	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
 	rbot.len *= 2;
-
-	if (bits == 8) {
-		rbot.floc /= 2;
-		rbot.len /= 2;
-		Conv16To8(*convBuff,*convBuff,rbot.len);
+	int loc = Max(rbot.min,rbot.hwm[rbot.channel]);
+	if (rbot.floc < loc) {
+		rbot.cofs = (loc - rbot.floc) / 2;
+		rbot.len -= rbot.cofs;
+		rbot.floc = loc;
 	}
-	return FillRbotChannel(n);
-}
+	if (rbot.floc > rbot.max) {
+		rbot.len += (rbot.floc - rbot.max) / 2;
+		rbot.floc = rbot.max;
+	}
+	if (rbot.ext > rbot.max) {
+		rbot.len -= (rbot.ext - rbot.max) / 2;
+		rbot.ext = rbot.max;
+	}
 
-Bool
-FillRbotChannel(int n)
-{
-	int ext = rbot.floc + rbot.len*2;
-	int hwm = rbot.hwm[rbot.channel];
-
-	if (ext <= hwm)
-		return True;
+	rbot.len /= 2;
+	Conv16To8(&convBuff[rbot.cofs],&convBuff[rbot.cofs],rbot.len);
 
 	int maxhwm = Max(rbot.hwm[0],rbot.hwm[1]);
-	if (ext > maxhwm) {
-		if (sample[n].bytesBuffered + ext - maxhwm > rbot.blen)
-			return False;
-		sample[n].bytesBuffered += ext - maxhwm;
+	if (rbot.ext > maxhwm)
+		sample[n].bytesBuffered += (rbot.ext - maxhwm) / 2;
+
+	if (rbot.floc > rbot.hwm[rbot.channel]) {
+		ext = rbot.floc % (rbot.blen * 2);
+		if ((rbot.floc&0xfffffffc) > (rbot.hwm[1-rbot.channel]&0xfffffffc)) {
+			ofs = rbot.hwm[1-rbot.channel] % (rbot.blen * 2);
+			if (ofs >= ext) {
+				len = rbot.blen * 2 - ofs;
+				Silence((char far *)&rbot.id[ofs/2],len,bits);
+				ofs = (1-rbot.channel)?2:0;
+			}
+			len = ext - ofs;
+			if (len > 0)
+				Silence((char far *)&rbot.id[ofs/2],len,bits);
+		}
+		ofs = rbot.hwm[rbot.channel] % (rbot.blen * 2);
+		if (ofs >= ext) {
+			len = rbot.blen * 2 - ofs;
+			DupeChannel(&rbot.id[ofs/2],len/4,0,bits);
+			ofs = rbot.channel?2:0;
+		}
+		len = ext - ofs;
+		if (len > 0)
+			DupeChannel(&rbot.id[ofs/2],len/4,0,bits);
+	}
+	if (rbot.len > 0) {
+		ofs = rbot.floc % (rbot.blen * 2);
+		ext = rbot.ext % (rbot.blen * 2);
+		len = 0;
+		if (ofs >= ext) {
+			len = (rbot.blen * 2 - (ofs & 0xfffffffc))/2;
+			CopyEOS(&rbot.id[ofs/2],&convBuff[rbot.cofs],len/2,bits);
+			ofs = rbot.channel?2:0;
+		}
+		CopyEOS(&rbot.id[ofs/2],&convBuff[rbot.cofs+len/2],(ext-ofs)/4,bits);
+	}
+	rbot.hwm[rbot.channel] = rbot.ext;
+}
+
+void
+FillRbotBuffer16(int n)
+{
+	int	ofs, ext, len;
+
+	rbot.cofs = 0;
+	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
+	rbot.len *= 2;
+	int loc = Max(rbot.min,rbot.hwm[rbot.channel]);
+	if (rbot.floc < loc) {
+		rbot.cofs = (loc - rbot.floc) / 2;
+		rbot.len -= rbot.cofs;
+		rbot.floc = loc;
+	}
+	if (rbot.floc > rbot.max) {
+		rbot.len += (rbot.floc - rbot.max) / 2;
+		rbot.floc = rbot.max;
+	}
+	if (rbot.ext > rbot.max) {
+		rbot.len -= (rbot.ext - rbot.max) / 2;
+		rbot.ext = rbot.max;
 	}
 
-	int ofs = rbot.bofs[rbot.channel];
-	int len = (ext - hwm) / 2;
-	int cofs = rbot.len - len;
+	int maxhwm = Max(rbot.hwm[0],rbot.hwm[1]);
+	if (rbot.ext > maxhwm)
+		sample[n].bytesBuffered += rbot.ext - maxhwm;
 
-	if (len > rbot.len) {
-		cofs = 0;
-		rbot.hwm[rbot.channel] += (len - rbot.len) * 2;
-		ofs += (len - rbot.len) * 2;
-		ofs %= rbot.blen;
-		len = rbot.len;
+	if (rbot.floc > rbot.hwm[rbot.channel]) {
+		ext = rbot.floc % rbot.blen;
+		if ((rbot.floc&0xfffffffc) > (rbot.hwm[1-rbot.channel]&0xfffffffc)) {
+			ofs = rbot.hwm[1-rbot.channel] % rbot.blen;
+			if (ofs >= ext) {
+				len = rbot.blen - ofs;
+				Silence((char far *)&rbot.id[ofs],len,bits);
+				ofs = (1-rbot.channel)?2:0;
+			}
+			len = ext - ofs;
+			if (len > 0)
+				Silence((char far *)&rbot.id[ofs],len,bits);
+		}
+		ofs = rbot.hwm[rbot.channel] % rbot.blen;
+		if (ofs >= ext) {
+			len = rbot.blen - ofs;
+			DupeChannel(&rbot.id[ofs],len/4,0,bits);
+			ofs = rbot.channel?2:0;
+		}
+		len = ext - ofs;
+		if (len > 0)
+			DupeChannel(&rbot.id[ofs],len/4,0,bits);
 	}
-
-	if (ofs + len*2 > rbot.blen) {
-		int tlen = (rbot.blen - ofs + 1) / 2;
-		if (bits == 16)
-			tlen = (tlen + 1) & 0xfffffffe;
-		CopyEOS(&rbot.id[ofs],&convBuff[cofs],tlen/(bits/8),bits);
-		rbot.hwm[rbot.channel] += tlen*2;
-		ofs = rbot.channel? bits/8 : 0;
-		len -= tlen; 
-		cofs += tlen;
+	if (rbot.len > 0) {
+		ofs = rbot.floc % rbot.blen;
+		ext = rbot.ext % rbot.blen;
+		len = 0;
+		if (ofs >= ext) {
+			len = (rbot.blen - (ofs & 0xfffffffc))/2;
+			CopyEOS(&rbot.id[ofs],&convBuff[rbot.cofs],len/2,bits);
+			ofs = rbot.channel?2:0;
+		}
+		CopyEOS(&rbot.id[ofs],&convBuff[rbot.cofs+len],(ext-ofs)/4,bits);
 	}
-	CopyEOS(&rbot.id[ofs],&convBuff[cofs],len/(bits/8),bits);
-	rbot.hwm[rbot.channel] += len*2;
-	rbot.bofs[rbot.channel] = ofs + len*2;
-	return True;
+	rbot.hwm[rbot.channel] = rbot.ext;
 }
 
 int
@@ -691,10 +784,12 @@ AudioSelect(int n)
 void
 GetConvBuff(int n)
 {
+	int size = sample[n].robot? intHbufferSize * 2 : sample[n].bufferSize;
+
 	if (!convBuff)
-		convBuff.Get(MemAudioBuffer, sample[n].bufferSize, AudioConvBufHandle);
-	else if (convBuff.Size() < sample[n].bufferSize)
-		convBuff.Realloc(sample[n].bufferSize);
+		convBuff.Get(MemAudioBuffer, size, AudioConvBufHandle);
+	else if (convBuff.Size() < size)
+		convBuff.Realloc(size);
 }
 
 void
@@ -1011,14 +1106,30 @@ MergeBuffers()
 void
 MergeBuffer(int n, int cnt)
 {
-	char*	buffer = (char*)*sample[n].buffID + sample[n].bufferNumber * DACHbufferSize;
+
+	char*	buffer = (char*)*sample[n].buffID +
+		sample[n].bufferNumber * DACHbufferSize;
 
 	if (sample[n].robot) {
-		rbot.pofs += DACHbufferSize;
-		if (rbot.pofs > rbot.hwm[1])
-			DupeChannel(buffer,DACHbufferSize/2/(bits/8),1,bits);
-		else if (rbot.pofs > rbot.hwm[0])
-			DupeChannel(buffer,DACHbufferSize/2/(bits/8),0,bits);
+		static int bufferNumber;
+		if (rbot.min == 0)
+			bufferNumber = 0;
+		bufferNumber++;
+		rbot.min += DACHbufferSize * (16/bits);
+		rbot.max += DACHbufferSize * (16/bits);
+		if (rbot.min > rbot.hwm[1]) {
+			if (rbot.min > rbot.hwm[0]) {
+				Silence((char far *)buffer,DACHbufferSize,bits);
+				rbot.hwm[0] = bufferNumber * DACHbufferSize * (16/bits);
+				rbot.hwm[1] = bufferNumber * DACHbufferSize * (16/bits) + 2;
+			} else {
+				DupeChannel(buffer,DACHbufferSize/(2*(bits/8)),1,bits);
+				rbot.hwm[1] = bufferNumber * DACHbufferSize * (16/bits) + 2;
+			}
+		} else if (rbot.min > rbot.hwm[0]) {
+			DupeChannel(buffer,DACHbufferSize/(2*(bits/8)),0,bits);
+			rbot.hwm[0] = bufferNumber * DACHbufferSize * (16/bits);
+		}
 	}
 
 	DistortBuffer(n,(char far *)buffer);
@@ -1361,24 +1472,20 @@ CheckRawFormat(int n)
 Bool
 InitAudioDriver()
 {
-	unsigned	n;
+	unsigned	n, dSize, aSize;
 
-	n = (configMgr->GetNum("DACSize", 0, GetDACDefaultSize()) + 1023) / 1024 * 1024;
-	if (!n)
+	dSize = configMgr->GetNum("DACSize", 0, GetDACDefaultSize());
+	if (!dSize)
 		return False;
-	DACHbufferSize = n/2;
-	if (DACHbufferSize > DAC_MAXHBSIZE)
-		DACHbufferSize = DAC_MAXHBSIZE;
 
-	n = (configMgr->GetNum("audioSize", 0, INT_HBUFFSIZE*2) + 1023) / 1024 * 1024;
-	if (!n)
+	aSize = configMgr->GetNum("audioSize", 0, INT_HBUFFSIZE*2);
+	if (!aSize)
 		return False;
-	intHbufferSize = n/2;
-	intHbufferSize -= intHbufferSize % DACHbufferSize;
-	if (intHbufferSize > INT_MAXHBSIZE)
-		intHbufferSize = INT_MAXHBSIZE;
 
-//	InitAudioVols();
+	AdjustAudBuffSizes(&aSize,&dSize);
+
+	intHbufferSize = aSize/2;
+	DACHbufferSize = dSize/2;
 
 	/* If audio is not requested -- vamboose
 	 */
@@ -1401,6 +1508,7 @@ InitAudioDriver()
 
 //	if ((n = CallDAC(DAC_GET_REALOC,0)))
 //		audioDrv.Realloc(n);
+
 	channelsMax = CallDAC(DAC_GET_MAX_CHNLS,0);
 	bitsMax = CallDAC(DAC_GET_MAX_BITS,0);
 	AudioBits(bitsMax);
@@ -1408,6 +1516,9 @@ InitAudioDriver()
 	volumeMax = CallDAC(DAC_GET_VOL,0);
 
 //	InstallServer(AudioServer, 1);
+
+	if (bitsMax == 8)
+		DACHbufferSize /= 2;
 
 	DACArgsIn[1] = DACHbufferSize;
 	DACArgsIn[2] = (int)MergeBuffers;
@@ -1422,11 +1533,22 @@ InitAudioDriver()
 	audioInstalled = True;
 	
 #ifdef DEBUG
-//	if (configMgr->Get(configMgr->PlayAudio))
+//if (configMgr->Get(configMgr->PlayAudio))
 //		DACPlay();
 #endif
 
 	return True;
+}
+
+void
+AdjustAudBuffSizes(unsigned *audioSize, unsigned *DACSize)
+{
+
+	*audioSize = 65536;
+
+	*audioSize = ((*audioSize + 1023) / 1024) * 1024;
+	*DACSize   = ((*DACSize + 1023) / 1024) * 1024;
+	*DACSize   = *audioSize/(*audioSize/(*DACSize));
 }
 
 void
@@ -1436,8 +1558,10 @@ InitAudioVols()
 	char*		cp;
 
 	/* Open optional Audio sound effects Volume */
-	if (sfxVolFD != -1)
+	if (sfxVolFD != -1) {
 		Close(sfxVolFD);
+		resMgr->Release(MemResMap,65535);
+	}
 	strcpy(pathName, configMgr->Get("ressfx",0));
 	if (strlen(pathName)) {
 		cp = &pathName[strlen(pathName)-1];

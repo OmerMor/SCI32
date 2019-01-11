@@ -87,7 +87,9 @@ public:
 protected:
 	DebugMenu*	items[10];
 
-} extern debugMenus;
+};
+
+extern DebugMenus debugMenus;
 
 class DebugMenu {
 public:
@@ -149,4 +151,3 @@ protected:
 #endif
 #endif
 
-

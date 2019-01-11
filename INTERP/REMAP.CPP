@@ -7,11 +7,16 @@
 #include "remap.hpp"
 #include "savegame.hpp"
 #include "shiftpal.hpp"
-	
-int 			REMAP_START_COLOR = 236;
+
 int			REMAP_END_COLOR = 244;
 int			START_COLOR = 0;
-int			END_COLOR = 235;
+#ifdef MACINTOSH
+	int 		REMAP_START_COLOR = 237;
+	int			END_COLOR = 236;
+#else
+	int 		REMAP_START_COLOR = 236;
+	int			END_COLOR = 235;
+#endif
 
 uchar			Remap::remapColor[REMAP_COLOR_RANGE][256];
 uint			Remap::remapDepth[REMAP_COLOR_RANGE];
@@ -136,6 +141,7 @@ Remap::RemapByPercent(int color, int percent, int depth)
       msgMgr->Alert("RemapByPercent percent out of range; percent = %d",percent);
 							  
 	const int index = REMAP_END_COLOR - color;
+
 	if (!singleRemap[index])  {
 		singleRemap[index] = New SingleRemap(remapColor[index]);
 		remapCount++;

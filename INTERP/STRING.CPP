@@ -16,8 +16,7 @@
 #include	"string.hpp"
 #include	"textid.hpp"
 
-static TextID		StrFormat(TextID strID, TextID format, kArgs args);
-static TextID		StrGetData(MemID srcID);
+static TextID	StrFormat(TextID strID, TextID format, kArgs args);
 
 void
 KString(argList)
@@ -53,12 +52,13 @@ KString(argList)
 			// arg(2) = string data
 			// arg(3) = position in array
 			// arg(4) = new value for position
-			if (arg(3) >= ((MemID) arg(2)).Size())
-				pm.acc = 0;
-			else {
-				ArrayAtPut(*(MemID) arg(2), 1, arg(3), argCount - 3, (char*) &arg(4));
-				pm.acc = arg(2);
-			}
+
+			if (arg(3) >= ((TextID) arg(2)).Size())
+				StrResize((TextID) arg(2), arg(3) + argCount - 3);
+
+			ArrayAtPut(*(MemID) arg(2), 1, arg(3), argCount - 3, (char*) &arg(4));
+			pm.acc = arg(2);
+
 			break;
 
 		case STRFREE:
@@ -67,15 +67,21 @@ KString(argList)
 			((TextID) arg(2)).Free();
 			break;
 
-		case STRFILL:
+		case STRFILL: {
 			// Fill a portion of the string data with a character
 			// arg(2) = string data
 			// arg(3) = position in array to start fill
 			// arg(4) = length to fill
 			// arg(5) = value to fill with
-			ArrayFill(*(MemID) arg(2), 1, arg(3), arg(4), arg(5));
+			uint start = arg(3);
+			length = arg(4);
+			if ((start + length) >= (((TextID) arg(2)).Size()))
+				StrResize((TextID) arg(2), start + length);
+			ArrayFill(*(MemID) arg(2), 1, start, length, arg(5));
 			pm.acc = arg(2);
+
 			break;
+		}
 
 		case STRCPY:
 			// Copy a portion of one string's data to another
@@ -94,7 +100,11 @@ KString(argList)
 			// Compare two strings' data blocks
 			// arg(2) = string data
 			// arg(3) = comparator string
-			tmp = strcmp(*(TextID) arg(2), *(TextID) arg(3));
+			// arg(4) = optional length
+			if (argCount == 4)
+				tmp = strncmp(*(TextID) arg(2), *(TextID) arg(3), arg(4));
+			else
+				tmp = strcmp(*(TextID) arg(2), *(TextID) arg(3));
 			pm.acc = (tmp > 0) - (tmp < 0);
 			break;
 
@@ -413,27 +423,6 @@ StrTrnExclude(char* srcStr, char* srcPat, char* destPat, char* destStr)
    return True;
 }
 
-int
-StrStrCount(char* str, char* pattern)
-/*
-	Count the number of occurrences of 'pattern' in 'str'.
-
-	Returns: number of occurrences found.
-
-	Example:	StrStrCount("Foobars are fools for food", "foo");
-				yields 3
-*/
-{
-	int		count = 0;
-	char*		p;
-
-	for (p = str; (p = strstr(p, pattern)) != NULL; count++)
-		p += strlen(pattern);
-
-	return count;
-}
-
-
 void
 StrResize(TextID srcID, uint newSize)
 /*
@@ -442,14 +431,9 @@ StrResize(TextID srcID, uint newSize)
 	Returns:	Nothing.
 */
 {
-	if (!(!srcID)) {
-		if (newSize > srcID.Size()) {
-			srcID.Realloc(newSize);
-		}
-	}
+	if ((int) srcID && newSize > srcID.Size())
+		srcID.Realloc(newSize);
 }
-
-
 
 /////////////////////////////////////////////////////////////////////////
 //
@@ -550,165 +534,6 @@ ToLower(uchar c)
 }
 
 
-/////////////////////////////////////////////////////////////////////////
-//
-// The following functions are used only by TSN and are not part of
-//		the KString function.
-//
-/////////////////////////////////////////////////////////////////////////
-
-void
-KStrStripTSN(argList)
-/*
-	Strip whitespace out of the string.  Calls StrTrim (above).
-	Variable number of parameters, the first of which must be a
-	pointer to a string data block and the rest must be selectors
-	s_left, s_right, s_center, s_all, or s_show, in any order.
-
-	Returns: Nothing.
-
-	Example: name = "  Arvin Slatherlord\t Loudermilk III   ";
-				StrStrip(name)
-				yields "Arvin Slatherlord\t Loudermilk III"
-
-				StrStrip(name, s_center, s_show 9);
-				yields "  ArvinSlatherlord\tLoudermilkIII   ";
-
-				StrStrip(str, s_all);
-				yields "ArvinSlatherlordLoudermilkIII"
-
-	Note: 	This function will resize the array to fit the new string.
-	Note: 	This function is only called from TSN's String class.
-*/
-{
-	int		stripFlags = 0;
-	char		showChar = '\0';
-	int		i;
-	TextID	str;
-
-	if (kArgc < 2) {
-		msgMgr->Fatal(SrcLoc, Msg_KStrStripTSNArgs);
-		return;
-	}
-
-	if (kArgc < 3)
-		stripFlags = L_TRIM | R_TRIM;
-	else {
-		for (i = 3; i <= kArgc; i++)
-			switch (arg(i)) {
-				case s_left:
-					stripFlags |= L_TRIM;
-					break;
-				case s_right:
-					stripFlags |= R_TRIM;
-					break;
-				case s_center:
-					stripFlags |= C_TRIM;
-					break;
-				case s_all:
-					stripFlags = L_TRIM | R_TRIM | C_TRIM;
-					break;
-				case s_show:
-					if (i == kArgc) {
-						msgMgr->Fatal(SrcLoc, Msg_KStrStripTSNShowArg);
-						return;
-					}
-					showChar = (char) arg(i + 1);
-					i++;
-					break;
-				default:
-					msgMgr->Fatal(SrcLoc, Msg_KStrStripTSNUnk);
-					break;
-			}
-	}
-	str = (TextID) arg(2);
-	StrTrim(*str, stripFlags, showChar);
-	StrResize(str, strlen(*str) + 1);
-}
-
-
-void
-KStrTrnTSN(argList)
-/*
-	Replace a portion of a string's data with new data.  If no destination
-	string is supplied, the result is put back into the source string.
-	Calls StrTrn (above).
-
-	Returns:	Number of substitutions made.
-
-	Example:	StrTrnTSN("leaves", destStr, "ves", "f");
-				yields "leaf" in destStr
-
-				StrTrnTSN("going", destStr, "ves", "f");
-				yields "going" in destStr
-
-	Note: 	This function will resize the array to fit the new string.
-	Note: 	This function is only called from TSN's String class.
-*/
-{
-	TextID	newStr;
-	int		numMatches;
-	int		srcLen, destLen;
-
-	TextID	srcID, srcPat, destPat;
-
-	srcID = (TextID) arg(2);
-	srcPat = (TextID) arg(3);
-	destPat = (TextID) arg(4);
-	srcLen = strlen(*srcID);
-
-	numMatches = StrStrCount(*srcID, *srcPat);
-	destLen = srcLen + numMatches * (strlen(*destPat) - strlen(*srcPat));
-
-	if (!numMatches) {
-		pm.acc = 0;
-		return;
-	}
-
-	if (destLen < srcLen) {
-		StrTrn(*srcID, *srcPat, *destPat, *srcID);
-		StrResize(srcID, destLen + 1);
-	} else {
-		newStr = ArrayDup(srcID);
-		StrResize(srcID, destLen + 1);
-		StrTrn(*newStr, *srcPat, *destPat, *srcID);
-		newStr.Free();
-	}
-	pm.acc = numMatches;
-}
-
-void
-KStrTrnExcludeTSN(argList)
-/*
-	Replaces all occurrences of a substring with another substring and
-	strips out all other characters.
-
-	Returns: Number of substitutions made.
-
-	Example:	StrTrnExclude("leaves", "ves", "f", destStr);
-				yields "f" in destStr
-
-				StrTrnExclude("going", "ves", "f", destStr);
-				yields "" in destStr
-
-				StrTrnExclue("+++///+++---", "+++", "333", destStr);
-				yields "333333" in destStr
-
-	Note: 	This function will resize the array to fit the new string.
-*/
-{
-	int		numMatches, i;
-	char		*s, *destPat;
-
-	numMatches = StrStrCount(*(TextID) arg(2), *(TextID) arg(3));
-	StrResize((TextID) arg(2), numMatches * strlen(*(TextID) arg(4)) + 1);
-	s = *(TextID) arg(2);
-	destPat = *(TextID) arg(4);
-	*s = '\0';
-	for (i = 0; i < numMatches; i++)
-		strcat(s, destPat);
-	pm.acc = numMatches;
-}
 
 va_list*
 MakeVprintfArgs(char* fmt, kArgs args)
@@ -801,19 +626,9 @@ MakeVprintfArgs(char* fmt, kArgs args)
 	list[0] = (char*) stack;
 	return (va_list*) list;
 #else
-	static va_list list = stack;
+	//	this cast is necessary for CodeWarrior 1.1.1.2
+	static va_list list = (va_list) stack;
 	return &list;
 #endif
 }
-
-
-static TextID
-StrGetData(MemID strID)
-{
-	ObjectID	objID = (ObjectID) strID;
-	if (objID.IsObject())
-		return objID.GetProperty(s_data);
-	else
-		return (TextID) strID;
-}
-
+

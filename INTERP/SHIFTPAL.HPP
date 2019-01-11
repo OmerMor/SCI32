@@ -3,7 +3,11 @@
 
 #define	PALSHIFT	10
 
-extern	Bool	WING;
+#ifdef MACINTOSH
+	extern	Bool	WING; //KGN defined in shiftpal.cpp
+#else
+	extern	Bool	WING;
+#endif
 
 int  AddPalShift(int val);
 void ShiftPaletteView (uchar* resBuffer);
@@ -12,4 +16,3 @@ void ShiftPaletteCel  (uchar* resBuffer, long celOffset);
 
 #endif
 
-

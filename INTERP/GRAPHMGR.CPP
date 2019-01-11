@@ -21,6 +21,9 @@
 GraphicsMgr* graphMgr = NULL;
 Bool GraphicsMgr::drawToPriMap = False;
 
+DrawList	*drawLists[100];
+RectList	*eraseLists[100];
+
 GraphicsMgr::~GraphicsMgr()
 {
 	delete robot;
@@ -35,6 +38,7 @@ GraphicsMgr::GraphicsMgr(int xdim,int ydim) : next(xdim,ydim)
 	resizeFlag = False;
 	vmapValid = False;
 	robot = NULL;
+	morphOn = 0;
 }
 
 Robot&
@@ -149,14 +153,14 @@ GraphicsMgr::KillRobot()
 }
 
 void
-GraphicsMgr::PalMorphFrameOut(char* palArray)
+GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 {
 // First Decimate Original VMAP	and output to SCREEN
 
 	int palIndex = -1;
 	SOLPalette  myPal;
 	SOLPalette  thisPal;
-//	int s = pm.Global(g_prevRoomNum);
+	int s = pm.Global(g_prevRoomNum);
 	myPal = GPalette().Next();
 
 	AlterVMAP(&myPal,&myPal,palIndex,palArray);	
@@ -167,9 +171,6 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 // Second draw next image to VMAP
 
 	int nplanes = next.Planes().Length();
-
-	DrawList** drawLists = New DrawList* [nplanes];
-	RectList** eraseLists = New RectList* [nplanes];
 
 	for (int i = 0;i < nplanes;i++)  {
 		drawLists[i] = New DrawList;
@@ -209,8 +210,23 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 
 	thisPal = GPalette().Next();
 
+	if (s<1000) {
 	for(int k=0;k<256;k++){ 
 			if ((palArray[k] == -1) || (palArray[k] == 0)) {
+//			if ((palArray[k] == -1) || ((palArray[k] == 0)&& ((k>71)&&(k<104)))) {
+// the above line is KQ7 specific
+	  			(myPal)[k].red   = (thisPal)[k].red   ;
+				(myPal)[k].green = (thisPal)[k].green  ;
+				(myPal)[k].blue  = (thisPal)[k].blue 	;
+				(myPal)[k].flag  = 1 	;
+			}
+		}
+	}
+	else
+	for(int k=0;k<256;k++){ 
+//			if ((palArray[k] == -1) || (palArray[k] == 0)) {
+			if ((palArray[k] == -1) || ((palArray[k] == 0)&& ((k>71)&&(k<104)))) {
+// the above line is KQ7 specific
 	  			(myPal)[k].red   = (thisPal)[k].red   ;
 				(myPal)[k].green = (thisPal)[k].green  ;
 				(myPal)[k].blue  = (thisPal)[k].blue 	;
@@ -220,7 +236,7 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 
 
 	GPalette().Submit(myPal);
-	GPalette().UpdateForFrame();
+	GPalette().UpdateFFrame();
 	GPalette().UpdateHardware();
 
 // Fourth decimate new image in VMAP and output to screen
@@ -228,22 +244,61 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 	palIndex = 1;
 	AlterVMAP(&thisPal,&myPal,palIndex,palArray);	
 
-	ShowBits();
+	if ((style != NULL) && (style->style != PALETTEMORPH))
+		ProcessEffects(style);
+	else {
+		ShowBits();
+	}
+
 	vmapValid = True;
 
 // Finally let the graphics engine know everything should be redrawn
+// For palette cycling 
 
 	for (i = 0;i < nplanes;i++)	
 	next.Planes()[i].UpdateRedrawAllCount();
+
+	if (Remap::remapCount && lastRemapFlag)
+		RemapMarkRedraw();
+
+	CalcLists(drawLists,eraseLists);
+
+	// The number of planes may have been reduced by CalcLists
+	nplanes = next.Planes().Length();
+
+	// Sort the draw lists
+	for (i = 0; i < nplanes; i++)
+		drawLists[i]->Sort();
+
+	for (i = 0; i < nplanes; i++)  {
+		int count = drawLists[i]->Length();
+		DrawList& drawlist = *drawLists[i];
+		for (int j = 0; j < count; j++) {
+			drawlist[j].SI().SubmitPalette();
+		}
+	}
+
+	lastRemapFlag = GPalette().UpdateForFrame();
+
+	// draw to vmap
+	for (i = 0; i < nplanes; i++)  {
+		vmapValid = False;
+		DrawEraseList(*eraseLists[i],next.Planes()[i]);
+		DrawScreenItemList(*drawLists[i]);
+	}
+
+	GPalette().Submit(thisPal);
+	GPalette().UpdateFFrame();
+	GPalette().UpdateHardware();
+
+	ShowBits();
+	vmapValid = True;
 
 	//  Clean up and return
 	for (i = 0;i < nplanes;i++)  {
 		delete eraseLists[i];
 		delete drawLists[i];
 	}
-
-	delete drawLists;
-	delete eraseLists;
 }
 
 void
@@ -253,9 +308,7 @@ GraphicsMgr::FrameOut(Bool showBits)
 		robot->DoRobot();
 
 	int nplanes = next.Planes().Length();
-
-	DrawList** drawLists = New DrawList* [nplanes];
-	RectList** eraseLists = New RectList* [nplanes];
+	if (nplanes > 100) msgMgr->Mono("\ptoo many planes.");
 
 	for (int i = 0;i < nplanes;i++)  {
 		drawLists[i] = New DrawList;
@@ -311,9 +364,6 @@ GraphicsMgr::FrameOut(Bool showBits)
 		delete eraseLists[i];
 		delete drawLists[i];
 	}
-
-	delete drawLists;
-	delete eraseLists;
 }
 
 void
@@ -516,4 +566,4 @@ GraphicsMgr::MergeToShowList(const SOL_Rect& r,RectList& rectList,int callOverhe
 	}
 	rectList.Add(rect1);
 }
-
+

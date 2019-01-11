@@ -1,7 +1,7 @@
 //	string.hpp
 
-#ifndef	STRING_HPP
-#define	STRING_HPP
+#ifndef STRING_HPP
+#define STRING_HPP
 
 #include <stdarg.h>
 
@@ -9,7 +9,13 @@
 #include "kernel.hpp"
 #endif
 
-class TextID;
+#ifndef OBJECT_HPP
+#include "object.hpp"
+#endif
+
+#ifndef TEXTID_HPP
+#include "textid.hpp"
+#endif
 
 // Subfunction codes
 enum {
@@ -39,6 +45,12 @@ enum {
 #define	C_TRIM	2
 #define	R_TRIM	1
 
+inline TextID
+StrGetData(MemID id)
+{
+	ObjectID obj(id);
+ 	return (TextID) (obj.IsObject() ? obj.GetProperty(s_data) : obj);
+}
 
 char*		StrTrim(char* str, int trimFlags = L_TRIM | R_TRIM, char showChar = '\0');
 Bool		StrTrn(char* srcID, char* srcPat, char* destPat, char* destID);

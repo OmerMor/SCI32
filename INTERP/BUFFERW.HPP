@@ -36,4 +36,3 @@ BufferWin::Addr(const int x, const int y) const
 #endif
 
 #endif
-

@@ -17,23 +17,15 @@
 #include "si.hpp"
 
 // states of actor's "s_signal" property 
-const uint	UPDBITS		= 0x0007;	// the update bits
-const uint	STOPUPD		= 0x0001;	// init "stopped condition
-const uint	STARTUPD		= 0x0002;	// abandon "stopped" condition
-const uint	NOUPDATE		= 0x0004;	// actor is stopped
-const uint	HIDE			= 0x0008;	// actor is not to be drawn
-const uint	FIXPRI		= 0x0010;	// use priority in actor
-const uint	VIEWADDED	= 0x0020;	// leave view in picture
-const uint	FORCEUPD		= 0x0040;	// update a stopped actor this time only
-const uint	HIDDEN		= 0x0080;	// an actor to HIDE has been hidden 
-
-const uint	staticView	= 0x0100;	// no doit: call required 
-const uint	blocked		= 0x0400;	// tried to move, but couldn't 
+const uint	CANUPD		= 0x0001;	// init "stopped condition
+const uint	HIDDEN		= 0x0008;	// an actor to HIDE has been hidden 
+const uint	setBaseRect = 0x0020;   // 
+const uint	blocked	   = 0x0400;   // 
 const uint	fixedLoop	= 0x0800;	// loop is fixed 
-const uint	fixedCel		= 0x1000;	//	cel fixed
+const uint	skipCheck	= 0x1000;	//	cel fixed
 const uint	ignrHrz		= 0x2000;	// can ignore horizon
 const uint	ignrAct		= 0x4000;	// can ignore other actors
-const uint	delObject	= 0x8000;
+const uint	setNSRect   = 0x8000;
 
 static void	DirLoop(ObjectID, int);
 static void	GetCelRect(int view,int loop,int cel,int x,int y,int z,SOL_Rect& rect);
@@ -99,8 +91,46 @@ GetCelRect(int view,int loop,int cel,int x,int y,int z,SOL_Rect& rect)
 		rect.A.x = x - celObj.XOrg()*scaleX;
 	}
 	rect.B.x = rect.A.x + celObj.Width()*scaleX - 1;
-	rect.B.y = y - z + celObj.YOrg()*scaleY + 1;
-	rect.A.y = rect.B.y - celObj.Height()*scaleY -1;
+	rect.A.y = y - z - celObj.YOrg()*scaleY + 1;
+	rect.B.y = rect.A.y + celObj.Height()*scaleY - 1;
+}
+
+static void
+GetCelRectScaled(int view,int loop,int cel,int x,int y,int z,int sX, int sY, SOL_Rect& rect)
+{
+
+   CelObjView celObj(view,loop,cel);
+
+	Ratio scaleX(sX, 128); 
+	Ratio scaleY(sY, 128);
+
+   if (celObj.Mirrored()) {
+		rect.A.x = x - (celObj.Width() - celObj.XOrg())*scaleX;
+	}
+	else {
+		rect.A.x = x - celObj.XOrg()*scaleX;
+	}
+	rect.B.x = rect.A.x + celObj.Width()*scaleX - 1;
+	rect.A.y = y - z - celObj.YOrg()*scaleY + 1;
+	rect.B.y = rect.A.y + celObj.Height()*scaleY - 1;
+}
+
+void
+KCelRect(argList)
+{
+	SOL_Rect r;
+	
+	ObjectID saveRect = arg(1);
+
+	if (argCount > 7)
+		GetCelRectScaled(arg(2), arg(3), arg(4), arg(5), arg(6), arg(7), arg(8), arg(9), r);
+	else
+		GetCelRect(arg(2), arg(3), arg(4), arg(5), arg(6), arg(7), r);
+
+	saveRect.SetProperty(s_left,  r.A.x);
+	saveRect.SetProperty(s_top,   r.A.y);
+	saveRect.SetProperty(s_right, r.B.x);
+	saveRect.SetProperty(s_bottom,r.B.y);
 }
 
 void
@@ -203,14 +233,14 @@ KDoBresen(argList)
 
 	ObjectID motion = arg(1);
 	ObjectID client = motion.GetIndexedProperty(motClient);
-	int		i1, i2, di, si1, si2, sdi;
-	char		aniState[1000];
+	int		i1, i2, di, oldX, oldY;
+//	char		aniState[1000];
 	SCIWord	blocker;
 
 	pm.acc = 0;
 
-	client.SetIndexedProperty(actSignal,
-		Property(client.GetIndexedProperty(actSignal) & ~blocked));
+//	client.SetIndexedProperty(actSignal,
+//		Property(client.GetIndexedProperty(actSignal) & ~blocked));
 
 	// Get properties in variables for speed and convenience
 	int x			= client.GetIndexedProperty(actX);
@@ -221,16 +251,26 @@ KDoBresen(argList)
 	int dx		= motion.GetIndexedProperty(motDX);
 	int dy		= motion.GetIndexedProperty(motDY);
 	int incr		= motion.GetIndexedProperty(motIncr);
-	si1 = i1		= motion.GetIndexedProperty(motI1);
-	si2 = i2		= motion.GetIndexedProperty(motI2);
-	sdi = di		= motion.GetIndexedProperty(motDI);
+//	uint cSignal = client.GetIndexedProperty(actSignal);
 
+//	if (cSignal & setBaseRect){
+//		oldBrTop =	client.GetIndexedProperty(actBRTop);
+//		oldBrLeft = client.GetIndexedProperty(actBRLeft);
+//		oldBrRight = client.GetIndexedProperty(actBRRight);
+//		oldBrBottom =	client.GetIndexedProperty(actBRBottom);
+//	}
+
+	i1	  = motion.GetIndexedProperty(motI1);
+	i2	  = motion.GetIndexedProperty(motI2);
+	di	  = motion.GetIndexedProperty(motDI);
+	oldX = x;
+	oldY = y;
 	motion.SetIndexedProperty(motXLast, (Property) x);
 	motion.SetIndexedProperty(motYLast, (Property) y);
 
 	// Save the current animation state before moving the client
 	//	this will be replaced!
-	memcpy(aniState, *client, client->Size() * sizeof(Property));
+//	memcpy(aniState, *client, client->Size() * sizeof(Property));
 
 	if ((xAxis && (Abs(toX - x) <= Abs(dx))) ||
 		 (!xAxis && (Abs(toY - y) <= Abs(dy)))) {
@@ -264,17 +304,30 @@ KDoBresen(argList)
 		/* Client can't be here -- restore the original state and
 			mark the client as blocked.
 		*/
-		memcpy(*client, aniState, client->Size() * sizeof(Property));
-		i1 = si1;
-		i2 = si2;
-		di = sdi;
+//		memcpy(*client, aniState, client->Size() * sizeof(Property));
+//		i1 = si1;
+//		i2 = si2;
+//		di = sdi;
+		// reset client's position.
+  		client.SetIndexedProperty(actX, (Property) oldX);
+		client.SetIndexedProperty(actY, (Property) oldY);
+//		if (cSignal & setBaseRect){
+//			client.SetIndexedProperty(actBRTop, (Property) oldBrTop);
+//			client.SetIndexedProperty(actBRLeft, (Property) oldBrLeft);
+//			client.SetIndexedProperty(actBRRight, (Property) oldBrRight);
+//			client.SetIndexedProperty(actBRBottom, (Property) oldBrBottom);
+//		}
 
 		client.SetIndexedProperty(actSignal,
 			Property(client.GetIndexedProperty(actSignal) | blocked));
 	}
-	motion.SetIndexedProperty(motI1, (Property) i1);
-	motion.SetIndexedProperty(motI2, (Property) i2);
-	motion.SetIndexedProperty(motDI, (Property) di);
+	else {
+		client.SetIndexedProperty(actSignal,
+			Property(client.GetIndexedProperty(actSignal) & ~blocked));
+		motion.SetIndexedProperty(motI1, (Property) i1);
+		motion.SetIndexedProperty(motI2, (Property) i2);
+		motion.SetIndexedProperty(motDI, (Property) di);
+	}
 	if (x == toX && y == toY)
 		pm.InvokeMethod(motion, s_moveDone);
 	pm.acc = blocker;
@@ -369,7 +422,7 @@ KCantBeHere(argList)
 				continue;
 
 			// can't hit if I'm as below
-			if (me.GetIndexedProperty(actSignal) & (NOUPDATE | ignrAct | HIDDEN))
+			if (me.GetIndexedProperty(actSignal) & (ignrAct | HIDDEN))
 				continue;
 
 			// if our rectangles intersect we are done

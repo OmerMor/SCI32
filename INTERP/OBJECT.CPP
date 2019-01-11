@@ -13,6 +13,7 @@
 #include "resource.hpp"
 #include "script.hpp"
 #include "sendstac.hpp"
+#include "string.hpp"
 #include "textid.hpp"
 #include "vocab.hpp"
 
@@ -162,7 +163,7 @@ ObjectID::Get(MemID id, size_t ofs, size_t size)
 {
 	//	get memory to read an .HEP object into
 
-	ID<Object, MemObject>::Get(size);
+	FakeObjectID::Get(size);
 	new(handle) Object(*this, id, ofs, size);
 }
 
@@ -171,7 +172,7 @@ ObjectID::Get(ObjectID clonee)
 {
 	//	clone an Object
 
-	ID<Object, MemObject>::Get(clonee->size * sizeof(Property));
+	FakeObjectID::Get(clonee->size * sizeof(Property));
 	new(handle) Object(*this, clonee);
 }
 
@@ -181,7 +182,7 @@ ObjectID::Free()
 	//	this is necessary because of a bug in WATCOM 9.5 (see MEMID.HPP)
 	if (handle)
 		(**this)->~Object();
-	ID<Object, MemObject>::Free();
+	FakeObjectID::Free();
 }
 
 ObjectID
@@ -197,6 +198,31 @@ ObjectID::Clone()
 }
 
 ////////////////////////////////////////////////////////////////////////////
+
+ObjectID
+GetClass(const char* name)
+{
+	//	return the class object with a given name
+
+	for (SOL_NodeID node = objects.Last(); node; node = node->Prev()) {
+		ObjectID obj = node->Key();
+		if (!strcmp(obj.Name(), name))
+			return obj;
+	}
+	return 0;
+}
+
+Selector
+GetSelector(const char* name)
+{
+	//	find the selector number for a selector name
+
+ 	char buf[MaxSelectorName + 1];
+ 	for (int i = 0; GetVocabStr(SELECTOR_VOCAB, i, buf); i++)
+		if (!strcmp(name, buf))
+			return i;
+	return 0;
+}
 
 const char*
 GetSelectorName(Selector selector, char* str)
@@ -272,4 +298,19 @@ KDisposeClone(argList)
 	if ((obj->Info() & (CLONEBIT | NODISPOSE)) == CLONEBIT)
 		obj.Free();
 }
-
+
+void
+KFindSelector(argList)
+{
+	//	find the selector number for a selector name
+
+ 	pm.acc = GetSelector(*StrGetData(arg(1)));
+}
+
+void
+KFindClass(argList)
+{
+	//	return the class object for a given name
+
+ 	pm.acc = GetClass(*StrGetData(arg(1)));
+}

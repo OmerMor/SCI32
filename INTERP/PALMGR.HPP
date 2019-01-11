@@ -21,11 +21,15 @@ class PaletteMgr : public Saveable
 	virtual	const SOLPalette&	Next() const = 0;
 	virtual	const uchar* 		CycleMap() const = 0;
 	virtual	Bool	UpdateForFrame() = 0;
+	virtual	Bool	UpdateFFrame() = 0;
+
 
 	virtual	void	SetCycle(int begin, int end, int direction = 1, int ticks = 0) = 0;
 	virtual	void	DoCycle(int which, int steps = 1) = 0;
 	virtual	void	CycleOn(int which) = 0;
 	virtual	void	CyclePause(int which) = 0;
+	virtual	void	CycleAllOn() = 0;
+	virtual	void	CycleAllPause() = 0;
 	virtual	void	CycleOff(int which) = 0;
 	virtual	void	CycleAllOff() = 0;
 
@@ -49,4 +53,3 @@ class PaletteMgr : public Saveable
 
 
 #endif
-

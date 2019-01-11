@@ -28,16 +28,18 @@ void		BuildHeader(uchar* bmAddr, int width, int height, int skip,
 							int yHot = 0,
 							int xRes = LOWRESX,
 							int yRes = LOWRESY,
-							Bool palFlag = False);
+							Bool palFlag = False,
+							Bool remap = False);
 
 inline void		BuildHeader(MemID bm, int width, int height, int skip,
 									int xHot = 0,
 									int yHot = 0,
 									int xRes = LOWRESX,
 									int yRes = LOWRESY,
-									Bool palFlag = False)
+									Bool palFlag = False,
+									Bool remap = False)
 {
-   BuildHeader((uchar*) *bm, width, height, skip, xHot, yHot, xRes, yRes, palFlag);
+	BuildHeader((uchar*) *bm, width, height, skip, xHot, yHot, xRes, yRes, palFlag, remap);
 }
 
 MemID		BuildLineBitmap(int x1,
@@ -51,7 +53,7 @@ MemID		BuildLineBitmap(int x1,
 								 SOL_Rect& rect);
 MemID		BuildPolygonBitmap(SOL_ListID theList,
 									 uchar color,
-					 				 int style,
+									 int style,
 									 int pattern,
 									 int thickness,
 									 SOL_Rect& rect,
@@ -60,4 +62,3 @@ int		GetNumLoops(MemID);
 int		GetNumCels(MemID,int);
 
 #endif
-

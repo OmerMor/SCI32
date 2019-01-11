@@ -128,9 +128,6 @@ CelObj::DrawHzFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_P
 
 
 
-
-
-
 void
 CelObj::DrawNoFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_Point ul)
 {
@@ -162,6 +159,85 @@ CelObj::DrawNoFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_P
 	pixelcount = rowLen;
 
 	for (int i = 0; i < vRun; ++i, ++srcRow) {
+#ifdef MACINTOSH
+		// Find the row data
+		uchar* target = dest.Addr(toBuffer.A.x, toBuffer.A.y + i);
+		uchar* controlPtr = controlData + controlTable[srcRow];
+		uchar* colorPtr = colorData + colorTable[srcRow];
+
+		// Draw a line
+		for (int j = 0;j <hRun;) {
+			// Get the control character
+			uchar control = *controlPtr++;
+			if (!(control & REPEATC)) {
+				// Do a run of unique bytes
+				if ((j + control) < srcCol) {
+					j += control;
+					colorPtr += control;
+				}
+				else {
+					if (j < srcCol) {
+						control -= srcCol - j;
+						colorPtr += srcCol - j;
+						j = srcCol;
+					}
+					if (j + control > hRun) {
+						control = hRun - j;
+					}
+					j += control;
+					for (int k = 0;k<control;++k) {
+						uchar color = *colorPtr++;
+						if (color != skip)  {
+							*target = color;
+						}
+						target++;
+					}
+				}
+			}
+			else {
+				if (control & REPSKIP) {
+					// Do a run of repeated skip
+					control &= 0x3f;
+					if ((j + (int) control) < srcCol) {
+						j += control;
+					}
+					else {
+						if (j < srcCol) {
+							control -= srcCol - j;
+							j = srcCol;
+						}
+						if (j + control > hRun) {
+							control = hRun - j;
+						}
+						j += control;
+						target += control;
+					}
+				}
+				else {
+					// Do a run of repeated color
+					control &= 0x3f;
+					if ((j + control) < srcCol) {
+						j += control;
+						colorPtr++;
+					}
+					else {
+						if (j < srcCol) {
+							control -= srcCol - j;
+							j = srcCol;
+						}
+						if (j + control > hRun) {
+							control = hRun - j;
+						}
+						uchar color = *colorPtr++;
+						memset(target,color,control);
+
+						j += control;
+						target += control;
+					}
+				}
+			}
+		}
+#else
 		// Find the row data
 		destptr = dest.Addr(toBuffer.A.x, toBuffer.A.y + i);
 		controlptr = controlData + controlTable[srcRow];
@@ -169,6 +245,7 @@ CelObj::DrawNoFlipNoMD(const Buffer& dest, const SOL_Rect& toBuffer, const SOL_P
 
 		// Draw a line
 		WriteCompSkipLine();
+#endif
 	}
 }
 
@@ -380,11 +457,13 @@ CelObj::ScaleDrawNoMD(const Buffer& dest, const Ratio& ratioX, const Ratio& rati
 		beginindex = x1;
 		pixelcount = x2 - x1 + 1;
 		skipval = skip;
-#ifndef WINDOWS	//causing problems in QG4
+#ifndef MACINTOSH		//causing problems in PQ4
+	#ifndef WINDOWS	//causing problems in QG4
 		if (doubleHorz)
 			WriteUncompScaleLine2();
 		else
-#endif
+	#endif
+#endif	//MACINTOSH
 			WriteUncompScaleLine();
 
 		// Draw a line
@@ -447,11 +526,13 @@ CelObj::ScaleDrawUncompNoMD(const Buffer& dest, const Ratio& ratioX, const Ratio
  		beginindex = x1;
 		pixelcount = x2 - x1 + 1;
 		skipval = skip;
-#ifndef WINDOWS	//causing problems in QG4
+#ifndef MACINTOSH		//causing problems in PQ4
+	#ifndef WINDOWS	//causing problems in QG4
 		if (doubleHorz)
 			WriteUncompScaleLine2();
 		else
-#endif
+	#endif
+#endif	//MACINTOSH
 			WriteUncompScaleLine();
 
 		// Draw a line

@@ -105,7 +105,8 @@ protected:
 	char	entries[Size];
 	int	nEntries;
 
-} static opcodeBreakpoint;
+};
+static OpcodeBreakpoint opcodeBreakpoint;
 
 void
 OpcodeBreakpoint::AddOpcode(uchar opcode)
@@ -156,7 +157,8 @@ public:
 protected:
 	PMIP*	pmipStackPtr;
 
-} static stepOverSourceBreakpoint;
+};
+static StepOverSourceBreakpoint stepOverSourceBreakpoint;
 
 void
 StepOverSourceBreakpoint::Set()
@@ -181,7 +183,8 @@ public:
 protected:
 	PMIP*		stackPtr;
 
-} static pmipStackBreakpoint;
+};
+ static PMIPStackBreakpoint pmipStackBreakpoint;
 
 void
 PMIPStackBreakpoint::Set(PMIP* stackPtr)
@@ -209,7 +212,8 @@ protected:
 
 	static char	buf[];
 
-} static scriptBreakpoint;
+};
+static ScriptBreakpoint scriptBreakpoint;
 
 char	ScriptBreakpoint::buf[20];
 
@@ -258,7 +262,8 @@ protected:
 
 	static char	buf[];
 
-} static methodBreakpoint;
+};
+ static MethodBreakpoint methodBreakpoint;
 
 char	MethodBreakpoint::buf[50];
 	
@@ -321,7 +326,8 @@ protected:
 	
 	static char buf[];
 
-} static memoryBreakpoint;
+} ;
+static MemoryBreakpoint memoryBreakpoint;
 
 char	MemoryBreakpoint::buf[20];
 
@@ -379,7 +385,8 @@ protected:
 
 	static char buf[];
 
-} static propertyBreakpoint;
+} ;
+static PropertyBreakpoint propertyBreakpoint;
 
 char	PropertyBreakpoint::buf[40];
 
@@ -432,7 +439,8 @@ protected:
 	
 	static char buf[];
 
-} static kernelBreakpoint;
+} ;
+static KernelBreakpoint kernelBreakpoint;
 
 char	KernelBreakpoint::buf[30];
 
@@ -683,4 +691,3 @@ Breakpoints::Test()
 }
 #endif
 
-

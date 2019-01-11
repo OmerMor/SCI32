@@ -521,8 +521,8 @@ FileLength(int fd)
 	return len;
 }
 
-ulong
-LSeek(int fd, ulong offset, int fromWhere)
+long
+LSeek(int fd, long offset, int fromWhere)
 {
 	critErrHandler->Clear();
 	return lseek(fd, offset, fromWhere);
@@ -792,3 +792,4 @@ GetCurDevice(char* device)
 	GetCWD(path);
 	GetDevice(path, device);
 }
+

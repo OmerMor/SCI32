@@ -117,6 +117,21 @@ KSqrt(argList)
 }
 
 void
+KMulDiv(argList)
+{
+	// returns (arg1*arg2)/arg3 computed in 32 bit precision and rounded
+	int a1 = (int) arg(1);
+	int a2 = (int) arg(2);
+	int a3 = (int) arg(3);
+
+	int result = (Abs(a1*a2) + Abs(a3)/2)/Abs(a3);
+	if ((a1*a2)/a3 < 0)
+		result = -result;
+
+	pm.acc = (Acc) result;
+}
+
+void
 KGetAngle(argList)
 {
 	SOL_Point	sp;

@@ -11,15 +11,21 @@
 
 enum {ROBOT_UNUSED, ROBOT_PLAYING, ROBOT_FINAL, ROBOT_PAUSED};
 
+const SiArraySize = 10;
+
 class Robot
 {
 	public:
 	Robot(int resNum, long plane, int pri = -1, int xoff = 0, int yoff = 0);
 	~Robot();
 	int	Status() const				{return status;}
+	int	FrameNum() const			{return frameNum;}
+	int	FrameCount() const		{return frameCount;}
+	int	FramesSkipped() const	{return framesSkipped;}
+	int	MaxFramesSeqSkipped() const {return maxFramesSeqSkipped;}
+
 	long	GetCue();
 	void	Init();
-	MemID	GetFrameBM(int frame);
 	void	DisplayFrame(int frame, int newxoff = 50000, int newyoff = 50000, int newpri = 50000);
 	int	Info(SOL_Rect*);
 	void	DoRobot();
@@ -35,15 +41,19 @@ class Robot
 	void		SeekFrame(int frame);
 	void		OffsetData(uchar*, char offset);
 	void		CreateCel(uchar*, Bool usePalette = False);
-	void		CreateCel4(uchar*, Bool usePalette = False);
+	void		CreateCel4(uchar*, int celCount, Bool usePalette = False);
+	void		Create1Cel4(uchar* video, int index, Bool usePalette);
 	void		RLEDecode(uchar* dest, uchar* src);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount);
 	void		ExpandData(uchar* dest, const uchar* src);
+	int		ToTicks(int frame);
+	int		ToFrame(int ticks);
 	void		DoVersion2();
 	void		DoVersion3();
 	void		DoVersion4();
 
-	ScreenItem*		robotSi;
+	ScreenItem*		robotSi[SiArraySize];
+	int				siCount;
 	ushort*			videoSizeArray;
 	ulong*			recordPosArray;
 	char*				lzScratch;
@@ -52,15 +62,16 @@ class Robot
 	int				vPadSize[2];
 	int				frameCount;
 	int				frameNum;
+	short				frameRate;		//  Frames per second
 	int				resNum;
 	short				xRes, yRes;		//  MUST BE SHORT!
 	Bool				firstFrame;
 	Bool				hasAudio;
 	long				planeId;
 	int				fd;
-	int				priority;
+	int				priority[SiArraySize];
 	int				xoff, yoff;
-	int				fileX1, fileY1;
+	int				fileX1[SiArraySize], fileY1[SiArraySize];
 	int				status;
 	
 	//	 *** NEW ***
@@ -72,18 +83,18 @@ class Robot
 	long*				cueTimeList;
 	ushort*			cueValueList;
 	short				version;
+	int				framesSkipped;
+	int				maxFramesSeqSkipped;
 	
 	short				audPadSize;
-	short				frameRate;
-	short				safeFrameSkipAudio;
+	short				canSkip;
 	short				maxCelsPerFrame;
-	short				xsize0, ysize0, xsize1, ysize1, xsize2, ysize2;
-	short				xsize3, ysize3;
+	long				maxsize0, maxsize1, maxsize2, maxsize3;
 
-	MemID				bmHandle;
+	MemID				bmHandle[SiArraySize];
 	int				compressType;
 	int				vertScaleFactor;
-	int				x1, y1;
+	int				x1[SiArraySize], y1[SiArraySize];
 	int				xsize, ysize;
 
 

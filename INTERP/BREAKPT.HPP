@@ -30,11 +30,12 @@ protected:
 	Breakpoint*	entries[Size];
 	int			nEntries;
 	
-} extern breakpoints;
+};
+
+extern Breakpoints breakpoints;
 
 extern DebugMenu	breakpointMenu;
 
 #endif
 #endif
 
-

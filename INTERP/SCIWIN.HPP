@@ -25,6 +25,7 @@ extern	BOOL		USEMIDI;
 extern	BOOL		DOPPCTEST;
 extern	BOOL		HIRES;
 extern	BOOL		TRUECOLOR;
+extern	BOOL		COLORCURSOR;
 extern	int		forcePPC;
 extern	int		reserveK;
 extern	int		reserveK4;
@@ -33,11 +34,8 @@ extern	int		reserveK16;
 extern	int		sciMinK;
 extern	int		sciMaxK;
 extern	int		DACSize;
-#ifndef COLORCUR
 extern	int		cursorViewAdd;
-#else
 extern	int		maxCursorSize;
-#endif
 extern	int		asyncCheckFreq;
 extern	char		szWinPatchDir[];
 

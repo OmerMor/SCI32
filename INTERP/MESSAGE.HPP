@@ -9,7 +9,8 @@
 
 struct MessageMgr : Saveable {
 	void	SaveRestore(SaveGame*, Bool save);
-} extern messageMgr;
+};
+extern MessageMgr messageMgr;
 
 const MessageMajorVersion	= 4000;
 
@@ -36,4 +37,3 @@ _Packed struct MsgData {
 };
 
 #endif
-

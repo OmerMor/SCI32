@@ -29,6 +29,8 @@ class SOL_Rect
 	//  Normal methods
 	void	MakeEmpty();
 	void	Set(int xa, int ya, int xb, int yb);
+	void	SetUL(int x, int y);
+	void	SetBR(int x, int y);
 	void	MoveTo(int xa, int ya);
 	void	Adjust();
 	void	Clip(const SOL_Rect&);
@@ -70,6 +72,20 @@ SOL_Rect::Set(int xa, int ya, int xb, int yb)
 	A.y = ya;
 	B.x = xb;
 	B.y = yb;
+}
+
+inline void
+SOL_Rect::SetUL(int x, int y)
+{
+	A.x = x;
+	A.y = y;
+}
+
+inline void
+SOL_Rect::SetBR(int x, int y)
+{
+	B.x = x;
+	B.y = y;
 }
 
 //  Adjust  -  Corrects coordinates so A is upper left, B lower right

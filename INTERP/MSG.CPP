@@ -67,7 +67,7 @@ MsgMgr::AddFatalStr(char* str)
 void
 MsgMgr::AddPMIP(char* msg)
 {
-	if ((int) pm.game)
+	if ((int) pm.game && pm.ip.IsValid())
 		sprintf(msg + strlen(msg), "\nScript %u/$%x", pm.curScriptNum,
 			pm.ip.ScriptOffset());
 }
@@ -446,3 +446,4 @@ KMonoOut(argList)
 	msgMgr->MonoArgs(*formatID, *MakeVprintfArgs(*formatID, &arg(2)));
 }
 #endif
+

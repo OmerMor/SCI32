@@ -9,259 +9,266 @@ KDummy(kArgs)
 {
 }
 
-#define Kernel(name)	{ K##name##, #name }
+void	KCelLink(argList);
+
+#define Kernel(name)				{ K##name##, #name, 0 }
+#define KernelSub(name, sub)	{ K##name##, #name, sub }
+#define KSubFunc(name) 			{ #name, 0 }
 
 #define Dummy			Kernel(Dummy)
 
+/* define the KList sub functions */
+KernelSubFunc kListSubFuncs[] = {
+	KSubFunc(LNew),
+	KSubFunc(LDispose),
+	KSubFunc(LNewNode),
+	KSubFunc(LFirstNode),
+	KSubFunc(LLastNode),
+	KSubFunc(LEmpty),
+	KSubFunc(LNextNode),
+	KSubFunc(LPrevNode),
+	KSubFunc(LNodeValue),
+	KSubFunc(LAddAfter),
+	KSubFunc(LAddToFront),
+	KSubFunc(LAddToEnd),
+	KSubFunc(LAddBefore),
+	KSubFunc(LMoveToFront),
+	KSubFunc(LMoveToEnd),
+	KSubFunc(LFindKey),
+	KSubFunc(LDeleteKey),
+	KSubFunc(LAt),
+	KSubFunc(LIndexOf),
+	KSubFunc(LEachElementDo),
+	KSubFunc(LFirstTrue),
+	KSubFunc(LAllTrue),
+	KSubFunc(LSort),
+	0
+};
+
 KernelCall kernelCalls[] = {
 	//	Resource handling.
-	Kernel(Load),
+	Kernel(Load),									// 0
 	Kernel(Unload),
 	Kernel(ScriptID),
 	Kernel(DisposeScript),
 	Kernel(Lock),
 	Kernel(ResCheck),
 	Kernel(Purge),
+	Dummy,						
+	Dummy,
+	Dummy,
 
 	//	Object management.
-	Kernel(Clone),
+	Kernel(Clone),									// 10
 	Kernel(DisposeClone),
 	Kernel(RespondsTo),
+	Kernel(FindSelector),
+	Kernel(FindClass),
+	Dummy,
+	Dummy,
+	Dummy,
+	Dummy,
+	Dummy,
 
 	// Animated objects & views.
-	Kernel(SetNowSeen),							// 10
+	Kernel(SetNowSeen),							// 20
 	Kernel(NumLoops),
 	Kernel(NumCels),
-	Kernel(CelWide),
-	Kernel(CelHigh),
-	Kernel(GetHighPlanePri),
-	Kernel(GetHighItemPri),
-	Kernel(ShakeScreen),
 	Kernel(IsOnMe),
-	Kernel(ShowMovie),
-	Kernel(SetVideoMode),						// 20
+   Kernel(AddMagnify),
+   Kernel(DeleteMagnify),
+	Kernel(CelRect),
+	Kernel(BaseLineSpan),
+
+	Kernel(CelWide),								// 28
+	Kernel(CelHigh),
 	Kernel(AddScreenItem),
  	Kernel(DeleteScreenItem),
 	Kernel(UpdateScreenItem),
-	Kernel(FrameOut),
-	Kernel(AddPlane),
+
+	Kernel(FrameOut),								// 33
+
+	Kernel(CelInfo),								// 34
+
+	Kernel(Bitmap),								// 35
+	Kernel(CelLink),								
+	Dummy,
+	Dummy,
+	Dummy,
+
+	Kernel(AddPlane),								// 40
 	Kernel(DeletePlane),
 	Kernel(UpdatePlane),
 	Kernel(RepaintPlane),
-	Kernel(SetShowStyle),
-	Kernel(ShowStylePercent),					// 30
+
+	Kernel(GetHighPlanePri),					// 44
+	Kernel(GetHighItemPri),
+
+	Kernel(SetShowStyle),						// 46
+	Kernel(ShowStylePercent),					
 	Kernel(SetScroll),
-   Kernel(AddMagnify),
-   Kernel(DeleteMagnify),
-	Kernel(IsHiRes),
+	Kernel(MovePlaneItems),                
+	Kernel(ShakeScreen),
+	Dummy,
+	Dummy,
+	Dummy,
+	Dummy,
 
-	// Graphics.
-	Kernel(Robot),
-	Kernel(InvertRect),
+	Kernel(IsHiRes),								// 55
+	Kernel(SetVideoMode),						
+	Kernel(ShowMovie),
 
-	// Text functions.
-	Kernel(TextSize),
-	Kernel(Message),
-	Kernel(TextColors),
-	Kernel(TextFonts),							// 40
-#if defined(DEBUG) && !defined(WINDOWS)
-	Kernel(SaveScreen),
-#else
-	Dummy,	//Kernel(SaveScreen),
-#endif
-	Kernel(SetQuitStr),
-	Kernel(EditText),
-	Kernel(InputText),
+	Kernel(Robot),									// 58
+#ifndef NETWORK
 	Kernel(CreateTextBitmap),
-	Kernel(Priority),
+#else
+	Dummy,
+#endif
 
-	// Events.
-	Kernel(GetEvent),
-	Kernel(GlobalToLocal),
-	Kernel(LocalToGlobal),
-	Kernel(MapKeyToDir),							// 50
-
-	// Mouse functions.
-	Kernel(HaveMouse),
-	Kernel(SetCursor),
-	Kernel(VibrateMouse),
-
-	// Savegame functions.
-	Kernel(SaveGame),
-	Kernel(RestoreGame),
-	Kernel(RestartGame),
-	Kernel(GameIsRestarting),
-	Kernel(MakeSaveCatName),
-	Kernel(MakeSaveFileName),
-	Kernel(GetSaveFiles),						// 60
-	Kernel(GetSaveDir),
-	Kernel(CheckSaveGame),
-	Kernel(CheckFreeSpace),
-
-	// Sound functions.
-	Kernel(DoSound),
-	Kernel(DoAudio),
-	Kernel(DoSync),
-
-	// List functions.
-	Kernel(NewList),
-	Kernel(DisposeList),
-	Kernel(NewNode),
-	Kernel(FirstNode),							// 70
-	Kernel(LastNode),
-	Kernel(EmptyList),
-	Kernel(NextNode),
-	Kernel(PrevNode),
-	Kernel(NodeValue),
-	Kernel(AddAfter),
-	Kernel(AddToFront),
-	Kernel(AddToEnd),
-	Dummy,	//Kernel(MoveToFront),
-	Dummy,	//Kernel(MoveToEnd),				// 80
-	Kernel(FindKey),
-	Dummy,	//Kernel(FindFirst),
-	Dummy,	//Kernel(FindNext),
-	Dummy,	//Kernel(FindPrev),
-	Kernel(DeleteKey),
-	Dummy,	//Kernel(DeleteID),
-	Dummy,	//Kernel(Sort),
-	Kernel(ListAt),
-	Kernel(ListIndexOf),
-	Kernel(ListEachElementDo),					// 90
-	Kernel(ListFirstTrue),
-	Kernel(ListAllTrue),
-
-	// Math functions.
-	Kernel(Random),
+	Kernel(Random),								// 60
 	Kernel(Abs),
 	Kernel(Sqrt),
 	Kernel(GetAngle),
 	Kernel(GetDistance),
 	Kernel(ATan),
 	Kernel(SinMult),
-	Kernel(CosMult),								// 100
+	Kernel(CosMult),								
 	Kernel(SinDiv),
 	Kernel(CosDiv),
 
-	// Miscellaneous functions.
-	Kernel(GetTime),
-	Kernel(Platform),
+	Kernel(Text),									// 70
+	Dummy,
 
-	// Motion functions.
-	Kernel(BaseSetter),
+	Kernel(Message),								// 72
+	Kernel(Font),
+#ifndef NETWORK
+	Kernel(EditText),
+	Kernel(InputText),
+#else
+	Kernel(Edit),
+	Dummy,
+#endif
+	Kernel(ScrollWindow),
+	Dummy,
+	Dummy,
+	Dummy,
+
+	Kernel(GetEvent),								// 80
+	Kernel(GlobalToLocal),
+	Kernel(LocalToGlobal),
+	Kernel(MapKeyToDir),							
+
+	Kernel(HaveMouse),							// 84
+	Kernel(SetCursor),
+	Kernel(VibrateMouse),
+	Dummy,
+	Dummy,
+	Dummy,
+
+	Kernel(List),									// 90
+	Kernel(Array),
+	Kernel(String),
+	Kernel(FileIO),
+
+	Kernel(BaseSetter),							// 94
 	Kernel(DirLoop),
 	Kernel(CantBeHere),
 	Kernel(InitBresen),
 	Kernel(DoBresen),
-	Kernel(SetJump),								// 110
+	Kernel(SetJump),								
 	Kernel(AvoidPath),
 	Kernel(InPolygon),
 	Kernel(MergePoly),
+	Kernel(ObjectIntersect),
+	Dummy,
 
-	// Debug functions.
-#ifdef DEBUG
-	Kernel(SetDebug),
-	Kernel(InspectObject),
-#else
-	Dummy,	//Kernel(SetDebug),
-	Dummy,	//Kernel(InspectObject),
-#endif
-	Kernel(MemoryInfo),
-#ifdef DEBUG
-	Kernel(Profiler),
-	Kernel(Record),
-	Kernel(PlayBack),
-	Kernel(MonoOut),								// 120
-	Kernel(SetFatalStr),
-#else
-	Dummy,	//Kernel(Profiler),
-	Dummy,	//Kernel(Record),
-	Dummy,	//Kernel(PlayBack),
-	Dummy,	//Kernel(MonoOut),				// 120
-	Dummy,	//Kernel(SetFatalStr),
-#endif
-
-	// OS functions.
-	Kernel(GetCWD),
-	Kernel(ValidPath),
-	Kernel(FileIO),
-
-	// System reporting.
-	Dummy,	//Kernel(SysInfo),
+	Kernel(MemoryInfo),							// 105
 	Kernel(DeviceInfo),
 
-	// Palette functions.
-	Kernel(Palette),
+	Kernel(Palette),								// 107
 	Kernel(PalVary),
 	Kernel(PalCycle),
-	
-	// Array & String functions.
-	Kernel(Array),									// 130
-	Kernel(String),
 
-	// Color Remaping Functions
-	Kernel(RemapColors),
+	Kernel(RemapColors),							// 110
+
+	Kernel(AddLine),								// 111
+	Kernel(DeleteLine),							
+	Kernel(UpdateLine),							
+
+	Kernel(AddPolygon),							// 114
+	Kernel(DeletePolygon),						
+	Kernel(UpdatePolygon),						
+
+	Kernel(DoSound),								// 117
+	Kernel(DoAudio),
+	Kernel(DoSync),
+
+	Kernel(Save),									// 120
+
+	Kernel(GetTime),								// 121
+	Kernel(Platform),
+	Kernel(CD),
+
+	Kernel(SetQuitStr),							// 124
+	Kernel(GetConfig),
+
+	Kernel(Table),									// 126
+
+#ifdef WINDOWS
+	Kernel(WinHelp),              			// 127
+#else
+	Dummy,		
+#endif
+
+#ifdef NETWORK
+	Kernel(Network),								// 128
+#else
+	Kernel(Dummy),
+#endif
 
 #ifdef DEBUG
+	Kernel(SetDebug),								// 129
+	Kernel(InspectObject),
+	Kernel(MonoOut),								
+	Kernel(SetFatalStr),
 	Kernel(IntegrityChecking),
 	Kernel(CheckIntegrity),
+	Kernel(MarkMemory),
 #else
-	Dummy,	//Kernel(IntegrityChecking),
-	Dummy,	//Kernel(CheckIntegrity),
+	Kernel(Dummy),								// 129
+	Kernel(Dummy),
+	Kernel(Dummy),								
+	Kernel(Dummy),
+	Kernel(Dummy),
+	Kernel(Dummy),
+	Kernel(Dummy),
 #endif
-
-	Kernel(ObjectIntersect),
-
-#ifdef DEBUG
-	Kernel(MarkMemory),							// 136
-#else
-	Dummy,	//Kernel(MarkMemory)
-#endif
-	
-	Kernel(TextWidth),							// 137
-	Kernel(PointSize),							// 138
-
-	Kernel(AddLine),								// 139
-	Kernel(DeleteLine),							// 140
-	Kernel(UpdateLine),							// 141
-
-	Kernel(AddPolygon),							// 142
-	Kernel(DeletePolygon),						// 143
-	Kernel(UpdatePolygon),						// 144
-
-	Kernel(Bitmap),								// 145
-	
-	Kernel(ScrollWindow),                  // 146
-	Kernel(SetFontRes),                    // 147
-	Kernel(MovePlaneItems),                // 148
-	Kernel(PreloadResource),					// 149
-#ifdef INN
-	Kernel(BaseLineSpan), 						// 150
+							
+#if defined(DEBUG) && !defined(WINDOWS)
+	Kernel(SaveScreen),						// 136
 #else
 	Dummy,
 #endif
-	Kernel(NewRoom),								// 151
-	Kernel(CheckCDisc),							// 152
-	Kernel(GetSaveCDisc),						// 153
+
 #ifdef DEBUG
-	Kernel(TestPoly),                      // 154
+	Kernel(TestPoly),                      // 137
 #else
-	Dummy,	//Kernel(TestPoly)            // 154
+	Dummy,	//Kernel(TestPoly)            // 137
 #endif
 
+	Kernel(LoadChunk),							// 138
+	Kernel(SetPalStyleRange),					// 139
+	Kernel(AddPicAt),						 		// 140
 #ifdef WINDOWS
-	Kernel(WinHelp),                        // 155
+	Kernel(MessageBox),                    // 141
 #else
-	Dummy,		//Kernel(WinHelp)           // 155
+	Dummy, 		//Kernel(MessageBox)       // 141
 #endif
-	Kernel(LoadChunk),								 // 156
-	Kernel(SetPalStyleRange),						 // 157
-	Kernel(AddPicAt),						 			 // 158
-#ifdef WINDOWS
-	Kernel(MessageBox)                      // 159
-#else
-	Dummy 		//Kernel(MessageBox)        // 159
-#endif
+	Kernel(NewRoom),								// 142
+	Kernel(PreloadResource),					// 143
+	Kernel(Priority),								// 144
+	Kernel(MorphOn)								// 145
 };
 
 int	kernelMax = sizeof(kernelCalls) / sizeof(*kernelCalls);
+

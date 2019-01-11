@@ -13,10 +13,12 @@
 #include "buffer.hpp"
 #include "remap.hpp"
 
-
-
-
-
+struct LinkPoint {
+	Int16 x;
+	Int16 y;
+	uchar positionType;
+	char  priority;
+};
 
 long	CelObj::timeStamp = 1;
 int	CelObj::scaleX1[maxScaledLine];
@@ -642,8 +644,6 @@ CelObj::ReadPix(int x, int y, Bool mirrFlag)
 	}
 }
 
-#ifdef INN
-
 SOL_Rect
 CelObj::ReadLineSpan(int y)
 {
@@ -718,7 +718,120 @@ CelObj::ReadLineSpan(int y)
    }
 }
 
-#endif
+int 
+CompareLinkArray(const void * ptr1, const void * ptr2)
+{
+	LinkPoint * p1 = (LinkPoint *) ptr1;
+	LinkPoint * p2 = (LinkPoint *) ptr2;
+
+	if((*p1).priority < (*p2).priority)
+		return -1;
+	else if((*p1).priority > (*p2).priority)
+		return 1;
+
+	return 0;
+
+}
+
+SCIWord 
+CelObj::GetFirstLink()
+{
+	MemID viewID = resMgr->Get(MemResView, bitmap.View());
+	ViewHeader* viewPtr = (ViewHeader*) *viewID;
+
+	if (viewPtr->version < 0x84)
+			msgMgr->Fatal(SrcLoc, "Unsupported version for Links");
+
+	
+	uchar* resBuffer = ResPointer();
+	CelHeaderView* celPtr = (CelHeaderView*) (resBuffer + celOffset);
+
+	if (celPtr->linkTableCount == 0)
+	return(-1);
+
+	struct LinkPoint linkArray[10];
+	struct LinkPoint *linkPoint = (LinkPoint*)(resBuffer 
+                                     + celPtr->linkTableOffset);
+
+	for(int i=0;i<celPtr->linkTableCount;i++,linkPoint++)
+		linkArray[i] = *linkPoint;
+	
+
+	qsort(linkArray,celPtr->linkTableCount,sizeof(LinkPoint),CompareLinkArray);
+
+	return (linkArray[0].positionType);
+}
+ 
+SCIWord 
+CelObj::GetNextLink(int type)
+{
+	MemID viewID = resMgr->Get(MemResView, bitmap.View());
+	ViewHeader* viewPtr = (ViewHeader*) *viewID;
+
+	if (viewPtr->version < 0x84)
+			msgMgr->Fatal(SrcLoc, "Unsupported version for Links");
+
+	uchar* resBuffer = ResPointer();
+	CelHeaderView* celPtr = (CelHeaderView*) (resBuffer + celOffset);
+
+	if (celPtr->linkTableCount == 0)
+	return(-1);
+
+	struct LinkPoint linkArray[10];
+	struct LinkPoint *linkPoint = (LinkPoint*)(resBuffer 
+                                     + celPtr->linkTableOffset);
+
+	for(int i=0;i<celPtr->linkTableCount;i++,linkPoint++)
+		linkArray[i] = *linkPoint;
+
+	qsort(linkArray,celPtr->linkTableCount,sizeof(LinkPoint),CompareLinkArray);
+
+	for(int j=0;j<celPtr->linkTableCount;j++) {
+	 	if (linkArray[j].positionType == type)
+			break;
+	}
+
+	if (j>=(celPtr->linkTableCount-1))
+		return(-1);		
+
+	return (linkArray[j+1].positionType);
+}
+
+SCIWord 
+CelObj::GetLinkPoint(int type, int which)
+{
+	MemID viewID = resMgr->Get(MemResView, bitmap.View());
+	ViewHeader* viewPtr = (ViewHeader*) *viewID;
+
+	if (viewPtr->version < 0x84)
+			msgMgr->Fatal(SrcLoc, "Unsupported version for Links");
+
+	uchar* resBuffer = ResPointer();
+	CelHeaderView* celPtr = (CelHeaderView*) (resBuffer + celOffset);
+
+	if (celPtr->linkTableCount == 0)
+	return(-1);
+
+	struct LinkPoint linkArray[10];
+	struct LinkPoint *linkPoint = (LinkPoint*)(resBuffer 
+                                     + celPtr->linkTableOffset);
+
+	for(int i=0;i<celPtr->linkTableCount;i++,linkPoint++)
+		linkArray[i] = *linkPoint;
+		
+	for(int j=0;j<celPtr->linkTableCount;j++)
+		if (linkArray[j].positionType == type)	{
+			if (which == 1)
+				if (mirrored)
+					return(celPtr->xDim - linkArray[j].x);
+				else
+					return(linkArray[j].x);
+			else
+				return(linkArray[j].y);
+		}	
+			
+	return(-1);
+}
 
 
 uchar*
@@ -808,10 +921,18 @@ CelObjView::CelObjView(int v, int l, int c) : CelObj(v, l, c)
 			bitmap.SetCel(loopPtr->numCels - 1);
 		paletteOffset = viewPtr->paletteOffset;
 		celOffset = loopPtr->celOffset + bitmap.Cel() * viewPtr->celHeaderSize;
-		CelHeader * celPtr = (CelHeader *) ((char *) viewPtr + celOffset);
+		CelHeaderView* celPtr = (CelHeaderView *) ((char *) viewPtr + celOffset);
 		width = celPtr->xDim;
 		height = celPtr->yDim;
 		xorg = (celPtr->xDim >> 1) - celPtr->xHot;
+// Thsi needs to be changed after the Windows VIew Editor
+// allows either type of mirroring. Each loop/view will have
+// a flag setting the type of mirroring to take place for the
+// loop/view
+#ifdef NETWORK
+		if (mirrored)
+			xorg = celPtr->xDim - xorg - 1;
+#endif
 		yorg = celPtr->yDim - celPtr->yHot - 1;
 		skip = celPtr->skip;
 		compressType = celPtr->compressType;
@@ -877,7 +998,7 @@ CelObjMem::CelObjMem(MemID handle) : CelObj(handle)
 	celOffset = 0;
 	compressType = 0;
 	mirrored = False;
-	remapState = NoRemapInCel;
+	remapState = (celPtr->dataFlags & REMAP_PRESENT) ? RemapInCel : NoRemapInCel;
 }
 
 //  Points to cel header
@@ -1067,5 +1188,4 @@ CelObjPic::ResPointer()
 	MemID picID = resMgr->Get(MemResPic, bitmap.Pic());
 	return (uchar*) *picID;
 }
-
 

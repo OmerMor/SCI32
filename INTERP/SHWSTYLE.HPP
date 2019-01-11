@@ -114,7 +114,19 @@ PlaneShowStyle* ShutDownStyle(PlaneShowStyle* style);
 void		VShutterSetUp(PlaneShowStyle* style,int priority);
 void		VWipeSetUp(PlaneShowStyle* style,int priority);
 Bool		PalMorph(PlaneShowStyle* style);
-
+void     ProcessEffects(PlaneShowStyle* style=0);
+void		PixelDissolveEffect(PlaneShowStyle* style=0);
+void     WipeDownEffect(PlaneShowStyle* style=0);
+void     WipeUpEffect(PlaneShowStyle* style=0);
+void     WipeRightEffect(PlaneShowStyle* style=0);
+void     WipeLeftEffect(PlaneShowStyle* style=0);
+void     HShutterInEffect(PlaneShowStyle* style=0);
+void     HShutterOutEffect(PlaneShowStyle* style=0);
+void     VShutterInEffect(PlaneShowStyle* style=0);
+void     VShutterOutEffect(PlaneShowStyle* style=0);
+void     IrisInEffect(PlaneShowStyle* style=0);
+void     IrisOutEffect(PlaneShowStyle* style=0);
+int      Bitwidth(int number);
 // List of planes that have a show style in progress
 extern 	PlaneScroll* 		planeScrolls;
 extern 	PlaneShowStyle* 	showStyles;

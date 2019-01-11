@@ -1,18 +1,24 @@
 //	cursorw.cpp
 
-#ifndef COLORCUR
 
+#include <conio.h>
+#include <dos.h>
+#include <string.h>
+
+#define INCLUDE_MMSYSTEM_H
 #include "sciwin.hpp"
 #include "sol.hpp"
 
 #include "celobj.hpp"
 #include "cursorw.hpp"
 #include "graphmgr.hpp"
+#include "intflag.hpp"
 #include "mouse.hpp"
 #include "msg.hpp"
 #include "palmgr.hpp"
 #include "ptrdev.hpp"
 #include "resource.hpp"
+#include "savegame.hpp"
 #ifdef WIN32S
 #include "shiftpal.hpp"
 #endif
@@ -353,32 +359,11 @@ CursorWin::ClearRestrictRect()
 	mouse->ClearRestrictRect();
 }
 
-#else		//COLORCUR
-
-#include <conio.h>
-#include <dos.h>
-#include <string.h>
-
-#define INCLUDE_MMSYSTEM_H
-#include "sciwin.hpp"
-#include "sol.hpp"
-
-#include "celobj.hpp"
-#include "cursorw.hpp"
-#include "intflag.hpp"
-#include "msg.hpp"
-#include "ptrdev.hpp"
-//#include "video.hpp"
-#include "savegame.hpp"
-#include "graphmgr.hpp"
-#include "mbox.hpp"
 
 //	Windows cursor stuff
 #define MAXPALETTE	256
-//#define CMAPSIZE		5000
 
 uchar *cursorBuffAddr;
-//uchar	winCurBuff[CMAPSIZE];
 uchar	*winCurBuff;
 
 struct {
@@ -387,11 +372,15 @@ struct {
 		} bic;
 
 
-CursorWin::CursorWin(const BufferWin& buffer):bitmap(-1,-1,-1),
+CursorWinClr::CursorWinClr(const BufferWin& buffer):bitmap(-1,-1,-1),
 	cursorData(False),
 	cursorBack(False),
 	saveVmap(False),
+#ifndef WIN32S
 	vmapData(True),
+#else
+	vmapData(False),
+#endif
 	drawBuff1(False),
 	drawBuff2(False)
 {
@@ -448,13 +437,13 @@ CursorWin::CursorWin(const BufferWin& buffer):bitmap(-1,-1,-1),
 		bic.colorix [i] = i;
 	bic.colorix[255] = 7;						/* defined as white - this is close */
 
-	ShowCursor(0);
+	while (ShowCursor (0) > -1);
 
 	Set(-1, -1, -1);
 }
 
 
-CursorWin::~CursorWin()
+CursorWinClr::~CursorWinClr()
 {
 	ShowCursor(1);
 //	delete cursorBack.buffer;
@@ -467,7 +456,7 @@ CursorWin::~CursorWin()
 
 
 void
-CursorWin::Set(int v, int l, int c)
+CursorWinClr::Set(int v, int l, int c)
 {
 //LPSTR		lpCursor, lpWinBuff;
 
@@ -547,7 +536,7 @@ CursorWin::Set(int v, int l, int c)
 
 
 void
-CursorWin::SetDevice(PointerDevice& dev)
+CursorWinClr::SetDevice(PointerDevice& dev)
 {
 	SOL_Point p;
 	posDevice = &dev;
@@ -560,7 +549,7 @@ CursorWin::SetDevice(PointerDevice& dev)
 
 
 void
-CursorWin::ForcePos(SOL_Point p)
+CursorWinClr::ForcePos(SOL_Point p)
 {
 	SetCursorPos(p.x, p.y);
 //	posDevice->SetPos(p);
@@ -569,7 +558,7 @@ CursorWin::ForcePos(SOL_Point p)
 
 
 void
-CursorWin::GonnaPaint(SOL_Rect rect)
+CursorWinClr::GonnaPaint(SOL_Rect rect)
 {
 	if (!hideCount  &&  !putCursorInVMAP  &&  !cursorBack.rect.IsEmpty())  {
 		rect.A.x &= 0x7FFC;
@@ -583,7 +572,7 @@ CursorWin::GonnaPaint(SOL_Rect rect)
 
 
 void
-CursorWin::PaintStarting()
+CursorWinClr::PaintStarting()
 {
 	if (putCursorInVMAP)  {
 		//  Save Vmap, put cursor in vmap
@@ -594,7 +583,7 @@ CursorWin::PaintStarting()
 }
 
 void
-CursorWin::DonePainting()
+CursorWinClr::DonePainting()
 {
 	if (gonnaPaint)  {
 
@@ -624,7 +613,7 @@ CursorWin::DonePainting()
  */
 
 void
-CursorWin::DeviceMovedTo(const SOL_Point& p)
+CursorWinClr::DeviceMovedTo(const SOL_Point& p)
 {
 	if (!gonnaPaint)  {
 //		PushAndDisableInterrupts();
@@ -644,7 +633,7 @@ CursorWin::DeviceMovedTo(const SOL_Point& p)
  */
 
 void
-CursorWin::Hide()
+CursorWinClr::Hide()
 {
 //	PushAndDisableInterrupts();
 
@@ -666,7 +655,7 @@ CursorWin::Hide()
  */
 
 void
-CursorWin::UnHide()
+CursorWinClr::UnHide()
 {
 	//  Disable further interrrupts
 //	PushAndDisableInterrupts();
@@ -693,7 +682,7 @@ CursorWin::UnHide()
  */
 
 void
-CursorWin::Show()
+CursorWinClr::Show()
 {
 	//  Disable further interrrupts
 //	PushAndDisableInterrupts();
@@ -712,7 +701,7 @@ CursorWin::Show()
 
 
 void
-CursorWin::RevealCursor()
+CursorWinClr::RevealCursor()
 {
 	cursorBack.rect = cursorData.rect;
 	cursorBack.rect.Clip(vmapData.rect);
@@ -736,7 +725,7 @@ CursorWin::RevealCursor()
  */
 
 void
-CursorWin::Move()
+CursorWinClr::Move()
 {
 	if (!hideCount)  {
 
@@ -816,7 +805,7 @@ CursorWin::Move()
  */
 
 void
-CursorWin::Paint(const Info& dest, const Info& src)
+CursorWinClr::Paint(const Info& dest, const Info& src)
 {
 	if (src.rect.IsEmpty())
 		return;
@@ -864,7 +853,7 @@ CursorWin::Paint(const Info& dest, const Info& src)
  */
 
 void
-CursorWin::Copy(const Info& dest, const Info& src)
+CursorWinClr::Copy(const Info& dest, const Info& src)
 {
 	if (src.rect.IsEmpty())
 		return;
@@ -911,7 +900,7 @@ CursorWin::Copy(const Info& dest, const Info& src)
  */
 
 //void
-//CursorWin::PushAndDisableInterrupts()
+//CursorWinClr::PushAndDisableInterrupts()
 //{
 //	if (!disableCount)
 //		interruptState = ReadInterruptAndClear();
@@ -927,7 +916,7 @@ CursorWin::Copy(const Info& dest, const Info& src)
  */
 
 //void
-//CursorWin::PopInterrupts()
+//CursorWinClr::PopInterrupts()
 //{
 //	if (!disableCount) {
 //		msgMgr->Fatal(SrcLoc, Msg_StackUnderflow);
@@ -940,7 +929,7 @@ CursorWin::Copy(const Info& dest, const Info& src)
 
 
 void
-CursorWin::DrawToHardware(const Info& info)
+CursorWinClr::DrawToHardware(const Info& info)
 
 {
 WORD top, left, bottom, right, width, widthMod4, height;
@@ -1006,7 +995,7 @@ WORD top, left, bottom, right, width, widthMod4, height;
 
 
 void
-CursorWin::ReadVideo(const Info& info)
+CursorWinClr::ReadVideo(const Info& info)
 {
 //	if (graphMgr->vmapValid)
 		ReadVideoFromVMAP(info);
@@ -1016,14 +1005,14 @@ CursorWin::ReadVideo(const Info& info)
 }
 
 //void
-//CursorWin::ReadVideoFromHardware(const Info& info)
+//CursorWinClr::ReadVideoFromHardware(const Info& info)
 //{
 //	uchar* dest = info.buffer;
 //	ReadVideoRect(&info.rect, dest);
 //}
 
 void
-CursorWin::ReadVideoFromVMAP(const Info& info)
+CursorWinClr::ReadVideoFromVMAP(const Info& info)
 {
 	Copy(info, vmapData);
 }
@@ -1031,7 +1020,7 @@ CursorWin::ReadVideoFromVMAP(const Info& info)
 
 
 void
-CursorWin::SetRestrictRect(const SOL_Rect& r)
+CursorWinClr::SetRestrictRect(const SOL_Rect& r)
 {
 	restrict = r;
 	restrict.Clip(vmapData.rect);
@@ -1041,7 +1030,7 @@ CursorWin::SetRestrictRect(const SOL_Rect& r)
 
 
 void
-CursorWin::ClearRestrictRect()
+CursorWinClr::ClearRestrictRect()
 {
 	restrict = vmapData.rect;
 	posDevice->ClearRestrictRect();
@@ -1049,7 +1038,7 @@ CursorWin::ClearRestrictRect()
 
 
 void
-CursorWin::SaveRestore(SaveGame* saveGame, Bool save)
+CursorWinClr::SaveRestore(SaveGame* saveGame, Bool save)
 {
 	int view = bitmap.View();
 	int loop = bitmap.Loop();
@@ -1076,7 +1065,7 @@ CursorWin::SaveRestore(SaveGame* saveGame, Bool save)
 }
 
 void
-CursorWin::SaveRestoreAfter(SaveGame*, Bool save)
+CursorWinClr::SaveRestoreAfter(SaveGame*, Bool save)
 {
 	if (!save)  {
 		//  Turn off interrupts  ******
@@ -1092,5 +1081,4 @@ CursorWin::SaveRestoreAfter(SaveGame*, Bool save)
 	}
 }
 
-#endif	//COLORCUR
 

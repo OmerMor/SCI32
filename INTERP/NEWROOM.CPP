@@ -3,6 +3,7 @@
 
 #include "newroom.hpp"
 #include "config.hpp"
+#include "globals.hpp"
 #include "kernel.hpp"
 #include "memtype.hpp"
 #include "object.hpp"
@@ -107,7 +108,7 @@ RmResList::Add(MemType resType, ResNum resourceID, int length)
 	if (room == -1)
 		return;
 	if (!handsOn && room != 0) {
-		ObjectID user(pm.globals[USER]);
+		ObjectID user = pm.Global(g_user);
 		if (user.IsObject() && user.GetProperty(s_input))
 			handsOn = True;
 	}
@@ -225,3 +226,4 @@ KNewRoom(argList)
 
 
 
+

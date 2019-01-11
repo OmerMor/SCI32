@@ -3,8 +3,6 @@
 #ifndef MOUSEW_HPP
 #define MOUSEW_HPP
 
-#ifndef COLORCUR
-
 #ifndef EVENT_HPP
 #include "event.hpp"
 #endif
@@ -42,18 +40,13 @@ class MouseWin : public SOL_Mouse
 	static	Bool			inCage;
 };
 
-#else		//COLORCUR
-
-#ifndef MOUSE_HPP
-#include "mouse.hpp"
-#endif
 
 
-class MouseWin : public SOL_Mouse
+class MouseWinClr : public SOL_Mouse
 {
  public:
-	MouseWin();
-	~MouseWin();
+	MouseWinClr();
+	~MouseWinClr();
 
 	Bool	Exists() const;
 	int	GlobalPos(SOL_Point*) const;  
@@ -119,8 +112,6 @@ const short	lButton =	lButDown | lButUp;
 const short	rButton = 	rButDown | rButUp;
 const short	cButton =	cButDown | cButUp;
 const short	swiftFunc =	cYAxis | cPitch | cRoll | cYaw;
-
-#endif	//COLORCUR
 
 #endif
 

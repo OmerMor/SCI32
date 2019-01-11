@@ -8,8 +8,13 @@
 
 #include "config.hpp"
 #include "info.hpp"
+#include "kernel.hpp"
 #include "memmgr.hpp"
+#include "msg.hpp"
+#include "pmachine.hpp"
 #include "stampver.hpp"
+#include "string.hpp"
+#include "textid.hpp"
 
 ConfigMgr* configMgr;
 
@@ -31,7 +36,7 @@ struct FlagEntry {
 #ifdef DEBUG
 	FlagEntry('a', "   alert warning if resources loaded during audio/robot playback"),
 	FlagEntry('c', "   cursor display for resource loading (i.e. -c958 for cursor 958)"),
-	FlagEntry('e', "   extract resources from vols to the curdir (e.g. -E123.v56 or -E*.v56)"),
+	FlagEntry('e', "   extract resources from vols to the curdir (e.g. -e123.v56 or -e*.v56)"),
 	FlagEntry('i', "   integrity checking (default is on; use -i0 to turn off)"),
 	FlagEntry('k', "   kernel calls between integrity checks (default is 50,000)"),
 	FlagEntry('m', "   max memory to use (examples: -m1M -m1024K -m1048576 -m$fffff)"),
@@ -77,6 +82,7 @@ struct ConfigEntry {
 	ConfigEntry("palette",		MemResPalette),
 	ConfigEntry("patch",			MemResPatch),
 	ConfigEntry("pic",			MemResPic),
+	ConfigEntry("robot",			MemResRobot),
 	ConfigEntry("script",		MemResHunk),
 	ConfigEntry("sound",			MemResSound),
 	ConfigEntry("sync",			MemResSync),
@@ -94,6 +100,7 @@ struct ConfigEntry {
 		"0K(no audio),...62K(max), 32K default"),
 	ConfigEntry("brightness",	MemResNone,
 		"0(default),...4(maximum)"),
+	ConfigEntry("CDspeed",		MemResNone),
 	ConfigEntry("DACSize",		MemResNone,
 		"0K(no audio),...32K(max), 2K default"),
 	ConfigEntry("hires",			MemResNone),
@@ -109,7 +116,6 @@ struct ConfigEntry {
 	ConfigEntry("resCDisc",		MemResNone),
 	ConfigEntry("resMap",		MemResNone),
 	ConfigEntry("resSfx",		MemResNone),
-	ConfigEntry("robot",			MemResNone),
 	ConfigEntry("soundDrv",		MemResNone),
 	ConfigEntry("staticMemory",MemResNone,
 		"bytes excluded from SCI usage (200K default)"),
@@ -405,6 +411,47 @@ ConfigMgr::GetEntry(MemType type)
 			return &entries[i];
 	return 0;
 }
+
+char*
+ConfigMgr::GetLine(char* name)
+{
+	//	return an arbitrary line from the config file
+
+   static char buf[ConfigEntry::MaxLine + 1];
+
+   int fd = Open(GetFileName(), O_RDONLY);
+   if (fd == -1) 
+		msgMgr->Fatal(SrcLoc, Msg_ConfigFileOpen, GetFileName());
+
+	char* value = 0;
+   while (ReadString(buf, sizeof buf, fd)) {
+   	char* cp = strtok(buf, "= \t\n");
+   	if (cp && !stricmp(cp, name)) {
+   		value = strtok(0, " \t\n");
+			break;
+      }
+	}
+
+   Close(fd);
+   
+   return value;
+}
+
+void 
+KGetConfig(argList)
+{
+	//	find an entry in the config file and copy its value into dest.
+	//	return dest if entry is found, else 0
+
+	char* value = configMgr->GetLine(*StrGetData(arg(1)));
+	if (!value)
+		pm.acc = 0;
+	else {
+		strcpy(*StrGetData(arg(2)), value);
+		pm.acc = arg(2);
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////////
 

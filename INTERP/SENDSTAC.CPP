@@ -1,9 +1,10 @@
 //	sendstac.cpp
+
+#include "sol.hpp"
+
 #ifdef DEBUG
 #include <stdio.h>
 #include <string.h>
-
-#include "sol.hpp"
 
 #include "sendstac.hpp"
 #include "savegame.hpp"
@@ -148,4 +149,3 @@ SendStackDebug::SaveRestoreBefore(SaveGame*, Bool)
 
 #endif
 
-

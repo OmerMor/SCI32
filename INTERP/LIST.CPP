@@ -93,6 +93,28 @@ SOL_List::AddToFront(SOL_NodeID element, SOL_NodeKey key)
 	return element;
 }
 
+void
+SOL_List::CheckIntegrity(char* msg)
+{
+	static SOL_NodeID nodes[1000];
+	int nNodes = 0;
+
+	for (SOL_NodeID node = First(); (int) node; node = node->Next()) {
+		if (!node.IsValid())
+			msgMgr->Fatal("Invalid node in list: %s", msg);
+		if (nNodes >= 1000)
+			msgMgr->Fatal(">= 1000 nodes in list: %s", msg);
+		//	make sure this node is not already in the list
+		for (int i = 0; i < nNodes; i++)
+			if (nodes[i] == node) {
+				msgMgr->Alert(SrcLoc, Msg_InvalidList);
+				Dump("CheckListIntegrity");
+				exit(1);
+			}
+		nodes[nNodes++] = node;
+	}
+}
+
 Bool
 SOL_List::Delete(SOL_NodeID node)
 {
@@ -130,15 +152,17 @@ SOL_List::DeleteKey(SOL_NodeKey key)
 void
 SOL_List::Dump(char* msg)
 {
-	int n = 0;
+	unsigned n = 0;
+	msgMgr->Dump("%s: \n", msg);
 	for (SOL_NodeID node = First(); (int) node; n++, node = node->Next())
 		if (!node.IsValid())
 			msgMgr->Dump("%s: %X not valid handle\n", (SOL_Handle) node);
 		else {
 			SOL_Node* np = *node;
-			msgMgr->Dump("%s: %u: %X: next %X prev %X key %X val %X\n",
-				msg, n, node, np->Next(), np->Prev(), np->Key(),((KNode*) np)->val);
+			msgMgr->Dump("%u: %X: next %X prev %X key %X val %X\n",
+				n, (int) node, np->Next(), np->Prev(), np->Key(),((KNode*) np)->val);
 		}
+	msgMgr->Dump("\n");
 }
 
 SOL_NodeID
@@ -161,398 +185,546 @@ SOL_List::SaveRestore(SaveGame* saveGame, Bool save)
 	saveGame->SaveRestore(&nextPtr, sizeof nextPtr, save);
 }
 
+
+void
+SOL_List::Sort(int criterion, Bool descend)
+{
+	//	sort a list by property or by value, by ascending or descending order
+
+	if (criterion == -1) { // sorting by object values or integers
+		// go through every node in the list
+		SOL_NodeID leastNode;
+		for (SOL_NodeID node = leastNode = First();
+			  (int) node;
+			  node = leastNode->Next()) { 
+			SOL_NodeKey val1 = ((KNodeID) node)->val;
+			leastNode = node;
+			// go through all unsorted nodes in the list
+			for (SOL_NodeID newNode = node->Next();
+				  (int) newNode;
+				  newNode = newNode->Next()) { 
+				SOL_NodeKey val2 = ((KNodeID) newNode)->val;
+				if (!descend && val2 < val1 || descend && val1 < val2) {
+					leastNode = newNode;
+					val1 = val2;
+				}
+			}
+			// if the leastNode is not sorted, then put it in order
+			if (leastNode != node) {
+				Delete(leastNode);
+				AddBefore(node, leastNode, leastNode);
+			}
+		}
+
+	} else { // sorting by property values
+		SOL_NodeID leastNode;
+		for (SOL_NodeID node = leastNode = First();
+			  (int) node;
+			  node = leastNode->Next()) { 
+			ObjectID obj1 = (ObjectID) ((KNodeID) node)->val;
+			Property val1 = obj1.GetProperty(criterion);
+			leastNode = node;
+			for (SOL_NodeID newNode = node->Next();
+				  (int) newNode;
+				  newNode = newNode->Next()) { 
+				ObjectID obj2 = (ObjectID) ((KNodeID) newNode)->val;
+				Property val2 = obj2.GetProperty(criterion);
+				if (!descend && val2 < val1 || descend && val1 < val2) {
+					leastNode = newNode;
+					val1 = val2;
+				}
+			}
+
+			if (leastNode != node) {
+				Delete(leastNode);
+				AddBefore(node, leastNode, leastNode);
+			}
+		}
+	}
+}
+
+void
+SOL_List::MoveToFront (SOL_NodeID node)
+{
+	Delete(node);
+	AddToFront(node);
+}
+
+void
+SOL_List::MoveToEnd(SOL_NodeID node)
+{
+	Delete(node);
+	AddToEnd(node);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
-void
-KNewList(kArgs)
+void 
+KList(argList)
 {
-	//	create a new list and return its address
+	enum {
+		ListNew,
+		ListDispose,
+		ListNewNode,
+		ListFirstNode,
+		ListLastNode,
+		ListEmpty,
+		ListNextNode,
+		ListPrevNode,
+		ListNodeValue,
+		ListAddAfter,
+		ListAddToFront,
+		ListAddToEnd,
+		ListAddBefore,
+		ListMoveToFront,
+		ListMoveToEnd,
+		ListFindKey,
+		ListDeleteKey,
+		ListAt,
+		ListIndexOf,
+		ListEachElementDo,
+		ListFirstTrue,
+		ListAllTrue,
+		ListSort
+	};
 
-	SOL_ListID list;
-	list.Get();
-	pm.acc = (Acc) list;
-}
+	switch (arg(1)) {
+		case ListNew: {
+			SOL_ListID list;
+			list.Get();
 
-void
-KNewNode(argList)
-{
-	KNodeID node;
-	node.Get();
-	node->val = arg(1);
-	pm.acc = (Acc) node;
-}
+			pm.acc = (Acc) list;
 
-void
-KFirstNode(argList)
-{
-	SOL_ListID list = (SOL_ListID) arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "FirstNode");
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->First();
-}
-
-void
-KLastNode(argList)
-{
-	SOL_ListID list = (SOL_ListID) arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "LastNode");
-
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->Last();
-}
-
-void
-KEmptyList(argList)
-{
-	SOL_ListID list = (SOL_ListID) arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "EmptyList");
-
-		pm.acc = False;
-		return;
-	}
-
-	pm.acc = list->IsEmpty();
-}
-
-void
-KNextNode(argList)
-{
-	pm.acc = ((SOL_NodeID) arg(1))->Next();
-}
-
-void
-KPrevNode(argList)
-{
-	pm.acc = ((SOL_NodeID) arg(1))->Prev();
-}
-
-void
-KNodeValue(argList)
-{
-	pm.acc = ((KNodeID) arg(1))->val;
-}
-
-void
-KAddAfter(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "AddAfter");
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->AddAfter(arg(2), arg(3), arg(4));
-}
-
-void
-KAddToFront(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "AddToFront");
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->AddToFront(arg(2), arg(3));
-}
-
-void
-KAddToEnd(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "AddToEnd");
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->AddToEnd(arg(2), arg(3));
-}
-
-void
-KFindKey(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "FindKey");
-
-		pm.acc = 0;
-		return;
-	}
-
-	pm.acc = list->FindKey(arg(2));
-}
-
-void
-KDisposeList(argList)
-{
-	//	dispose of allocated memory associated with list
-
-	SOL_ListID list = arg(1);
-
-	if (!list.IsValid()) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "DisposeList");
-		return;
-	}
-
-	while (!list->IsEmpty()) {
-		KNodeID kNode = list->First();
-		list->Delete(kNode);
-		kNode.Free();
-	}
-
-	list.Free();
-}
-
-void
-KDeleteKey(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "DeleteKey");
-		pm.acc = 0;
-		return;
-	}
-
-	KNodeID theNode = list->DeleteKey(arg(2));
-	pm.acc = !!theNode;	// convert to 1 or 0
-	if ((int) theNode)
-		theNode.Free();
-}
-
-void
-KListAllTrue(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "AllTrue");
-		pm.acc = False;
-		return;
-	}
-
-	//	an empty list is "all true," apparently
-	pm.acc = True;
-	
-	ObjectID saveObject = pm.object;
-
-	list->PushNext();
-
-	for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
-		list->Next() = node->Next();
-		ObjectID obj = ((KNodeID) node)->val;
-
-		int nArgs = argCount - 2;
-	
-		// add 1 for selector and 1 for # args
-		int nArgChars = (nArgs + 2) * sizeof(Property);
-	
-		//	set new current object
-		pm.object = obj;
-	
-		//	push the selector
-		pm.stack.Push(arg(2));
-	
-		//	push the number of arguments
-		pm.stack.Push(nArgs);
-	
-		//	push the arguments
-		pm.stack.PushMany(&arg(3), nArgs);
-	
-		//	call the method
-		pm.QuickMessage(obj, nArgChars);
-		
-		if (!pm.acc) {
-			pm.acc = False;
 			break;
 		}
-	}
 
-	//	restore current object
-	pm.object = saveObject;
-	
-	list->PopNext();
-}
+		case ListDispose: {
+			SOL_ListID list = arg(2);
 
-void
-KListAt(argList)
-{
-	//	return the element's key at a position
-
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "ListAt");
-
-		pm.acc = 0;
-		return;
-	}
-
-	KNodeID node = list->At(arg(2));
-	pm.acc = (int) node ? node->val : 0;
-}
-
-void
-KListEachElementDo(argList)
-{
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "ListEachElementDo");
-		pm.acc = 0;
-		return;
-	}
-
-	ObjectID saveObject = pm.object;
-
-	list->PushNext();
-
-	for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
-		list->Next() = node->Next();
-		ObjectID obj = ((KNodeID) node)->val;
-
-		int nArgs = argCount - 2;
-	
-		// add 1 for selector and 1 for # args
-		int nArgChars = (nArgs + 2) * sizeof(Property);
-	
-		//	set new current object
-		pm.object = obj;
-	
-		//	push the selector
-		pm.stack.Push(arg(2));
-	
-		//	push the number of arguments
-		pm.stack.Push(nArgs);
-	
-		//	push the arguments
-		pm.stack.PushMany(&arg(3), nArgs);
-	
-		//	call the method
-		pm.QuickMessage(obj, nArgChars);
-	}
-
-	//	restore current object
-	pm.object = saveObject;
-	
-	list->PopNext();
-}
-
-void
-KListFirstTrue(argList)
-{
-	pm.acc = 0;
-
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "FirstTrue");
-		return;
-	}
-
-	ObjectID saveObject = pm.object;
-
-	list->PushNext();
-	
-	for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
-		list->Next() = node->Next();
-		ObjectID obj = ((KNodeID) node)->val;
-
-		int nArgs = argCount - 2;
-	
-		// add 1 for selector and 1 for # args
-		int nArgChars = (nArgs + 2) * sizeof(Property);
-	
-		//	set new current object
-		pm.object = obj;
-	
-		//	push the selector
-		pm.stack.Push(arg(2));
-	
-		//	push the number of arguments
-		pm.stack.Push(nArgs);
-	
-		//	push the arguments
-		pm.stack.PushMany(&arg(3), nArgs);
-	
-		//	call the method
-		pm.QuickMessage(obj, nArgChars);
-		
-		if (pm.acc) {
-			pm.acc = obj;
-			break;
-		}
-	}
-
-	//	restore current object
-	pm.object = saveObject;
-	
-	list->PopNext();
-}
-
-void
-KListIndexOf(argList)
-{
-	//	return the index of an element, or -1 if not found
-
-	SOL_ListID list = arg(1);
-
-	if (!list) {
-		msgMgr->Alert(SrcLoc, Msg_NoList, "IndexOf");
-		pm.acc = 0;
-		return;
-	}
-
-	int n;
-	SOL_NodeID node;
-	for (n = 0, node = list->First(); (int) node; n++, node = node->Next())
-		if (((KNodeID) node)->val == arg(2)) {
-			pm.acc = n;
-			return;
-		}
-	pm.acc = -1;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-
-void
-SOL_List::CheckIntegrity(char* msg)
-{
-	static SOL_NodeID nodes[1000];
-	int nNodes = 0;
-
-	for (SOL_NodeID node = First(); (int) node; node = node->Next()) {
-		if (!node.IsValid())
-			msgMgr->Fatal("Invalid node in list: %s", msg);
-		if (nNodes >= 1000)
-			msgMgr->Fatal(">= 1000 nodes in list: %s", msg);
-		//	make sure this node is not already in the list
-		for (int i = 0; i < nNodes; i++)
-			if (nodes[i] == node) {
-				msgMgr->Alert(SrcLoc, Msg_InvalidList);
-				Dump("CheckListIntegrity");
-				exit(1);
+			if (!list.IsValid()) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "DisposeList");
+				return;
 			}
-		nodes[nNodes++] = node;
+
+			while (!list->IsEmpty()) {
+				KNodeID kNode = list->First();
+				list->Delete(kNode);
+				kNode.Free();
+			}
+
+			list.Free();
+
+			break;
+		}
+
+		case ListNewNode: {
+			KNodeID node;
+			node.Get();
+			node->val = arg(2);
+			if (argCount > 2)
+				node->Key() = arg(3);
+			else
+				node->Key() = arg(2);
+
+			pm.acc = (Acc) node;
+
+			break;
+		}
+
+		case ListFirstNode: {
+			SOL_ListID list = (SOL_ListID) arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "FirstNode");
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->First();
+
+			break;
+		}
+
+		case ListLastNode: {
+			SOL_ListID list = (SOL_ListID) arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "LastNode");
+
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->Last();
+
+			break;
+		}
+
+		case ListEmpty: {
+			SOL_ListID list = (SOL_ListID) arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "EmptyList");
+
+				pm.acc = False;
+				return;
+			}
+
+			pm.acc = list->IsEmpty();
+
+			break;
+		}
+
+		case ListNextNode: {
+			pm.acc = ((SOL_NodeID) arg(2))->Next();
+			break;
+		}
+
+		case ListPrevNode: {
+			pm.acc = ((SOL_NodeID) arg(2))->Prev();
+			break;
+		}
+
+		case ListNodeValue: {
+			pm.acc = ((KNodeID) arg(2))->val;
+			break;
+		}
+
+		case ListAddAfter: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "AddAfter");
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->AddAfter(arg(3), arg(4), arg(5));
+
+			break;
+		}
+
+		case ListAddToFront: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "AddToFront");
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->AddToFront(arg(3), arg(4));
+
+			break;
+		}
+
+		case ListAddToEnd: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "AddToEnd");
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->AddToEnd(arg(3), arg(4));
+
+			break;
+		}
+
+		case ListAddBefore: {
+			SOL_ListID list = arg(2);
+
+			if ( !list ) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "AddBefore");
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->AddBefore(arg(3), arg(4), arg(5));
+			
+			break;
+		}
+
+		case ListMoveToFront: {
+			SOL_ListID list = arg(2);
+
+			if ( !list ) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "MoveToFront");
+				pm.acc = 0;
+				return;
+			}
+
+			list->MoveToFront(arg(3));
+			
+			break;
+		}
+
+		case ListMoveToEnd: {
+			SOL_ListID list = arg(2);
+
+			if ( !list ) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "MoveToEnd");
+				pm.acc = 0;
+				return;
+			}
+
+			list->MoveToEnd(arg(3));
+			
+			break;
+		}
+
+		case ListFindKey: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "FindKey");
+
+				pm.acc = 0;
+				return;
+			}
+
+			pm.acc = list->FindKey(arg(3));
+
+			break;
+		}
+
+		case ListDeleteKey: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "DeleteKey");
+				pm.acc = 0;
+				return;
+			}
+
+			KNodeID theNode = list->DeleteKey(arg(3));
+			pm.acc = !!theNode;	// convert to 1 or 0
+
+			if ((int) theNode)
+				theNode.Free();
+
+			break;
+		}
+
+		case ListAt: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "ListAt");
+
+				pm.acc = 0;
+				return;
+			}
+
+			KNodeID node = list->At(arg(3));
+			pm.acc = (int) node ? node->val : 0;
+
+			break;
+		}
+
+		case ListIndexOf: {
+			SOL_ListID list = arg(2);
+			SOL_NodeID node;
+			int n;
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "IndexOf");
+				pm.acc = 0;
+				return;
+			}
+
+			for (n = 0, node = list->First(); (int) node; n++, node = node->Next()) {
+
+				// for CodeWarrior 1.1.1.2
+				//if (((KNodeID) node)->val == arg(3))
+				KNodeID kNode = node;
+				if (kNode->val == arg(3)) {
+					pm.acc = n;
+					return;
+				}
+			}
+
+			pm.acc = -1;
+			break;
+		}
+
+		case ListEachElementDo: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "ListEachElementDo");
+				pm.acc = 0;
+				return;
+			}
+
+			ObjectID saveObject = pm.object;
+
+			list->PushNext();
+
+			for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
+				list->Next() = node->Next();
+
+				// for CodeWarrior 1.1.1.2
+				//ObjectID obj = ((KNodeID) node)->val;
+				KNodeID kNode = node;
+				ObjectID obj = kNode->val;
+
+				int nArgs = argCount - 3;
+	
+				// add 1 for selector and 1 for # args
+				int nArgChars = (nArgs + 2) * sizeof(Property);
+	
+				//	set new current object
+				pm.object = obj;
+	
+				//	push the selector
+				pm.stack.Push(arg(3));
+	
+				//	push the number of arguments
+				pm.stack.Push(nArgs);
+	
+				//	push the arguments
+				pm.stack.PushMany(&arg(4), nArgs);
+	
+				//	call the method
+				pm.QuickMessage(obj, nArgChars);
+			}
+
+			//	restore current object
+			pm.object = saveObject;
+	
+			list->PopNext();
+
+			break;
+		}
+
+		case ListFirstTrue: {
+			pm.acc = 0;
+
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "FirstTrue");
+				return;
+			}
+
+			ObjectID saveObject = pm.object;
+
+			list->PushNext();
+	
+			for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
+				list->Next() = node->Next();
+
+				// for CodeWarrior 1.1.1.2
+				// ObjectID obj = ((KNodeID) node)->val;
+				KNodeID kNode = node;
+				ObjectID obj =  kNode->val;
+
+				int nArgs = argCount - 3;
+	
+				// add 1 for selector and 1 for # args
+				int nArgChars = (nArgs + 2) * sizeof(Property);
+	
+				//	set new current object
+				pm.object = obj;
+	
+				//	push the selector
+				pm.stack.Push(arg(3));
+	
+				//	push the number of arguments
+				pm.stack.Push(nArgs);
+	
+				//	push the arguments
+				pm.stack.PushMany(&arg(4), nArgs);
+	
+				//	call the method
+				pm.QuickMessage(obj, nArgChars);
+		
+				if (pm.acc) {
+					pm.acc = obj;
+					break;
+				}
+			}
+
+			//	restore current object
+			pm.object = saveObject;
+	
+			list->PopNext();
+
+			break;
+		}
+
+		case ListAllTrue: {
+			SOL_ListID list = arg(2);
+
+			if (!list) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "AllTrue");
+				pm.acc = False;
+				return;
+			}
+
+			//	an empty list is "all true," apparently
+			pm.acc = True;
+	
+			ObjectID saveObject = pm.object;
+
+			list->PushNext();
+
+			for (SOL_NodeID node = list->First(); (int) node; node = list->Next()) { 
+				list->Next() = node->Next();
+
+				// for CodeWarrior 1.1.1.2
+				// ObjectID obj = ((KNodeID) node)->val;
+				KNodeID kNode = node;
+				ObjectID obj =  kNode->val;
+
+				int nArgs = argCount - 3;
+	
+				// add 1 for selector and 1 for # args
+				int nArgChars = (nArgs + 2) * sizeof(Property);
+	
+				//	set new current object
+				pm.object = obj;
+	
+				//	push the selector
+				pm.stack.Push(arg(3));
+	
+				//	push the number of arguments
+				pm.stack.Push(nArgs);
+	
+				//	push the arguments
+				pm.stack.PushMany(&arg(4), nArgs);
+	
+				//	call the method
+				pm.QuickMessage(obj, nArgChars);
+		
+				if (!pm.acc) {
+					pm.acc = False;
+					break;
+				}
+			}
+
+			//	restore current object
+			pm.object = saveObject;
+	
+			list->PopNext();
+
+			break;
+		}
+
+		case ListSort: {
+			SOL_ListID list = arg(2);
+
+			if (!list.IsValid()) {
+				msgMgr->Alert(SrcLoc, Msg_NoList, "Sort");
+				return;
+			}
+
+			list->Sort(arg(3), argCount > 3 ? arg(4) : False);
+			
+			break;
+		}
 	}
 }
 

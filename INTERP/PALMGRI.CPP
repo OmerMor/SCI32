@@ -28,7 +28,11 @@ PaletteMgrIndex::PaletteMgrIndex()
 	varyEndPos = 255;
 	needUpdate = False;
 
+#ifdef MACINTOSH
+   gammaValue = 2; //KGN configMgr->GetNum("brightness",0,0) - 1;
+#else
    gammaValue = configMgr->GetNum("brightness",0,0) - 1;
+#endif
    if (gammaValue > 3)
       gammaValue = 3;
 
@@ -193,13 +197,52 @@ PaletteMgrIndex::ApplyCycles()
 					cycle[i]->lastUpdate += cycle[i]->deltaTime;
 				}      
 			}
-
+#ifdef MACINTOSH
+			//KGN
+			Rgb24F initter;
+			Rgb24F *hold = (Rgb24F *) NewPtr((cycle[i]->range) * sizeof(Rgb24F));
+			for (int n = 0; n < cycle[i]->range; n++)
+				hold[n] = initter;
+#else
 			Rgb24F *hold = New Rgb24F[cycle[i]->range];
+#endif
 			memcpy(hold, &next[cycle[i]->begin], cycle[i]->range * sizeof(Rgb24F));
 			for (int j = 0; j < cycle[i]->range; j++)
 				next[cycle[i]->begin + j] = hold[(cycle[i]->current + j) % cycle[i]->range];
-
+#ifdef MACINTOSH
+			DisposePtr((Ptr) hold);
+#else
 			delete hold;
+#endif
+		}
+	}
+}
+
+void
+PaletteMgrIndex::ApplyAllCycles()
+{
+	for (int i = 0; i < MAXCYCLES; i++) {
+		if (cycle[i]) {
+
+					cycle[i]->current = (cycle[i]->current + 1) % cycle[i]->range;
+
+#ifdef MACINTOSH
+			//KGN
+			Rgb24F initter;
+			Rgb24F *hold = (Rgb24F *) NewPtr((cycle[i]->range) * sizeof(Rgb24F));
+			for (int n = 0; n < cycle[i]->range; n++)
+				hold[n] = initter;
+#else
+			Rgb24F *hold = New Rgb24F[cycle[i]->range];
+#endif
+			memcpy(hold, &next[cycle[i]->begin], cycle[i]->range * sizeof(Rgb24F));
+			for (int j = 0; j < cycle[i]->range; j++)
+				next[cycle[i]->begin + j] = hold[(cycle[i]->current + j) % cycle[i]->range];
+#ifdef MACINTOSH
+			DisposePtr((Ptr) hold);
+#else
+			delete hold;
+#endif
 		}
 	}
 }
@@ -216,6 +259,32 @@ PaletteMgrIndex::CycleOn(int which)
 			cycle[i]->pause--; 
 		cycle[i]->lastUpdate = timeMgr->GetTickCount();
 	}
+}
+
+void
+PaletteMgrIndex::CycleAllOn()
+{
+	for (int i = 0; i < MAXCYCLES; i++) {
+		if (cycle[i]->pause)
+			cycle[i]->pause--; 
+		cycle[i]->lastUpdate = timeMgr->GetTickCount();
+	}
+}
+	  
+void
+PaletteMgrIndex::CycleAllPause()
+{
+	int i;
+	for (i = 0; i < MAXCYCLES; i++) {
+			cycle[i]->current = cycle[i]->begin; // + cycle[i]->range - 1;
+
+	}
+
+	ApplyAllCycles();
+
+	for (i = 0; i < MAXCYCLES; i++) 
+		cycle[i]->pause++;
+
 }
 	  
 void
@@ -626,6 +695,17 @@ PaletteMgrIndex::SaveRestore(SaveGame* saveGame, Bool save)
 	}
 }
 
+Bool
+PaletteMgrIndex::UpdateFFrame()
+{
+	for (int i = 0; i < MaxColors; i++) 
+		next[i] = source[i];
+
+	needUpdate = False;
+
+	Bool paletteChanged = (current != next);
+   return(graphMgr->GRemapper().RemapAllTables(paletteChanged));
+}
 
 
 Bool
@@ -771,4 +851,3 @@ const char gamma[4][256] =
    250,	251,	252,	252,	253,	254,	255,	255,
 };
 
-

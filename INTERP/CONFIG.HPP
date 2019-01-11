@@ -41,6 +41,7 @@ public:
 	char*			Get(char* name, int tokenNum = 0);
 	char*			Get(MemType type, int tokenNum = 0);
 	Bool			Get(Flag n);
+	char*			GetLine(char* name);
 	int			GetNum(char* name, int tokenNum = 0, int defalt = 0);
 	const char*	GetFileName() const { return fileName; }
 	int			Val(Flag n);
@@ -66,3 +67,4 @@ protected:
 extern ConfigMgr* configMgr;
 
 #endif
+

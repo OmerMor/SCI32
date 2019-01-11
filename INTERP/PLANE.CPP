@@ -16,6 +16,19 @@
 
 long Plane::nextId = 20000;
 
+inline void
+TranslateMacColor(uchar& color)
+{
+#ifdef MACINTOSH
+	if (color == SOL_BLACK)
+		color = SOL_WHITE;
+	else if (color == SOL_WHITE)
+		color = SOL_BLACK;
+#else
+	color = color;
+#endif
+}
+
 //
 // Constructors
 //
@@ -30,10 +43,18 @@ Plane::Plane(ObjectID ID):
 	int xdim = graphMgr->Xdim();
 	int ydim = graphMgr->Ydim();
 
+#ifdef NETWORK
+	gameRect.A.x = ID.GetProperty(s_left);
+	gameRect.A.y = ID.GetProperty(s_top);
+	gameRect.B.x = ID.GetProperty(s_right); // + 1) * xdim) / LOWRESX) - 1;
+	gameRect.B.y = ID.GetProperty(s_bottom); // + 1) * ydim) / LOWRESY) - 1;
+#else
 	gameRect.A.x = ID.GetProperty(s_insetRectL);
 	gameRect.A.y = ID.GetProperty(s_insetRectT);
 	gameRect.B.x = ID.GetProperty(s_insetRectR); // + 1) * xdim) / LOWRESX) - 1;
 	gameRect.B.y = ID.GetProperty(s_insetRectB); // + 1) * ydim) / LOWRESY) - 1;
+#endif
+
 	ConvGameRectToPlaneRect();
 
 #ifndef WIN32S
@@ -41,6 +62,9 @@ Plane::Plane(ObjectID ID):
 #else
 	color = (uchar)AddPalShift((int)ID.GetProperty(s_back));
 #endif
+
+	TranslateMacColor(color);
+
 	priority	= ID.GetProperty(s_priority);
 	picResNum = ID.GetProperty(s_picture);
 	SetType();
@@ -71,6 +95,7 @@ Plane::Plane(const Plane& src)
 	picResNum = src.picResNum;
 	picMirror = src.picMirror;
 	color = src.color;
+	TranslateMacColor(color);
 
 	plane = src.plane;
 	gameRect = src.gameRect;
@@ -132,14 +157,21 @@ Plane::operator=(ObjectID& id)
 			1) It's bottom,right moved.
 	*/
 
-   
+
 	vanish.x = id.GetProperty(s_vanishingX);
 	vanish.y = id.GetProperty(s_vanishingY);
 
+#ifdef NETWORK
+	gameRect.Set(id.GetProperty(s_left),
+					 id.GetProperty(s_top),
+					 id.GetProperty(s_right),
+					 id.GetProperty(s_bottom));
+#else
 	gameRect.Set(id.GetProperty(s_insetRectL),
 					 id.GetProperty(s_insetRectT),
 					 id.GetProperty(s_insetRectR),
 					 id.GetProperty(s_insetRectB));
+#endif
 
 	ConvGameRectToPlaneRect();
 
@@ -157,6 +189,8 @@ Plane::operator=(ObjectID& id)
 #else
 	color = (uchar)AddPalShift((int)id.GetProperty(s_back));
 #endif
+
+	TranslateMacColor(color);
 
 	return *this;
 }
@@ -177,6 +211,8 @@ Plane::operator=(const Plane& src)
 	picMirror = src.picMirror;
 	priority = src.priority;
 	color = src.color;
+
+	TranslateMacColor(color);
 
 	picResX = src.picResX;
 	picResY = src.picResY;
@@ -212,7 +248,6 @@ Plane::UpdatePlane(Plane* lastPlane)
 
 	if (lastPlane == NULL) {
 		if (changePic) {
-			changePic = False;
 			DeleteAllPics();
 			SetType();
 			ChangePic();
@@ -248,7 +283,6 @@ Plane::UpdatePlane(Plane* lastPlane)
 		if ((picResNum != lastPlane->PicResNum())	||
 		 	(picMirror != lastPlane->PicMirror())  ||
          changePic) {
-			changePic = False;
 			DeleteAllPics();
 			SetType();
 			ChangePic();
@@ -301,6 +335,7 @@ Plane::SetType() {
 void	
 Plane::ChangePic()
 {
+   changePic = False;
 	if (type !=	picturePlane) return;
 
 	//  Add the pic cels to the plane
@@ -347,7 +382,6 @@ Plane::AddPic(int thePic,SOL_Point& thePoint,int mirror)
 		AddScreenItem(si);
 		si->SetCel(picCel);
 	}
-
 	return picResNum;
 }
 
@@ -545,7 +579,6 @@ Plane::CalcLists(Plane* last,PlaneList& nextPlanesList,DrawList& drawList,RectLi
 	ScreenItemList& lastList = last->SIList();
 
 	int siArraySize = siArray.Length();
-
 	SOL_Rect rects[4];
 
 	// Any screenItem marked Deleted add to the eraseList.

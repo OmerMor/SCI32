@@ -15,12 +15,18 @@ typedef PMStack::Ptr	kArgs;
 #define argList	kArgs args
 #define argCount	arg(0)
 
-struct KernelCall {
-	void	(*func)(argList);
-	char*	name;
+struct KernelSubFunc {
+	char *name;
+	int breakOnCall;
 };
 
-void	KCheckCDisc(argList);
+struct KernelCall {
+	void	(*func)(argList);
+	char *name;
+
+	KernelSubFunc **subFuncs;
+};
+
 void	KLoad(argList);
 void	KUnload(argList);
 void	KScriptID(argList);
@@ -37,6 +43,8 @@ void  KLoadChunk(argList);
 void	KClone(argList);
 void	KDisposeClone(argList);
 void	KRespondsTo(argList);
+void  KFindSelector(argList);
+void  KFindClass(argList);
 
 // Animated objects & views.
 void	KSetNowSeen(argList);
@@ -74,9 +82,7 @@ void	KAddMagnify(argList);
 void	KDeleteMagnify(argList);
 void	KIsHiRes(argList);
 void	KObjectIntersect(argList);
-#ifdef INN
 void  KBaseLineSpan(argList);
-#endif
 
 // Graphics.
 void	KInvertRect(argList);
@@ -87,21 +93,16 @@ void	KSaveScreen(argList);
 #endif
 void	KPriority(argList);
 void	KRobot(argList);
-
-// Text functions.
-void	KTextSize(argList);
-void	KTextWidth(argList);
-void	KPointSize(argList);
-void	KMessage(argList);
-void	KTextColors(argList);
-void	KTextFonts(argList);
-void	KSetQuitStr(argList);
-void	KEditText(argList);
-void	KInputText(argList);
 void	KCreateTextBitmap(argList);
 
+// Text functions.
+void 	KText(argList);
+void	KFont(argList);
+
+void	KMessage(argList);
+void	KSetQuitStr(argList);
+
 // Scroll Window Calls
-void	KSetFontRes(argList);
 void	KScrollWindow(argList);
 
 // Events.
@@ -116,17 +117,9 @@ void	KSetCursor(argList);
 void 	KVibrateMouse(argList);
 
 // Savegame functions.
-void	KSaveGame(argList);
-void	KRestoreGame(argList);
+void 	KSave(argList);
 void	KRestartGame(argList);
 void	KGameIsRestarting(argList);
-void	KMakeSaveCatName(argList);
-void	KMakeSaveFileName(argList);
-void	KGetSaveFiles(argList);
-void	KGetSaveDir(argList);
-void	KCheckSaveGame(argList);
-void	KCheckFreeSpace(argList);
-void	KGetSaveCDisc(argList);
 
 // Sound functions.
 void	KDoSound(argList);
@@ -134,25 +127,7 @@ void	KDoAudio(argList);
 void	KDoSync(argList);
 
 // List functions.
-void	KNewList(argList);
-void	KDisposeList(argList);
-void	KNewNode(argList);
-void	KFirstNode(argList);
-void	KLastNode(argList);
-void	KEmptyList(argList);
-void	KNextNode(argList);
-void	KPrevNode(argList);
-void	KNodeValue(argList);
-void	KAddAfter(argList);
-void	KAddToFront(argList);
-void	KAddToEnd(argList);
-void	KFindKey(argList);
-void	KDeleteKey(argList);
-void	KListAt(argList);
-void	KListIndexOf(argList);
-void	KListEachElementDo(argList);
-void	KListFirstTrue(argList);
-void	KListAllTrue(argList);
+void	KList(argList);
 
 // Math functions.
 void	KRandom(argList);
@@ -169,6 +144,7 @@ void	KCosDiv(argList);
 // Miscellaneous functions.
 void	KGetTime(argList);
 void	KPlatform(argList);
+void	KCD(argList);
 #ifdef WINDOWS
 void	KWinHelp(argList);
 void	KMessageBox(argList);
@@ -204,8 +180,6 @@ void	KTestPoly(argList);
 void	KMemoryInfo(argList);
 
 // OS functions.
-void	KGetCWD(argList);
-void	KValidPath(argList);
 void	KFileIO(argList);
 
 // System reporting.
@@ -226,6 +200,23 @@ void	KStrTrnExcludeTSN(argList);
 // Color remaping functions
 void	KRemapColors(argList);
 void  KSetPalStyleRange(argList);
+
+#ifndef NETWORK
+void	KEditText(argList);
+void	KInputText(argList);
+#else
+void 	KEdit(argList);
+#endif
+
+void	KGetConfig(argList);
+void	KCelRect(argList);
+
+void	KTable(argList);
+void	KNetwork(argList);
+void	KSID(argList);
+void	KBaseLineSpan(argList);
+void	KCelInfo(argList);
+void  KMorphOn(argList);
 
 extern KernelCall	kernelCalls[];
 extern int			kernelMax;

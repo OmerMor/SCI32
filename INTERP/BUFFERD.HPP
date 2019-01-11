@@ -35,4 +35,3 @@ BufferStd::Addr(const int x, const int y) const
 }
 
 #endif
-

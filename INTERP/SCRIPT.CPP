@@ -78,7 +78,7 @@ struct Entry
 	{
 		//	there's an offset at this location:  what's the corresponding id?
 
-		SCIWord* fixee = (SCIWord*) &id[fixupOffset - offset];
+		SCIUWord* fixee = (SCIUWord*) &id[fixupOffset - offset];
 		Entry* id = entries->Find(*fixee);
 		*fixee = id->id;
 		return id->id;
@@ -182,7 +182,7 @@ struct MethDictIDEntry : DictIDEntry
 {
 	MethDictIDEntry(MemID base, size_t& ofs) :
 		DictIDEntry(base, ofs, sizeof(MethDict) +
-			(SCIWord&) base[ofs] * sizeof(MethDictEntry))
+			(SCIUWord&) base[ofs] * sizeof(MethDictEntry))
 	{
 	}
 };
@@ -191,7 +191,7 @@ struct DispatchesIDEntry : Entry
 {
 	DispatchesIDEntry(MemID base, size_t& ofs) :
 		Entry(base, ofs, sizeof(DispatchTbl) +
-			(SCIWord&) base[ofs] * sizeof(DispatchEntry), MemDispatchTbl)
+			(SCIUWord&) base[ofs] * sizeof(DispatchEntry), MemDispatchTbl)
 	{
 	}
 };
@@ -324,14 +324,14 @@ LoadScript(unsigned n)
 			entries.Add(New VariablesIDEntry(heap, ofs, heap->nVars));
 
 	//	create the object blocks
-	while ((SCIWord&) heap[ofs]) {
+	while ((SCIUWord&) heap[ofs]) {
 		entries.Add(New ObjectIDEntry(heap, ofs));
 		script->nIDs++;
 		script->nRefs++;
 	}
 
 	//	skip over the 0 that terminates objects
-	ofs += sizeof(SCIWord);
+	ofs += sizeof(SCIUWord);
 
 	//	create the string blocks
 	//	one byte of padding is added if strings end on odd address
@@ -342,7 +342,7 @@ LoadScript(unsigned n)
 	ofs = heap->fixups;
 
 	//	fix up the heap
-	SCIWord*	fixups = (SCIWord*) &heap[ofs];
+	SCIUWord* fixups = (SCIUWord*) &heap[ofs];
 	unsigned	nFixups = *fixups++;
 	while (nFixups--)
 		entries.Fixup(*fixups++);
@@ -405,7 +405,7 @@ LoadScript(unsigned n)
 	script->code = codeIDEntry.id;
 
 	//	fixup the dispatch table and code
-	fixups = (SCIWord*) &hunk[ofs];
+	fixups = (SCIUWord*) &hunk[ofs];
 	nFixups = *fixups++;
 	for (int i = 0; i < nFixups; i++) {
 		Entry* id = fixups[i] < script->codeOffset ?
@@ -491,7 +491,7 @@ ReloadScript(ScriptID script)
 	int nFixups = script->nCodeFixups;
 	char* code = (char*) *script->code;
 	for (int i = 0; i < nFixups; i++) {
-		*(SCIWord*) &code[fixups->offset] = fixups->id;
+		*(SCIUWord*) &code[fixups->offset] = fixups->id;
 		fixups++;
 	}
 

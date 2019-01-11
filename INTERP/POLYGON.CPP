@@ -32,9 +32,16 @@ BuildPolygonList(SOL_ListID theList,int listSize)
 	SOL_Polygon* polygonList = (SOL_Polygon*) memMgr->GetAddr(polygonListID);
 
    SOL_List* list = *theList;
-	for (KNodeID node = list->First(); (int) node;node = node->Next(),i++) {
+	for (KNodeID node = list->First();(int) node;node = node->Next(),++i) {
       ObjectID id = (ObjectID) node->val;
 
+		polygonList[i].type = (uchar) id.GetProperty(s_type);
+		if (polygonList[i].type == MBP) {
+			// Don't add the polygons to be merged
+			--i;
+			continue;
+		}
+		
 		ObjectID arrayID = id.GetProperty(s_points);
 		MemID pointsID = arrayID.GetProperty(s_data);
 
@@ -46,7 +53,6 @@ BuildPolygonList(SOL_ListID theList,int listSize)
 		   msgMgr->Fatal(SrcLoc,Msg_NotAPolygon);
 		polygonList[i].n = size;
 
-		polygonList[i].type = (uchar) id.GetProperty(s_type);
 		polygonList[i].info = 0; 
 	}
 	polygonList[i].polyPoints = NULL;
@@ -56,6 +62,50 @@ BuildPolygonList(SOL_ListID theList,int listSize)
 
    return(polygonListID);
 }
+
+void 
+MergeMBPPolygons(SOL_ListID SCIList,MemID polyListID)
+{
+   int i = 0;
+
+   SOL_List* list = *SCIList;
+	for (KNodeID node = list->First();(int) node;node = node->Next(),++i) {
+      ObjectID id = (ObjectID) node->val;
+
+		if ((uchar) id.GetProperty(s_type) == MBP) {
+			// Merge this polygon
+
+			ObjectID arrayID = id.GetProperty(s_points);
+			MemID pointsID = arrayID.GetProperty(s_data);
+
+      	SCI_Point* points = (SCI_Point*) memMgr->GetAddr(pointsID);
+
+			int size = id.GetProperty(s_size);
+      	if (size < 3)
+		   	msgMgr->Fatal(SrcLoc,Msg_NotAPolygon);
+			MemID mergedPolygonID = MergePolygons(points,size,(SOL_Polygon*) memMgr->GetAddr(polyListID));
+
+			SOL_Polygon* polyList = (SOL_Polygon*) memMgr->GetAddr(polyListID);
+
+			// Eliminate any merged polygons MBP,MTP,MNP or MCP
+   		for (int j=0;polyList[j].n != 0;++j)
+      		{
+      		if ((polyList[i].type >= MBP) ||
+            	 (polyList[i].type == MTP) ||
+            	 (polyList[i].type == MNP) ||
+            	 (polyList[i].type == MCP))
+         		{
+         		DeletePolygon(polyList,j);
+         		--j;
+         		}
+      		}
+
+			// Add the merged polygon (MBP) as a barred access polygon (BAP)
+			AddPolygon(polyListID,points,size,BAP);
+		}
+	}
+}
+
 
 void KAvoidPath(argList)
 {	
@@ -108,6 +158,10 @@ void KAvoidPath(argList)
 		optimize	= arg(8);
 
    MemID polygonListID = BuildPolygonList(theList,listSize);
+
+	// Merge any MBP polygons
+   MergeMBPPolygons(theList,polygonListID);
+
 	pm.acc = (Acc) GetPath(A,B,(SOL_Polygon*) memMgr->GetAddr(polygonListID),optimize,plane);
    polygonListID.Free();
 }
@@ -468,6 +522,28 @@ DeletePolygon(SOL_Polygon* polylist,int i)
       {
       polylist[i] = polylist[i+1];
       }
+}
+
+// Add a polygon to a polygon list
+void
+AddPolygon(MemID polyListID,SCI_Point* points,int size,uchar type)
+{
+	SOL_Polygon* polyList = (SOL_Polygon*) memMgr->GetAddr(polyListID);
+
+	// Assumes the polylist is large enough to add another entry
+   for (int i=0;polyList[i].n != 0;++i)
+      {}
+
+	polyList[i].polyPoints = points;
+	polyList[i].n = size;
+	polyList[i].type = type;
+	polyList[i++].info = 0; 
+
+	polyList[i].polyPoints = NULL;
+	polyList[i].n = 0;
+	polyList[i].type = 0;
+	polyList[i].info = 0; 
+
 }
 
 // Adds a point to the begining of a given path

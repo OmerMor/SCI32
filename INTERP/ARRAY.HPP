@@ -19,17 +19,21 @@ _Packed struct Array {
 	SCIUWord size;
 	};
 
-struct ArrayID : ID<Array, MemArray> {
+FakeTemplateID(FakeArrayID, Array, MemArray)
+struct ArrayID : FakeArrayID {
 	ArrayID() {}
-	ArrayID(MemID& id) : ID<Array, MemArray>(id) {}
-	ArrayID(SOL_Handle h) : ID<Array, MemArray>(h) {}
+	ArrayID(MemID& id) : FakeArrayID(id) {}
+	ArrayID(SOL_Handle h) : FakeArrayID(h) {}
 
 	void
 	Get(size_t size)
 	{
 		// initialize arrays to 0
 
-		ID<Array, MemArray>::Get(size, MOVEABLE | INITMEMORY);
+		//	include defaulted args because CodeWarrior 1.1.1.2 doesn't
+		//	consider enums a separate type and so can't distinguish between
+		//	overloaded Get()s.
+		FakeArrayID::Get(size, MOVEABLE | INITMEMORY, 0, 0, 0, IllegalHandle);
 	}
 
 	void*	Data() { return (int) *this ? **this + 1 : 0; }

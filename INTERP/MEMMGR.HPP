@@ -19,6 +19,8 @@
 		a) handles are allocated dynamically
 	6) memory can be made unmoveable after allocation
 		but the memory will be moved high
+	7) Realloc allows for changing the size of an allocation.
+		If the size is larger a move of the memory may happen.
 *****************************************************************************/
 
 #ifndef MEMMGR_HPP
@@ -68,6 +70,8 @@ typedef SCIWord	SOL_Handle;
 //   !lockednosave							not locked and saveable
 //   !discardable								discard-as-last-resort
 //
+//   !alignBytes                       zero-byte pad
+//
 //   !blackhole								unusable memory
 
 
@@ -98,8 +102,10 @@ typedef SCIWord	SOL_Handle;
 #define LOCKEDNOSAVE	 0x00400000L // Don't save, but don't complain because locked (e.g. sound resources)
 #define DISCARDLAST   0x00800000L // Can be purged as a last resort
 //--------------------------------------------------------------------------------
+#define ALIGNBYTES    0x03000000L // Number of bytes padded on allocation
+//--------------------------------------------------------------------------------
 #define BLACKHOLE		 0x80000000L // This memory has not been allocated to the memory manager
-#define UNUSEDATTRS	 0x7F000000L // mask of unassigned memory attributes
+#define UNUSEDATTRS	 0x7C000000L // mask of unassigned memory attributes
 //--------------------------------------------------------------------------------
 
 #ifdef DEBUG
@@ -144,6 +150,7 @@ enum ReservedHandle {
 	Audio36ResListHandle,
 	Sync36ResListHandle,
 	MsgTranslationResListHandle,
+	RobotResListHandle,
    ResMapHandle,
 	AltResMapHandle,
    PatchTableHandle,
@@ -171,9 +178,11 @@ enum Placement {
 };
 
 #ifdef DEBUG
-#define SIGNATURESIZE  20    			// size of signature written at the
+// size of signature written at the end of every allocation 
+// NOTE: This should be a multiple of 4
+#define SIGNATURESIZE  (5*4)
 #else
-#define SIGNATURESIZE  0    			// size of signature written at the
+#define SIGNATURESIZE  0
 #endif
 
 struct MemClient
@@ -212,7 +221,8 @@ class MemInfo
 			int lockedSave:1;	  // Save, though locked
 			int lockedNoSave:1; // Don't save and don't complain about being locked
 			int discardlast:1;  // Can be released as a last resort
-			int fill:7;         // Available for other flags
+			int alignBytes:2;   // 0,1,2 or 3 byte pad to force a multiple of 4 bytes
+			int fill:5;         // Available for other flags
 			int blackHole:1;    // Can't be used by the memory manager
 			} bits ;
 		};
@@ -251,6 +261,7 @@ class Descriptor
 	uchar  			lockCount;	// The count of locks
 	char           initChar;   // If initialization character it's stored here
 // Note: for performance purposes, Descriptor should be a power-of-two bytes
+// (not to mention a multiple of 4 bytes)
 // in size (a line in MEMMGR.CPP asserts this).
 
 public:
@@ -380,7 +391,8 @@ public:
 #ifdef DEBUG
 		CheckValid(theID);
 #endif
-		return (desc[theID].size - SIGNATURESIZE);
+		return (desc[theID].size - SIGNATURESIZE - 
+			desc[theID].memInfo.bits.alignBytes); 
 	}
 
 	// Returns the memory type
@@ -615,4 +627,3 @@ extern int  		thrashDetectCount;
 #endif
 
 #endif  //MEMMGR_HPP
-

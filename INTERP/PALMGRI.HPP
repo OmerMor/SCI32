@@ -21,11 +21,14 @@ class PaletteMgrIndex : public PaletteMgr
 	void	Submit(HunkPalette&); 
 	void	Submit(const SOLPalette&);
 	Bool	UpdateForFrame();
+	Bool	UpdateFFrame();
 
 
 	void	SetCycle(int begin, int end, int direction = 1, int ticks = 0);
 	void	CycleOn(int which);
+	void  CycleAllOn();
 	void	CyclePause(int which);
+	void  CycleAllPause();
 	void	CycleOff(int which);
 	void	CycleAllOff();
 
@@ -50,6 +53,7 @@ class PaletteMgrIndex : public PaletteMgr
 	protected:
 	void	ApplyAll();
 	void	ApplyCycles();
+	void	ApplyAllCycles();
    void  ApplyVary();
    void	ApplyFade();
 	void	DoCycle(int which, int steps = 1);
@@ -83,4 +87,3 @@ class PaletteMgrIndex : public PaletteMgr
 extern const char gamma[4][256];
 
 #endif
-

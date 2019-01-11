@@ -4,6 +4,7 @@
 
 #include "sol.hpp"
 
+#include "array.hpp"
 #include "graph.hpp"
 #include "graphmgr.hpp"
 #include "kernel.hpp"
@@ -30,84 +31,9 @@
 #include "font.hpp"
 #include "celobj.hpp"
 #include "debug.hpp"
-#ifdef INN
-#include "array.hpp"
 
-void
-KBaseLineSpan(argList)
-{
-	//	   Input:
-	//		arg(1) = ArrayID to array for rect
-	//		arg(2) = view
-	//		arg(3) = loop
-	//		arg(4) = cel
-	//		arg(5) = [x]
-	//		arg(6) = [y]
-	//		Returns in ArrayID:
-	//			A.x = leftmost non-skip of cel
-	//			B.x = rightmost non-skip of cel
-	//			A.y = B.y = bottom line of non skip
-
-	CelObjView vlc(arg(2),arg(3),arg(4));
-	
-	SOL_Rect ptz,ptemp;
-
-	SCIWord* data = (SCIWord*) ((ArrayID) arg(1)).Data();
-
-	int	begin,end;
-
-	begin	= data[1];
-	end	= data[3];
-
-	if (end == 0)
-		end = vlc.Height() - 1;
-
-	// Find beginning xy and ending xy of cel's base line span
-
-	ptemp.A.x =	 1000;
-	ptemp.B.x = -1;
-
-	for (int i = begin; i <= end  ; i++) {
-		ptz	= vlc.ReadLineSpan(i);
-		
-		if (ptz.A.x != -1)  {
-			if (ptz.A.x < ptemp.A.x) {
-				ptemp.A.x = ptz.A.x;
-				ptemp.A.y = i;
-			}
-
-			if (ptz.B.x > ptemp.B.x) {
-				ptemp.B.x = ptz.B.x;
-				ptemp.B.y = i;
-			}
-		}
-	}
-
-	// Make the xy points relative to the cel origin and the passed in point
-
-	int origX = vlc.XOrg();
-
-	if (vlc.Mirrored()) {
-		int ptempA = ptemp.A.x;
-		ptemp.A.x  = vlc.Width() - ptemp.B.x - 1;
-		ptemp.B.x  = vlc.Width() - ptempA - 1;
-		origX 	  = vlc.Width() - vlc.XOrg() - 1;
-	}
-	int xOff = ((argCount > 4) ? arg(5) : 0);
-	int yOff = ((argCount > 5) ? arg(6) : 0);
-
-	ptz.A.x = ptemp.A.x - origX + xOff;
-	ptz.B.x = ptemp.B.x - origX + xOff;
-	ptz.A.y = ptemp.A.y - vlc.YOrg() + yOff;
-	ptz.B.y = ptemp.B.y - vlc.YOrg() + yOff;
-
-	data[0] = ptz.A.x;
-	data[1] = ptz.A.y;
-	data[2] = ptz.B.x;
-	data[3] = ptz.B.y;
-}
-
-#endif
+void RemapBitmap(MemID, ObjectID);
+int  AddLinkedBitmap(ObjectID, ObjectID, int);
 
 #ifdef DEBUG
 #ifndef WINDOWS
@@ -119,6 +45,14 @@ KSaveScreen(argList)
 }
 #endif
 #endif
+
+void
+KMorphOn(argList)
+{
+	int i = arg(1);
+	graphMgr->morphOn = 1;
+}
+
 
 void
 KFrameOut(kArgs)
@@ -133,6 +67,10 @@ KFrameOut(kArgs)
 
 	if (showStyles)
 		ProcessShowStyles();
+	else if (graphMgr->morphOn)	{
+		graphMgr->PalMorphFrameOut(palMorphArray);
+		graphMgr->morphOn = 0;
+	}
 	else {
 		if (planeScrolls)
 			ProcessScrolls();
@@ -286,17 +224,18 @@ KBitmap(argList)
 	//      arg1-----function code
 	//					
 	enum {
-		bCreate,		// Create an empty bitmap
-		bDispose,	// Dispose of a bitmap
-		bAddLine,	// Add a line to a bitmap
-		bAddCel,		// Add a cel to a bitmap
-		bAddText,	// Add text to a bitmap
-		bAddRect,	// Add a colored rectangle to a bitmap
-		bAddBitmap,	// Add another bitmap to a bitmap
-		bInvertRect // Invert a bitmap
-#ifdef INN
-		,bCreateRemap	// Create a bitmap with remapped color 
-#endif
+		bCreate,			// Create an empty bitmap
+		bDispose,		// Dispose of a bitmap
+		bAddLine,		// Add a line to a bitmap
+		bAddCel,			// Add a cel to a bitmap
+		bAddText,		// Add text to a bitmap
+		bAddRect,		// Add a colored rectangle to a bitmap
+		bAddBitmap,		// Add another bitmap to a bitmap
+		bInvertRect, 	// Invert a bitmap
+		bSetOrigin,	 	// set origin point of the bitmap
+		bCreateWithCel, // create a new bitmap from cel data
+		bRemap,			// remap an existing bitmap 
+		bDuplicate		// duplicate an existing bitmap 
 	};
 	// The arguments vary from function to function
 	// The return value varys from function to function
@@ -308,17 +247,18 @@ KBitmap(argList)
 	int 			function = arg(1);
 
 	switch (function) {
-		case bCreate:
+		case bCreate: {
 			// Create bitmap
 			//	--------------
 			// Input
 			//      arg2-----bitmap width
 			//      arg3-----bitmap height
 			//      arg4-----skip color
-			//      arg5-----background color 
+			//      arg5-----background color
 			//					  If background color = skip the bitmap is transparent
 			//      arg6-----x resolution
 			//      arg7-----y resolution
+			//		  arg8-----remap state
 			// Output
 			//		  pm.acc = id for bitmap
 
@@ -327,19 +267,84 @@ KBitmap(argList)
 	arg(5) = (SCIWord)AddPalShift((int)arg(5));
 #endif
 
-			BMWidth = arg(2);
+			BMWidth  = arg(2);
 			BMHeight = arg(3);
+
+			int BMresX = (argCount > 5) ? arg(6) : fontMgr->GetXRes();
+			int BMresY = (argCount > 6) ? arg(7) : fontMgr->GetYRes();
+
 			BM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
 
 			// Fill the bitmap with background color
 			memset((uchar*) memMgr->GetAddr(BM)+CELHEADERSIZE,arg(5),BMWidth*BMHeight);
 
-         if (argCount == 7)
-			   BuildHeader(BM,BMWidth,BMHeight,arg(4),0,0,arg(6),arg(7));
-         else
-			   BuildHeader(BM,BMWidth,BMHeight,arg(4));
+			BuildHeader(BM,BMWidth,BMHeight,arg(4),
+							0,
+							0,
+							BMresX,
+							BMresY,
+							0,
+							argCount >= 8 ? arg(8) : False
+						  );
+
 			pm.acc = BM;
 			break;
+		}
+
+		case bCreateWithCel: {
+			// Create bitmap with a cel
+			//	------------------------
+			// Input
+			//      arg2-----view
+			//      arg3-----loop
+			//		  arg4-----cel
+			//      arg5-----skip color
+			//      arg6-----background color
+			//					  If background color = skip the bitmap is transparent
+			//      arg7-----remap state
+			//      arg8-----clut data
+			// Output
+			//		  pm.acc = id for bitmap
+
+			CelObjView celObj(arg(2), arg(3), arg(4));
+			BMWidth  = celObj.Width();
+			BMHeight = celObj.Height();
+			BM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
+
+			int theSkip = (argCount < 5 || arg(5) == -1) ? celObj.Skip() : arg(5);
+			int theBack = (argCount < 6 || arg(6) == -1) ? celObj.Skip() : arg(6);
+
+			// Fill the bitmap with background color
+			memset((uchar*) memMgr->GetAddr(BM)+CELHEADERSIZE,theBack,BMWidth*BMHeight);
+
+			BuildHeader(BM,BMWidth,BMHeight,theSkip,
+							0,
+							0,
+							celObj.ResX(),
+							celObj.ResY(),
+							0,
+							argCount >= 7 ? arg(7) : False
+						);
+
+			// make sure the view is not purged by BM.Get() allocation
+			resMgr->Get(MemResView, arg(2));
+
+			// Create a buffer that points to bitmap
+			BufferStd buffer(BMWidth, BMHeight, (uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
+
+			// draw the cel object into the buffer
+			// theTextBox: relative to upper left. textBox >= pt coords
+			// pt: upper left of cel
+			SOL_Rect drawRect(0,0,BMWidth-1,BMHeight-1);
+			SOL_Point pt(0, 0);
+			celObj.Draw(buffer, drawRect, pt, celObj.Mirrored());
+
+			if (argCount >= 8 && arg(8))
+				RemapBitmap(BM, arg(8));
+
+			pm.acc = BM;
+			break;
+		}
 
 		case bDispose:
 			// Dispose bitmap
@@ -408,8 +413,11 @@ KBitmap(argList)
 			//      arg3:  view
 			//      arg4:  loop
 			//      arg5:  cel
-			//      arg6:  left x
-			//      arg7:  top y
+			//      arg6:  x of where to position cel [-1 = origin point]
+			//      arg7:  y of where to position cel [-1 = origin point]
+			//		  arg8:  dontClip [clip=0, union=1]
+			//		  arg9:  x of cel to match with [-1 = origin point]
+			//		  arg10: y of cel to match with [-1 = origin point]
 
 			MemID			viewBM;
 			SOL_Rect    theTextBox, BMRect;
@@ -417,24 +425,52 @@ KBitmap(argList)
 
 			BM = arg(2);
 			celHeader = ((CelHeader*) memMgr->GetAddr(BM));
-			BMWidth = celHeader->xDim;
+			BMWidth  = celHeader->xDim;
 			BMHeight = celHeader->yDim;
 
-		   CelObjView vCelObj(arg(3),arg(4),arg(5));
-   		int objWidth = vCelObj.Width();
-   		int objHeight= vCelObj.Height();
+			// Determine size of object were adding
+		   CelObjView celObj(arg(3),arg(4),arg(5));
+   		int objWidth = celObj.Width();
+   		int objHeight= celObj.Height();
 
-			theTextBox.Set(arg(6),arg(7),arg(6)+objWidth,arg(7)+objHeight); 
+			int posX = (argCount > 5) ? arg(6) : 0;
+			int posY = (argCount > 6) ? arg(7) : 0;
+			int matchX = (argCount > 8) ? arg(9) : -1;
+			int matchY = (argCount > 9) ? arg(10) : -1;
 
-			Bitmap bitmap(arg(3), arg(4), arg(5));
+			SOL_Point pt(posX, posY);
+			if (posX == -1) 
+				pt.x = celHeader->xHot;
+			if (posY == -1) 
+				pt.y = celHeader->yHot;
 
-			// merge the view bitmap with passed in bitmap
-			BufferStd buffer(BMWidth,BMHeight,(uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
-			SOL_Point pt(arg(6),arg(7));
+			if (matchX == -1)
+				pt.x -= celObj.XOrg();
+			else
+				pt.x -= matchX;
 
-			BMRect.Set(0, 0, BMWidth - 1, BMHeight - 1);
+			if (matchY == -1)
+				pt.y -= celObj.YOrg();
+			else
+				pt.y -= matchY;
+
+			// Figure out the actual draw region into the cel. Make sure it
+			// does not get bigger than existing bitmap.
+			theTextBox.Set(pt.x,pt.y,pt.x+objWidth-1,pt.y+objHeight-1); 
+			BMRect.Set(0, 0, BMWidth-1, BMHeight-1);
 			theTextBox.Clip(BMRect);
-			vCelObj.Draw(buffer, theTextBox, pt, 0);
+
+			// make sure the view is not purged by BM.Get() allocation
+			resMgr->Get(MemResView, arg(3));
+
+			// Create a buffer that points to bitmap
+			BufferStd buffer(BMWidth, BMHeight, (uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
+
+			// draw the cel object into the buffer
+			// theTextBox: relative to upper left. textBox >= pt coords
+			// pt: upper left of cel
+			if (!theTextBox.IsEmpty())
+				celObj.Draw(buffer, theTextBox, pt, celObj.Mirrored());
 
 			break;
 		}
@@ -558,8 +594,9 @@ KBitmap(argList)
 			// Input
 			//      arg2:  MemID for the bitmap
 			//      arg3:  MemID for bitmap to merge
-			//      arg4:  left X 
-			//      arg5:  top Y
+			//      arg4:  left X [==-1 match origin]
+			//      arg5:  top Y	 [==-1 match origin]
+			//		  arg6:  don't match origin points override
 
 			MemID			mergeBM;
 			SOL_Rect    mergeRect, BMRect;
@@ -576,14 +613,20 @@ KBitmap(argList)
 			mergeBMWidth  = mergeCelHeader->xDim;
 			mergeBMHeight = mergeCelHeader->yDim;
 
-			mergeRect.Set(arg(4), arg(5), 
-							  mergeRect.A.x + mergeBMWidth, mergeRect.A.y + mergeBMHeight
-							 );
-			mergeRect.MoveTo(0,0);
+			int posX = (argCount > 3) ? arg(4) : 0;
+			int posY = (argCount > 4) ? arg(5) : 0;
 
 			// merge the text bitmap with passed in bitmap
 			BufferStd buffer(BMWidth,BMHeight,(uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
-			SOL_Point pt(0,0);
+			SOL_Point pt(posX,posY);
+			if (argCount < 6 || !arg(6)) {
+				if (posX == -1) 
+					pt.x = celHeader->xHot - mergeCelHeader->xHot;
+				if (posY == -1) 
+					pt.y = celHeader->yHot - mergeCelHeader->yHot;
+			}
+
+			mergeRect.Set(pt.x, pt.y, pt.x + mergeBMWidth - 1, pt.y + mergeBMHeight - 1);
 
 			CelObjMem celObj(mergeBM);
 			BMRect.Set(0, 0, BMWidth - 1, BMHeight - 1);
@@ -621,49 +664,91 @@ KBitmap(argList)
 
 			break;
 		}
-#ifdef INN
-		case bCreateRemap: {
+		case bSetOrigin: {
+			BM = arg(2);
+			celHeader = ((CelHeader*) memMgr->GetAddr(BM));
+			celHeader->xHot = arg(3);
+			celHeader->yHot = arg(4);
+
+			break;
+		}
+		case bRemap: {
 			// Create a bitmap with remapped colors from a bitmap and a CLUT
 			//---------------------
 			// Input
-			//			arg2:	ArrayID
-			//			arg3: view
-			//			arg4: loop
-			//			arg5: cel
+			//			arg2:	bitmapID
+			//			arg3: ArrayID
 			// Output
 			//		  pm.acc = id for bitmap
 
-			
-		   CelObjView vCelObj(arg(3),arg(4),arg(5));
-   		BMWidth = vCelObj.Width();
-   		BMHeight = vCelObj.Height();
-			BM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
+			RemapBitmap(arg(2), arg(3));
 
-			SOL_Rect theTextBox(0,0,BMWidth-1,BMHeight-1);
-
-
-			BuildHeader(BM,BMWidth,BMHeight,vCelObj.Skip(),vCelObj.XOrg(),vCelObj.YOrg());
-
-			BufferStd buffer(BMWidth,BMHeight,(uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
-			SOL_Point pt(0,0);
-
-			vCelObj.Draw(buffer, theTextBox, pt, 0);
-
-			uchar* startColor = (uchar*) (memMgr->GetAddr(BM)) +CELHEADERSIZE;
-
-			uchar* data = (uchar*) ((ArrayID) arg(2)).Data();
-
-			for(int i=0;i<BMWidth*BMHeight;i++)
-					*startColor++ = data[*startColor];
-
-			pm.acc = BM;
 			break;
 		}
-#endif
+		case bDuplicate: {
+			// Duplicate an existing bitmap
+			//	--------------
+			// Input
+			//      arg2-----bitmap to copy from
+			// Output
+			//		  pm.acc = id for bitmap
+
+ 			BM = arg(2);
+			MemID newBM;
+
+			// Get the width of the bitmap
+			celHeader = ((CelHeader*) memMgr->GetAddr(BM));
+			BMWidth  = celHeader->xDim;
+			BMHeight = celHeader->yDim;
+
+			int BMresX = (argCount > 5) ? arg(6) : fontMgr->GetXRes();
+			int BMresY = (argCount > 6) ? arg(7) : fontMgr->GetYRes();
+
+			newBM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
+
+			// copy the old bitmap into the new one
+			memcpy((uchar*) memMgr->GetAddr(newBM)+CELHEADERSIZE,(uchar*) memMgr->GetAddr(BM)+CELHEADERSIZE,BMWidth*BMHeight);
+
+			BuildHeader(newBM,BMWidth,BMHeight,celHeader->skip,
+							celHeader->xHot,
+							celHeader->yHot,
+							celHeader->xRes,
+							celHeader->yRes,
+							0,
+							False
+						  );
+
+			pm.acc = newBM;
+			break;
+		}
+
 		default:
 			break;
 	}
 }
+
+void
+RemapBitmap(MemID BM, ObjectID clutData)
+{
+	if ((ObjectID) clutData.IsObject())
+		clutData = clutData.GetProperty(s_data);
+	if (!clutData)
+		return;
+
+	CelHeader* celHeader = ((CelHeader*) memMgr->GetAddr(BM));
+	int BMWidth  = celHeader->xDim;
+	int BMHeight = celHeader->yDim;
+
+	// setup pointers to BM and data block
+	uchar* startColor = (uchar*) (memMgr->GetAddr(BM)) +CELHEADERSIZE;
+	uchar* data = (uchar*) ((ArrayID) clutData).Data();
+
+	// Go through each pixel and remap the color to CLUT 
+	for(int i=0;i<BMWidth*BMHeight;i++)
+		*startColor++ = data[*startColor];
+
+}
+
 
 void
 KDeleteScreenItem(kArgs args)
@@ -1188,10 +1273,17 @@ KSetNowSeen(argList)
 	int planeID = id.GetIndexedProperty(actPlaneID);
 	SOL_Rect nowSeen;
 	graphMgr->NowSeen((int) id,planeID,nowSeen);
+#ifdef NETWORK
+	id.SetIndexedProperty(actLeft, nowSeen.A.x);
+	id.SetIndexedProperty(actTop, nowSeen.A.y);
+	id.SetIndexedProperty(actRight, nowSeen.B.x);
+	id.SetIndexedProperty(actBottom, nowSeen.B.y);
+#else
 	id.SetIndexedProperty(actNSLeft, nowSeen.A.x);
 	id.SetIndexedProperty(actNSTop, nowSeen.A.y);
 	id.SetIndexedProperty(actNSRight, nowSeen.B.x);
 	id.SetIndexedProperty(actNSBottom, nowSeen.B.y);
+#endif
 }
 
 void
@@ -1234,7 +1326,8 @@ BuildHeader(uchar* bmAddr,
             int yHot,
             int xRes,
             int yRes,
-            Bool palFlag)
+				Bool palFlag,
+				Bool remap)
 {
 	// initialize the header
 	CelHeader* celHeader = (CelHeader*) bmAddr;
@@ -1250,7 +1343,7 @@ BuildHeader(uchar* bmAddr,
 	celHeader->xRes = xRes;
 	celHeader->yRes = yRes;
 
-	if (palFlag)
+	if (palFlag) 
 		celHeader->paletteOffset = CELHEADERSIZE + (width * height);
 	else
 		celHeader->paletteOffset = 0;
@@ -1262,6 +1355,9 @@ BuildHeader(uchar* bmAddr,
 	celHeader->controlOffset = CELHEADERSIZE;
 	celHeader->colorOffset = CELHEADERSIZE;
 	celHeader->rowTableOffset = 0;
+
+	if (remap)
+		celHeader->dataFlags |= 2; //2=REMAP_PRESENT
 }
 
 MemID
@@ -1446,4 +1542,294 @@ void	KMovePlaneItems(argList)
 }
 
 
-
+
+void
+KBaseLineSpan(argList)
+{
+	//	   Input:
+	//		arg(1) = ArrayID to array for rect
+	//		arg(2) = view
+	//		arg(3) = loop
+	//		arg(4) = cel
+	//		arg(5) = [x]
+	//		arg(6) = [y]
+	//		Returns in ArrayID:
+	//			A.x = leftmost non-skip of cel
+	//			B.x = rightmost non-skip of cel
+	//			A.y = B.y = bottom line of non skip
+
+	CelObjView vlc(arg(2),arg(3),arg(4));
+	
+	SOL_Rect ptz,ptemp;
+
+	SCIWord* data = (SCIWord*) ((ArrayID) arg(1)).Data();
+
+	int	begin,end;
+
+	begin	= data[1];
+	end	= data[3];
+
+	if (end == 0)
+		end = vlc.Height() - 1;
+
+	// Find beginning xy and ending xy of cel's base line span
+
+	ptemp.A.x =	 1000;
+	ptemp.B.x = -1;
+
+	for (int i = begin; i <= end  ; i++) {
+		ptz	= vlc.ReadLineSpan(i);
+		
+		if (ptz.A.x != -1)  {
+			if (ptz.A.x < ptemp.A.x) {
+				ptemp.A.x = ptz.A.x;
+				ptemp.A.y = i;
+			}
+
+			if (ptz.B.x > ptemp.B.x) {
+				ptemp.B.x = ptz.B.x;
+				ptemp.B.y = i;
+			}
+		}
+	}
+
+	// Make the xy points relative to the cel origin and the passed in point
+
+	int cWidth = vlc.Width();
+	if (vlc.Mirrored()) {
+		int ptempA = ptemp.A.x;
+		ptemp.A.x = cWidth - ptemp.B.x -1;
+		ptemp.B.x = cWidth - ptempA - 1;
+	}
+	int xOff = ((argCount > 4) ? arg(5) : 0);
+	int yOff = ((argCount > 5) ? arg(6) : 0);
+
+
+	//	Store the info in the data which can be read back from SCI
+
+	// left
+	data[0] = (ptemp.A.x - vlc.XOrg()) * Ratio(LOWRESX, vlc.ResX()) + xOff;
+	// right
+	data[2] = (ptemp.B.x - vlc.XOrg()) * Ratio(LOWRESX, vlc.ResX()) + xOff;
+	// top
+	data[1] = (ptemp.A.y - vlc.YOrg()) * Ratio(LOWRESY, vlc.ResY()) + yOff;
+	// bottom
+	data[3] = (ptemp.B.y - vlc.YOrg()) * Ratio(LOWRESY, vlc.ResY()) + yOff;
+
+}
+
+void
+KCelInfo(argList)
+{
+
+	enum {
+		getOrigX,
+		getOrigY,
+		getLinkX,
+		getLinkY,
+		getPixel
+	};
+
+	int func = arg(1);
+
+	CelObjView celObj(arg(2),arg(3),arg(4));
+
+	switch (func) {
+		case getOrigX: {
+			pm.acc = celObj.XOrg();
+			break;
+		}
+		case getOrigY: {
+			pm.acc = celObj.YOrg();
+			break;
+		}
+		case getLinkX: {
+			pm.acc = 0;
+			break;
+		}
+		case getLinkY: {
+			pm.acc = 0;
+			break;
+		}
+		case getPixel: {
+			pm.acc = celObj.ReadPix(arg(5), arg(6), celObj.Mirrored());
+			break;
+		}
+	}
+}
+
+
+int
+AddLinkedBitmap(ObjectID idBase, ObjectID	idAdd, int type)
+{
+	int planeId = idBase.GetIndexedProperty(actPlaneID);
+	ScreenItem* siBase = graphMgr->NextScreen()->GetScreenItem(planeId,idBase);
+
+	planeId = idAdd.GetIndexedProperty(actPlaneID);
+	ScreenItem* siAdd = graphMgr->NextScreen()->GetScreenItem(planeId,idAdd);
+	MemID			BM;
+	int 			BMWidthA,BMWidthB,objWidthA,objWidthB;
+	int 			BMHeightA,BMHeightB,objHeightA,objHeightB;
+	SOL_Rect    theTextBox,BMRect;
+	int 			viewB,loopB,celB,viewA,loopA,celA,resX,resY;
+	
+	int i = type;
+	int x,y;
+	int largerBitmap = 0;
+	int xOffset = 0;
+	int yOffset = 0;
+
+	viewB = siBase->bitmap.View();
+	loopB = siBase->bitmap.Loop();
+	celB  = siBase->bitmap.Cel();
+   CelObjView vCelObjB(viewB,loopB,celB); 
+
+	viewA = siAdd->bitmap.View();
+	loopA = siAdd->bitmap.Loop();
+	celA  = siAdd->bitmap.Cel();
+   CelObjView vCelObjA(viewA,loopA,celA); 
+
+	x = vCelObjB.GetLinkPoint(type,1);
+	if (x == -1) {
+		msgMgr->Fatal(SrcLoc,"No type for CelLink x");
+		return(0);	
+		}	
+
+	y = vCelObjB.GetLinkPoint(type,0);
+	if (y == -1){
+ 		msgMgr->Fatal(SrcLoc,"No type for CelLink y");
+		return(0);	
+	}
+
+	objWidthB  = vCelObjB.Width();
+	objHeightB = vCelObjB.Height();
+
+	objWidthA  = vCelObjA.Width();
+	objHeightA = vCelObjA.Height();
+
+	BMWidthB 		= siBase->GetCel()->Width() ;
+	BMHeightB 		= siBase->GetCel()->Height();
+
+	x -= vCelObjA.XOrg();
+	y -= vCelObjA.YOrg();
+
+	if ((x+objWidthA)>BMWidthB) {
+		BMWidthB = x + objWidthA ;
+		largerBitmap = 1;
+	}
+
+	if ((y+objHeightA)>BMHeightB) {
+		BMHeightB = y + objHeightA ;
+		largerBitmap = 1;
+	}
+
+	if (x<0) {
+		BMWidthB += -(x);
+		largerBitmap = 1;
+		xOffset  = -(x);
+		x = 0;
+	}
+
+	if (y<0) {
+		BMHeightB += -(y);
+		yOffset   = -(y);
+		largerBitmap = 1;
+		y = 0;
+	}
+
+	
+	if ((siBase->bitmap.Type() != Bitmap::tMem)||largerBitmap) {  // create a bitmap
+
+		BM.Get(MemBitmap,BMWidthB*BMHeightB+CELHEADERSIZE);
+
+		resX = siBase->GetCel()->ResX();
+		resY = siBase->GetCel()->ResY();
+		memset((uchar*) memMgr->GetAddr(BM)+CELHEADERSIZE,0,BMWidthB*BMHeightB);
+
+	   BuildHeader(BM,BMWidthB,BMHeightB,0,siBase->GetCel()->XOrg(),siBase->GetCel()->YOrg(),resX,resY);
+   
+		siBase->bitmap = Bitmap(BM);
+		siBase->bitmap.SetType(Bitmap::tMem);
+				
+		theTextBox.Set(xOffset,yOffset,objWidthB+xOffset,objHeightB+yOffset); 
+		BMRect.Set(xOffset, yOffset,xOffset+BMWidthB-1,yOffset+BMHeightB-1);
+		theTextBox.Clip(BMRect);
+		SOL_Point pt(xOffset,yOffset);
+
+		BufferStd buffer(BMWidthB,BMHeightB,(uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
+
+		vCelObjB.Draw(buffer, theTextBox, pt, 0);
+		idBase.SetIndexedProperty(actBitmap,BM);
+	}
+	// add object to bitmap
+	BM	= siBase->bitmap.Handle();
+
+	theTextBox.Set(x,y,x+objWidthA,y+objHeightA);
+	BMWidthA 		= siAdd->GetCel()->Width();
+	BMHeightA 		= siAdd->GetCel()->Height();
+ 
+	BMRect.Set(x,y,x+BMWidthA-1,y+BMHeightA-1);
+	theTextBox.Clip(BMRect);
+
+	SOL_Point pt(x,y);
+
+	BufferStd buffer(BMWidthB,BMHeightB,(uchar*) memMgr->GetAddr(BM) + CELHEADERSIZE);
+	vCelObjA.Draw(buffer, theTextBox, pt, 0);
+	 
+	return(BM);	
+}
+
+void 
+KCelLink(argList)
+{
+	//		arg(1) = function
+	//		arg(2) = view
+	//		arg(3) = loop
+	//		arg(4) = cel
+	//		arg(5) = type
+
+	enum {
+		GetFirstLink,
+		GetNextLink,
+		GetXLinkPoint,
+		GetYLinkPoint,
+		AddBitmapLink
+		
+	};
+
+	int function = arg(1);
+	
+	if (function == 4) {
+		pm.acc = AddLinkedBitmap(arg(2),arg(3),arg(4));
+		return;
+	}
+
+	CelObjView	vlc(arg(2),arg(3),arg(4));
+
+	switch(function) {
+		case GetFirstLink:
+		pm.acc =	vlc.GetFirstLink();
+		break;
+
+		case GetNextLink:
+		pm.acc = vlc.GetNextLink(arg(5));
+		break;
+
+		case GetXLinkPoint:
+		pm.acc = vlc.GetLinkPoint(arg(5),1);
+		break;
+
+		case GetYLinkPoint:
+		pm.acc = vlc.GetLinkPoint(arg(5),0);
+		break;
+
+		case AddBitmapLink:
+		// arg(2) = baseSI
+		// arg(3) = addedSI
+		// arg(4) = linkType
+		pm.acc = AddLinkedBitmap(arg(2),arg(3),arg(4));
+		break;		
+
+	}
+}
+

@@ -40,14 +40,14 @@ class ScreenItem
 
 	//  Constructors, etc
 	ScreenItem(ScreenItem*);
-	ScreenItem(ObjectID&);
+	ScreenItem(ObjectID& theId);
 	ScreenItem(long plane, Bitmap&);
 	ScreenItem(long plane, Bitmap&, SOL_Rect&);
 	ScreenItem(long plane, Bitmap&, SOL_Point, ScaleInfo);
 	ScreenItem(long plane, Bitmap&, SOL_Point, ScaleInfo, int);
 	~ScreenItem();
-	ScreenItem& operator=(ObjectID&);
-	ScreenItem& operator=(const ScreenItem&);
+	ScreenItem& operator=(ObjectID& id);
+	ScreenItem& operator=(const ScreenItem& si);
 
 	// Given
 	SOL_Point	pos;				// User specified X, Y coordinates
@@ -60,7 +60,7 @@ class ScreenItem
 	Bool			FixedPri() const			{return fixedPriFlag;}
 	long			Id() const					{return id;}
 	SOL_Rect&	InsetRect()					{return insetRect;}
-	void			NowSeen(Plane&, SOL_Rect& nowSeen);
+	void			NowSeen(Plane& plane,SOL_Rect& nowSeen);
 	int			PicResNum()					{return picResNum;}
 	long			PlaneId() const			{return planeId;}
 	int			Priority() const			{return priority;}
@@ -69,7 +69,6 @@ class ScreenItem
 	Bool			UserMirror() const		{return userMirror;}
 	int			X1() const					{return x1;}
 	int			Y1() const					{return y1;}
-	const SOL_Rect& 	ToDraw() const		{return toDraw;}
 
 	//  Normal methods
 	int			AddCount() const			{return addCount;}
@@ -79,18 +78,18 @@ class ScreenItem
 	void			DecAddCount()				{addCount--;}
 	void			DecDeleteCount()			{deleteCount--;}
 	int			DeleteCount() const		{return deleteCount;}
-	void			Draw(Buffer& dest, SOL_Rect& drawRect)
+	void			Draw(Buffer& dest,SOL_Rect& drawRect)
 						{cel->Draw(dest,*this,drawRect,userMirror^cel->Mirrored());}
 	void 			DoUpdate(Plane& plane)	
 						{GetCelObj();Update(plane);}
 	void 			GetCelObj();
 	uchar			GetSkip()					{GetCelObj();return cel->Skip();}
 	CelObj*		GetCel()						{return cel;}
-	SOL_Rect& 	OnScreen()			{return onScreen;}
+	SOL_Rect& 	OnScreen() 					{return onScreen;}
 	uchar			ReadPix(int x, int y)			
 						{GetCelObj(); return cel->ReadPix(x, y, userMirror ^ cel->Mirrored());}
 	int			RemapState()  				{GetCelObj(); return cel->RemapState();}
-	void			SetCel(CelObj* theCel)  {delete cel; cel = theCel;}
+	void			SetCel(CelObj* theCel)  {if (cel != NULL) delete cel;cel = theCel;}
 	void			SetUpdateCount(int val)	{updateCount = val;}
 	void			SetAddCount(int val)		{addCount = val;}
 	void			SetDeleteCount(int val)	{deleteCount = val;}
@@ -127,31 +126,9 @@ class ScreenItem
 	Ratio			finalScaleY;
 	SOL_Rect		insetRect;
 
-	void			Update(Plane&);
+	void			Update(Plane& plane);
 	// Do not define
 	ScreenItem(const ScreenItem&);
 };
 
-inline void
-ScreenItem::GetCelObj()
-{
-	if (!cel) {
-		switch (bitmap.Type()) {
-			case Bitmap::tView:
-				cel = New CelObjView(bitmap.View(),bitmap.Loop(),bitmap.Cel());
-				break;
-			case Bitmap::tPic:
-				msgMgr->Fatal(SrcLoc,"Internal error, pic screen item with no cel.");
-				break;
-			case Bitmap::tMem:
-				cel = New CelObjMem(bitmap.Handle());
-				break;
-			case Bitmap::tColor:
-				cel = New CelObjColor(bitmap.Color(),insetRect.Xlen(),insetRect.Ylen());
-				break;
-		}
-	}
-}
-
 #endif
-

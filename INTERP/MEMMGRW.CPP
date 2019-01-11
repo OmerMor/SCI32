@@ -39,17 +39,13 @@ extern	uchar *wAudioBuffAddr;
 int	wAudioBuffSize;
 int	cursorBuffSize;
 
-#ifdef COLORCUR
 extern	uchar *cursorBuffAddr;
 extern	int	maxCursorSize;
-#endif
 
 HLOCAL	hLocal;
 #ifdef WIN32S
 HGLOBAL	hAudioBuff;
-#ifdef COLORCUR
 HGLOBAL	hCursorBuff;
-#endif
 #endif
 
 // Midi page locking variables
@@ -75,11 +71,11 @@ int reserveMem16;
 int totExternalBuffs;
 DWORD		lockedPageSize;
 char		errbuff[200];
+int lockableSize;
 
 #ifdef WIN32S
 int wingMin;
 int maxSize;
-int lockableSize;
 #else
 int hiSize, loSize, currSize;
 #endif
@@ -87,9 +83,7 @@ int hiSize, loSize, currSize;
 	memPtrWin = NULL;
 	wAudioBuffAddr = NULL;
 	lockedPagePtr = NULL;
-#ifdef COLORCUR
 	cursorBuffAddr = NULL;
-#endif
 
 	wAudioBuffSize = DACSize;
 	reserveMem = reserveK * 1024;
@@ -100,7 +94,7 @@ int hiSize, loSize, currSize;
 	sciMax = sciMaxK * 1024;
 	lockedPageSize = 0;
 	cursorBuffSize = 0;
-#ifdef WIN32S
+//#ifdef WIN32S
 	lockableSize = PageLockableBytes();
 	if (lockableSize < (4 * 1024 * 1024))
 		reserveMem = reserveMem4;
@@ -112,13 +106,13 @@ int hiSize, loSize, currSize;
 		sprintf(mbuff,"detected:%d reserving:%d",lockableSize,reserveMem);
 		MBox(mbuff,"");
 	}
-#endif
+//#endif
 
 	totExternalBuffs = wAudioBuffSize + reserveMem;
-#ifdef COLORCUR
-	cursorBuffSize = 12 * maxCursorSize;
-	totExternalBuffs += cursorBuffSize;
-#endif
+	if (COLORCURSOR) {
+		cursorBuffSize = 12 * maxCursorSize;
+		totExternalBuffs += cursorBuffSize;
+	}
 
 #ifndef WIN32S
 //************************** NOT WIN32S ***********************************
@@ -258,14 +252,14 @@ MemoryMgrWin::GetSysMem(size_t theSize)
 		sprintf(mbuff,"audio alloc error - size:%d", wAudioBuffSize);
 		MBox(mbuff,"");
 	}
-#ifdef COLORCUR
 	// allocate the cursor buffers
-	cursorBuffAddr = (uchar*)_nmalloc(cursorBuffSize);
-	if (!cursorBuffAddr) {
-		sprintf(mbuff,"cursor alloc error - size:%d", cursorBuffSize);
-		MBox(mbuff,"");
+	if (COLORCURSOR) {
+		cursorBuffAddr = (uchar*)_nmalloc(cursorBuffSize);
+		if (!cursorBuffAddr) {
+			sprintf(mbuff,"cursor alloc error - size:%d", cursorBuffSize);
+			MBox(mbuff,"");
+		}
 	}
-#endif
 
 #else
 	// allocate for the memory manager
@@ -288,14 +282,14 @@ MemoryMgrWin::GetSysMem(size_t theSize)
 		return (char *)0;
 	}
 
-#ifdef COLORCUR
 	// allocate the cursor buffers (local or global?)
-	cursorBuffAddr = (char *)AllocWinMem(cursorBuffSize, LOCKMAIN);
-	if (!cursorBuffAddr) {
-		MBox("cursor alloc error","");
-		return (char *)0;
+	if (COLORCURSOR) {
+		cursorBuffAddr = (unsigned char *)AllocWinMem(cursorBuffSize, LOCKMAIN);
+		if (!cursorBuffAddr) {
+			MBox("cursor alloc error","");
+			return (char *)0;
+		}
 	}
-#endif
 
 #endif
 
@@ -310,9 +304,8 @@ MemoryMgrWin::~MemoryMgrWin()
 #ifndef WIN32S
 	free(memPtrWin);
 	free(wAudioBuffAddr);
-#ifdef COLORCUR
-	free(cursorBuffAddr);
-#endif
+	if (COLORCURSOR)
+		free(cursorBuffAddr);
 	FreeWinMem(lockedPagePtr, PAGELOCK);
 
 #else
@@ -320,9 +313,8 @@ MemoryMgrWin::~MemoryMgrWin()
 	LocalUnlock(hLocal);
 	LocalFree(hLocal);
 	FreeWinMem(wAudioBuffAddr, LOCKAUDIO);
-#ifdef COLORCUR
-	FreeWinMem(cursorBuffAddr, PAGELOCK);
-#endif
+	if (COLORCURSOR)
+		FreeWinMem(cursorBuffAddr, PAGELOCK);
 #endif
 	UnloadDll();
 #ifdef DEBUG
@@ -527,3 +519,4 @@ void FreeWinMem(void *lpMem, int pageLock)
 }
 #endif
 
+

@@ -1,8 +1,8 @@
 //	integ.cpp
 
-#ifdef DEBUG
-
 #include "sol.hpp"
+
+#ifdef DEBUG
 
 #include "debug.hpp"
 #include "hotkey.hpp"

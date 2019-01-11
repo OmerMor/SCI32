@@ -2,6 +2,7 @@
 
 #include "sol.hpp"
 
+#include "config.hpp"
 #include	"kernel.hpp"
 #include	"pmachine.hpp"
 
@@ -13,7 +14,8 @@ enum PlatformType {
 };
 
 enum CallType {
-	WhatAmI
+	WhatAmI,
+	CDspeed
 };
 
 void
@@ -31,6 +33,9 @@ KPlatform(argList)
 		//	Return the platform type that we are
 		case WhatAmI:
 			pm.acc = (int) Dos;
+			break;
+		case CDspeed:
+			pm.acc = configMgr->GetNum("CDspeed",0);
 			break;
 	}
 }

@@ -7,6 +7,9 @@
 #include "shiftpal.hpp"
 #include "mbox.hpp"
 
+#ifdef MACINTOSH
+	Bool	WING=False; //KGN defined somewhere else in the dos world.
+#endif
 
 int
 AddPalShift(int val)
@@ -116,8 +119,9 @@ ShiftPaletteCel(uchar* resBuffer, long celOffset)
 	}
 
 #ifdef DEBUG
-	memMgr->SetChecksum(resBuffer);
+	#ifndef MACINTOSH
+		memMgr->SetChecksum(resBuffer);
+	#endif
 #endif
 
 }
-

@@ -9,7 +9,9 @@ extern "C" int		pixelcount;
 extern "C" int		beginindex;
 extern "C" uchar	skipval;
 
+#ifndef MACINTOSH
 extern "C"  {
+#endif
 	void		WriteUncompLine();
 	void		WriteUncompLineBack();
 	void		WriteUncompLineBackNoSkip();
@@ -19,7 +21,8 @@ extern "C"  {
 	void		WriteCompSkipLine();
 	void		WriteCompSkipLineBack();
 	void		WriteWholeCompSkipLine();
+#ifndef MACINTOSH
 };
+#endif
 
 #endif
-

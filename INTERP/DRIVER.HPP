@@ -58,4 +58,3 @@
 #define MPU_MIDI		0x0200
 #define DISNEY_DAC	0x0400
 #define CDAUDIO_OUT	0x0800
-

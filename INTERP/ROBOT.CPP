@@ -1,22 +1,19 @@
 #include "sol.hpp"
-
-#ifndef MACINTOSH
-	#include <io.h>
-#endif
-
 #include "robot.hpp"
-#include "dos.hpp"
-#include "criterr.hpp"
-#include "graphmgr.hpp"
-#include "graph.hpp"
-#include "dcomp.hpp"
-#include "time.hpp"
-#include "kernel.hpp"
-#include "pmachine.hpp"
-#include "config.hpp"
+
 #include "array.hpp"
 #include "audio.hpp"
+#include "config.hpp"
+#include "criterr.hpp"
+#include "dcomp.hpp"
+#include "dos.hpp"
+#include "graph.hpp"
+#include "graphmgr.hpp"
+#include "kernel.hpp"
+#include "pmachine.hpp"
+#include "resource.hpp"
 #include "shiftpal.hpp"
+#include "time.hpp"
 
 Bool		AudioPause(int);
 Bool		AudioResume(int);
@@ -36,7 +33,6 @@ _Packed struct VideoHeader
 
 _Packed struct VideoHeader4
 {
-	short	celCount;
 	uchar	compressionType;
 	uchar	vertScaleFactor;
 	short	xsize, ysize;
@@ -50,16 +46,21 @@ _Packed struct VideoHeader4
 enum CompType {LZ_COMP, RLE_COMP, UNCOMP};
 
 
-
-Robot::Robot(int resNum, long planeId, int priority, int xoff, int yoff) :
-	priority(priority),
+Robot::Robot(int resNum, long planeId, int pri, int xoff, int yoff) :
 	resNum(resNum),
 	planeId(planeId), 
 	xoff(xoff),
 	yoff(yoff)
 {
+	for (int i = 0; i < SiArraySize; i++)  {
+		robotSi[i] = NULL;
+		priority[i] = pri;
+	}
+	siCount = 0;
+	framesSkipped = 0;
+	maxFramesSeqSkipped = 0;
+
 	hunkPalette = NULL;
-	robotSi = NULL;
 	videoSizeArray = NULL;
 	recordPosArray = NULL;
 	firstFrame = True;
@@ -68,7 +69,7 @@ Robot::Robot(int resNum, long planeId, int priority, int xoff, int yoff) :
 	lzScratch = New char[SCRATCHRAM_SIZE];
 	cueTimeList = New long[256];
 	cueValueList = New ushort[256];
-	for (int i = 0; i < 256; i++)  {
+	for (i = 0; i < 256; i++)  {
 		cueTimeList[i] = -1;
 		cueValueList[i] = 0;
 	}
@@ -90,14 +91,16 @@ Robot::~Robot()
 	delete[] cueTimeList;
 	delete[] cueValueList;
 	delete hunkPalette;
+	int i;
 #ifndef MACINTOSH
-	bmHandle.Free();
+	for (i = 0; i < siCount; i++)
+		bmHandle[i].Free();
 #endif
 	if (fd)
-		Close(fd);
+		resMgr->Close(fd);
 
-	if (robotSi)
-		graphMgr->DeleteScreenItem(robotSi);
+	for (i = 0; i < siCount; i++)
+		graphMgr->DeleteScreenItem(robotSi[i]);
 
 	if (hasAudio)
 		StopAudioNow();
@@ -117,7 +120,8 @@ Robot::Resume()
 {	
 	if (status == ROBOT_PAUSED  ||  status == ROBOT_FINAL)  {
 		status = ROBOT_PLAYING;
-///		robotStartTime = timeMgr->GetTickCount() - (frameNum * 6);
+		if (!firstFrame)
+			robotStartTime = timeMgr->GetTickCount() - ToTicks(frameNum);
 	}
 
 	if (frameNum >= frameCount)
@@ -134,7 +138,7 @@ Robot::DoRobot()
 	if (firstFrame)
 		frameNum = 0;
 	else  {
-		frameNum = (timeMgr->GetTickCount() + delayTime.PredictedTicks() - robotStartTime) / 6;
+		frameNum = ToFrame(timeMgr->GetTickCount() + delayTime.PredictedTicks() - robotStartTime);
 	}
 
 	//  If last frame already shown, set final flag and return
@@ -150,6 +154,20 @@ Robot::DoRobot()
 	if (frameNum == lastFrameNum)
 		return;
 
+	if (version == 4  &&  hasAudio)  {
+		uchar scratch[20];
+		for (long tmp = lastFrameNum + canSkip + 1; tmp < frameNum; tmp += canSkip + 1)  {
+			LSeek(fd, recordPosArray[tmp] + videoSizeArray[tmp], SEEK_SET);
+			audioList.SubmitDriverMax();
+			Read(fd, scratch, 8);
+			long audCount = *((long*) &scratch[4]);
+			long audPos = *((long*) scratch);
+
+			audioList.AddBlock(audPos, audCount);
+			Read(fd, audioList.LastBlockAddr(), audCount);
+		}
+	}
+
 	audioList.SubmitDriverMax();
 //	delayTime.StartTiming();
 	SeekFrame(frameNum);
@@ -163,6 +181,13 @@ Robot::DoRobot()
 	audioList.SubmitDriverMax();
 
 	//  Set flag, return ok
+	if (frameNum != lastFrameNum + 1)  {
+		int skipped = frameNum - lastFrameNum - 1;
+		framesSkipped += skipped;
+		if (skipped > maxFramesSeqSkipped)
+			maxFramesSeqSkipped = skipped;
+	}
+
 	lastFrameNum = frameNum;
 }
 
@@ -176,6 +201,7 @@ Robot::DoVersion2()
 	int size = audioSize + videoSizeArray[frameNum] + sizeof(VideoHeader);
 	uchar* scratch = New uchar[size];
 	Read(fd, scratch, size);
+	siCount = 1;
 
 	//  Submit audio portion
 	if (hasAudio)  {
@@ -191,17 +217,24 @@ Robot::DoVersion2()
 	CreateCel(video, True);	// HOOK  firstFrame);
 	delete[] scratch;
 
-	if (!robotSi)  {
-		robotSi = New ScreenItem(planeId, Bitmap(bmHandle));
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->AddScreenItem(robotSi);
+	if (!robotSi[0])  {
+		robotSi[0] = New ScreenItem(planeId, Bitmap(bmHandle[0]));
+		robotSi[0]->pos = SOL_Point(x1[0], y1[0]);
+		if (priority[0] == -1)
+			robotSi[0]->SetFloatPriority();
+		else
+			robotSi[0]->SetPriority(priority[0]);
+			
+		graphMgr->AddScreenItem(robotSi[0]);
 	}
 	else  {
-		robotSi->bitmap = bmHandle;
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->UpdateScreenItem(robotSi);
+		robotSi[0]->bitmap = bmHandle[0];
+		robotSi[0]->pos = SOL_Point(x1[0], y1[0]);
+		if (priority[0] == -1)
+			robotSi[0]->SetFloatPriority();
+		else
+			robotSi[0]->SetPriority(priority[0]);
+		graphMgr->UpdateScreenItem(robotSi[0]);
 	}
 }
 
@@ -212,19 +245,27 @@ Robot::DoVersion3()
 	long videoSize = videoSizeArray[frameNum] + sizeof(VideoHeader);
 	uchar* scratch = New uchar[videoSize];
 	Read(fd, scratch, videoSize);
+	siCount = 1;
 	CreateCel(scratch, True);	// HOOK  firstFrame);
 
-	if (!robotSi)  {
-		robotSi = New ScreenItem(planeId, Bitmap(bmHandle));
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->AddScreenItem(robotSi);
+
+	if (!robotSi[0])  {
+		robotSi[0] = New ScreenItem(planeId, Bitmap(bmHandle[0]));
+		robotSi[0]->pos = SOL_Point(x1[0], y1[0]);
+		if (priority[0] == -1)
+			robotSi[0]->SetFloatPriority();
+		else
+			robotSi[0]->SetPriority(priority[0]);
+		graphMgr->AddScreenItem(robotSi[0]);
 	}
 	else  {
-		robotSi->bitmap = bmHandle;
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->UpdateScreenItem(robotSi);
+		robotSi[0]->bitmap = bmHandle[0];
+		robotSi[0]->pos = SOL_Point(x1[0], y1[0]);
+		if (priority[0] == -1)
+			robotSi[0]->SetFloatPriority();
+		else
+			robotSi[0]->SetPriority(priority[0]);
+		graphMgr->UpdateScreenItem(robotSi[0]);
 	}
 
 	if (hasAudio)  {
@@ -242,22 +283,38 @@ Robot::DoVersion3()
 void
 Robot::DoVersion4()
 {
-	long videoSize = videoSizeArray[frameNum];
+	int oldSiCount = siCount;
+	ushort videoSize = videoSizeArray[frameNum];
 	uchar* scratch = New uchar[videoSize];
 	Read(fd, scratch, videoSize);
-	CreateCel4(scratch, True);	// HOOK  firstFrame);
+	siCount = * (short*) scratch;
+	CreateCel4(scratch + 2, siCount, True);	// HOOK  firstFrame);
 
-	if (!robotSi)  {
-		robotSi = New ScreenItem(planeId, Bitmap(bmHandle));
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->AddScreenItem(robotSi);
+	for (int i = 0; i < siCount; i++)  {
+		if (!robotSi[i])  {
+			robotSi[i] = New ScreenItem(planeId, Bitmap(bmHandle[i]));
+			robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+			if (priority[i] == -1)
+				robotSi[i]->SetFloatPriority();
+			else
+				robotSi[i]->SetPriority(priority[i]);
+			graphMgr->AddScreenItem(robotSi[i]);
+		}
+		else  {
+			robotSi[i]->bitmap = bmHandle[i];
+			robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+			if (priority[i] == -1)
+				robotSi[i]->SetFloatPriority();
+			else
+				robotSi[i]->SetPriority(priority[i]);
+			graphMgr->UpdateScreenItem(robotSi[i]);
+		}
 	}
-	else  {
-		robotSi->bitmap = bmHandle;
-		robotSi->pos = SOL_Point(x1, y1);
-		robotSi->z = priority;
-		graphMgr->UpdateScreenItem(robotSi);
+
+	for (i = siCount; i < oldSiCount; i++)  {
+		graphMgr->DeleteScreenItem(robotSi[i]);
+		robotSi[i] = NULL;
+		bmHandle[i].Free();
 	}
 
 	if (hasAudio)  {
@@ -286,8 +343,10 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 		xoff = newXOff;
 	if (newYOff != 50000)
 		yoff = newYOff;
-	if (newPri != 50000)
-		priority = newPri;
+	if (newPri != 50000)  {
+		for (int i = 0; i < SiArraySize; i++)
+			priority[i] = newPri;
+	}
 
 
 	frameNum = frame;
@@ -304,20 +363,27 @@ Robot::DisplayFrame(int frame, int newXOff, int newYOff, int newPri)
 	}
 	else  {
 		//  In case xoff, yoff was changed this call
-		x1 = fileX1 + xoff;
-		y1 = fileY1 + yoff;
-
-		if (!robotSi)  {
-			robotSi = New ScreenItem(planeId, Bitmap(bmHandle));
-			robotSi->pos = SOL_Point(x1, y1);
-			robotSi->z = priority;
-			graphMgr->AddScreenItem(robotSi);
-		}
-		else  {
-			robotSi->bitmap = bmHandle;
-			robotSi->pos = SOL_Point(x1, y1);
-			robotSi->z = priority;
-			graphMgr->UpdateScreenItem(robotSi);
+		for (int i = 0; i < siCount; i++)  {
+	 		x1[i] = fileX1[i] + xoff;
+			y1[i] = fileY1[i] + yoff;
+			if (!robotSi[i])  {
+				robotSi[i] = New ScreenItem(planeId, Bitmap(bmHandle[i]));
+				robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+				if (priority[i] == -1)
+					robotSi[i]->SetFloatPriority();
+				else
+					robotSi[i]->SetPriority(priority[i]);
+				graphMgr->AddScreenItem(robotSi[i]);
+			}
+			else  {
+				robotSi[i]->bitmap = bmHandle[i];
+				robotSi[i]->pos = SOL_Point(x1[i], y1[i]);
+				if (priority[i] == -1)
+					robotSi[i]->SetFloatPriority();
+				else
+					robotSi[i]->SetPriority(priority[i]);
+				graphMgr->UpdateScreenItem(robotSi[i]);
+			}
 		}
 	}
 
@@ -330,13 +396,13 @@ void
 Robot::KillRobot()
 {
 	if (fd)  {
-		Close(fd);
+		resMgr->Close(fd);
 		fd = 0;
 	}
 
-	if (robotSi)  {
-		graphMgr->DeleteScreenItem(robotSi);
-		robotSi = NULL;
+	for (int i = 0; i < siCount; i++)  {
+		graphMgr->DeleteScreenItem(robotSi[i]);
+		robotSi[i] = NULL;
 	}
 
 	if (hasAudio)  {
@@ -359,7 +425,6 @@ void
 Robot::FrameNowVisible()
 {
 	if (firstFrame  &&  status == ROBOT_PLAYING)  {
-//		robotStartTime = timeMgr->GetMilliSec();
 		robotStartTime = timeMgr->GetTickCount();
 		AudioResume(-1);
 		firstFrame = False;
@@ -405,24 +470,24 @@ Robot::CreateCel(uchar* video, Bool usePalette)
 	VideoHeader* vh = (VideoHeader*) video;
 	compressType = vh->compressionType;
 	vertScaleFactor = vh->vertScaleFactor;
-	fileX1 = vh->x1;
-	fileY1 = vh->y1;
-	x1 = fileX1 + xoff;
-	y1 = fileY1 + yoff;
+	fileX1[0] = vh->x1;
+	fileY1[0] = vh->y1;
+	x1[0] = fileX1[0] + xoff;
+	y1[0] = fileY1[0] + yoff;
 	xsize = vh->xsize;
 	ysize = vh->ysize;
 
 	if (vh->celCount != 1)
 		msgMgr->Fatal("Robot has %d cels in record!\n", (int) vh->celCount);
 
-	bmHandle.Free();
-	bmHandle.Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
-	BuildHeader(bmHandle, xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
+	bmHandle[0].Free();
+	bmHandle[0].Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
+	BuildHeader(bmHandle[0], xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
 
 	MemID temp;
 	uchar* ptr = NULL;
 	if (vertScaleFactor == 100)
-		ptr = (uchar*) *bmHandle + CELHEADERSIZE;
+		ptr = (uchar*) *bmHandle[0] + CELHEADERSIZE;
 	else  {
 		temp.Get(MemBitmap, xsize * ((ysize * vertScaleFactor) / 100));
  		ptr = (uchar*) *temp;
@@ -445,39 +510,71 @@ Robot::CreateCel(uchar* video, Bool usePalette)
 		OffsetData(ptr, PALSHIFT);
 
 	if (vertScaleFactor != 100)  {
-		ExpandData((uchar*) *bmHandle + CELHEADERSIZE, ptr);
+		ExpandData((uchar*) *bmHandle[0] + CELHEADERSIZE, ptr);
 		temp.Free();
 	}
 
 	if (usePalette)  {
-		memcpy((uchar*) *bmHandle + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
+		memcpy((uchar*) *bmHandle[0] + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
 	}
 }
 
 void
-Robot::CreateCel4(uchar* video, Bool usePalette)
+Robot::CreateCel4(uchar* video, int celCount, Bool usePalette)
+{
+	for (int i = 0; i < celCount; i++)  {
+//		msgMgr->Mono("Cel #%d\n", i);
+		Create1Cel4(video, i, usePalette);
+		VideoHeader4* vh = (VideoHeader4*) video;
+		int size = vh->size;
+		video += sizeof(VideoHeader4);
+		video += size;
+	}
+}
+
+/*
+	vheader.xsize = xdim;
+	vheader.ysize = ydim;				//  Unscaled Ysize
+	vheader.x1 = rect.x1;
+	vheader.y1 = rect.y1;
+	vheader.xoff = 0;
+	vheader.yoff = 0;
+//	vheader.x1 = (rect.x1 * 32) / 63;
+//	vheader.y1 = (rect.y2 * 4) / 9;
+//	vheader.xoff = (rect.x1 - ((vheader.x1 * 63) / 32)) * -1;
+//	vheader.yoff = ((vheader.y1 * 9) / 4) - rect.y1;
+
+*/
+
+void
+Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 {
 	VideoHeader4* vh = (VideoHeader4*) video;
 	compressType = vh->compressionType;
 	vertScaleFactor = vh->vertScaleFactor;
-	fileX1 = vh->x1;
-	fileY1 = vh->y1;
-	x1 = fileX1 + xoff;
-	y1 = fileY1 + yoff;
+	fileX1[index] = vh->x1;  			//  was lowres
+	fileY1[index] = vh->y1;  			//  was lowres
+	x1[index] = fileX1[index] + xoff;
+	y1[index] = fileY1[index] + yoff;
 	xsize = vh->xsize;
 	ysize = vh->ysize;
 
-	if (vh->celCount != 1)
-		msgMgr->Fatal("Robot has %d cels in record!\n", (int) vh->celCount);
+	//  Do checksum to verify data integrity
+	uchar* vidptr = video + sizeof(VideoHeader4);
+	short checksum = 0;
+	for (int i = 0; i < vh->size; i++)
+		checksum ^= *vidptr++;
+	if (checksum != vh->checksum)
+		msgMgr->Fatal("Checksum error!");	// ***************************************************************
 
-	bmHandle.Free();
-	bmHandle.Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
-	BuildHeader(bmHandle, xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
+	bmHandle[index].Free();
+	bmHandle[index].Get(MemBitmap, xsize * ysize + CELHEADERSIZE + PALSIZE);
+	BuildHeader(bmHandle[index], xsize, ysize, 255, vh->xoff, vh->yoff, xRes, yRes, usePalette);
 
 	MemID temp;
 	uchar* ptr = NULL;
 	if (vertScaleFactor == 100)
-		ptr = (uchar*) *bmHandle + CELHEADERSIZE;
+		ptr = (uchar*) *bmHandle[index] + CELHEADERSIZE;
 	else  {
 		temp.Get(MemBitmap, xsize * ((ysize * vertScaleFactor) / 100));
  		ptr = (uchar*) *temp;
@@ -500,20 +597,20 @@ Robot::CreateCel4(uchar* video, Bool usePalette)
 		OffsetData(ptr, PALSHIFT);
 
 	if (vertScaleFactor != 100)  {
-		ExpandData((uchar*) *bmHandle + CELHEADERSIZE, ptr);
+		ExpandData((uchar*) *bmHandle[index] + CELHEADERSIZE, ptr);
 		temp.Free();
 	}
 
 	if (usePalette)  {
-		memcpy((uchar*) *bmHandle + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
+		memcpy((uchar*) *bmHandle[index] + CELHEADERSIZE + (xsize * ysize), hunkPalette, PALSIZE);
 	}
 }
+
 
 
 void
 Robot::Init()
 {
-	uchar type, scrap;
 	char buffer[4];
 	char junk[32];
 	short fcount, asize, vsize1, vsize2;
@@ -537,8 +634,6 @@ _Packed	struct AudPrimerHdr
 	frameNum = 0;
 	status = ROBOT_PAUSED;
 
-	Read(fd, &type, 1);
-	Read(fd, &scrap, 1);
 	Read(fd, buffer, 4);
 	Read(fd, &version, 2);
 	if (version != 4)  {
@@ -568,18 +663,15 @@ _Packed	struct AudPrimerHdr
 		Read(fd, junk, 2);			//  cueCount, frameRate
 		Read(fd, &frameRate, 2);
 		Read(fd, junk, 2);			//  cueCount, frameRate
-		Read(fd, &safeFrameSkipAudio, 2);
+		Read(fd, &canSkip, 2);
 		Read(fd, &maxCelsPerFrame, 2);
-		Read(fd, &xsize0, 2);
-		Read(fd, &ysize0, 2);
-		Read(fd, &xsize1, 2);
-		Read(fd, &ysize1, 2);
-		Read(fd, &xsize2, 2);
-		Read(fd, &ysize2, 2);
-		Read(fd, &xsize3, 2);
-		Read(fd, &ysize3, 2);
+		Read(fd, &maxsize0, 4);
+		Read(fd, &maxsize1, 4);
+		Read(fd, &maxsize2, 4);
+		Read(fd, &maxsize3, 4);
 		Read(fd, junk, 8);
 	}
+
 	if (!xRes)
 		xRes = graphMgr->NextScreen()->Xdim();
 	if (!yRes)
@@ -591,7 +683,7 @@ _Packed	struct AudPrimerHdr
 	vPadSize[1] = vsize2;
 	frameCount = fcount;
 
-	if (type != 0x3d  ||  strcmp(buffer, "SOL"))	
+	if (strcmp(buffer, "SOL"))	
 		msgMgr->Fatal("Resource is not Robot type!");
 
 	if (!(version == 2  ||  version == 3  ||  version == 4))
@@ -633,7 +725,7 @@ _Packed	struct AudPrimerHdr
 	recordPosArray = New ulong[frameCount];
 
 	Read(fd, videoSizeArray, sizeof(*videoSizeArray) * frameCount);
-	short* tempSize = New short[frameCount];
+	ushort* tempSize = New ushort[frameCount];
 	if (version != 4)
 		LSeek(fd, 8 * frameCount, SEEK_CUR);
 	else
@@ -659,8 +751,17 @@ _Packed	struct AudPrimerHdr
 		}
 	}
 
+	if (version >= 4  &&  hasAudio)  {
+		long usedEachFrame = 11025 / frameRate;
+		canSkip = (audioSize / usedEachFrame) - 1;
+		if (canSkip < 0)
+			canSkip = 0;
+	}
+
 	delete tempSize;
 	AudioPause(-1);
+	framesSkipped = 0;
+	maxFramesSeqSkipped = 0;
 }
 
 
@@ -775,13 +876,38 @@ Robot::OffsetData(uchar* ptr, char offset)
 
 
 int
+Robot::ToTicks(int frame)
+{
+	return (frame * 60) / frameRate;
+}
+
+
+int
+Robot::ToFrame(int ticks)
+{
+	return (ticks * frameRate) / 60;
+}
+
+
+int
 Robot::Info(SOL_Rect* rect)
 {
-	if (robotSi)  {
-		long i = graphMgr->NextScreen()->Planes().Search(robotSi->PlaneId());
-		robotSi->NowSeen(graphMgr->NextScreen()->Planes()[i], *rect);
+	SOL_Rect rectUnion;
+	rectUnion.MakeEmpty();
+
+	if (siCount)  {
+		for (int i = 0; i < siCount; i++)  {
+			SOL_Rect rect1;
+			long x = graphMgr->NextScreen()->Planes().Search(robotSi[i]->PlaneId());
+			robotSi[i]->NowSeen(graphMgr->NextScreen()->Planes()[x], rect1);
+			if (!i)
+				rectUnion = rect1;
+			else
+				rectUnion.Both(rect1);
+		}
 	}
-	
+
+	*rect = rectUnion;
 	return frameCount;
 }
 
@@ -803,7 +929,10 @@ KRobot(argList)
 		rExists,		//  true anytime robot started but not terminated
 		rTerminate,	//  Deletes final cel from graphMgr, clears robot state
 						//  Does NOT call frameout.
-      rGetCue     //  returns cues to Robot SCI object
+      rGetCue,		//  returns cues to Robot SCI object
+		rChanges,
+		rPause,
+		rFrameNum
 	};
 
 	// The arguments vary from function to function
@@ -853,6 +982,15 @@ KRobot(argList)
 		case rPlay:
 			graphMgr->GRobot().Resume();
 			break;
+
+		case rPause:
+			graphMgr->GRobot().Pause();
+			break;
+
+		case rFrameNum:
+			pm.acc = graphMgr->GRobot().FrameNum();
+			break;
+
 
 		case rHasEnded:
 			// return true if waiting for terminating handshake
@@ -920,7 +1058,7 @@ Robot::SeekFrame(int frame)
 		LSeek(fd, posStart, SEEK_SET);
 	}
 	else  {
-	// ***************************************************************
+		LSeek(fd, recordPosArray[frame], SEEK_SET);
 	}
 }
 
@@ -928,23 +1066,10 @@ int
 Robot::Open(ResNum num)
 {
 #ifndef MACINTOSH
-	int	fd;
-	char	nameBuf[MaxPath + 1];
-
-	// check resource-config file path(s)...
-	if (!configMgr->GetNTokens("robot"))  {
-		MakeName(nameBuf, ".\\", num);
-		return ::Open(nameBuf, O_BINARY | O_RDONLY);
-	}
-	else  {
-		for (int i = 0; i < configMgr->GetNTokens("robot"); i++)  {
-			MakeName(nameBuf, configMgr->Get("robot", i), num);
-			if ((fd = ::Open(nameBuf, O_BINARY | O_RDONLY)) != -1)
-				return fd;
-		}
-	}
-#endif
+	return resMgr->Open(MemResRobot,num);
+#else
 	return -1;
+#endif
 }
 
 
@@ -1102,7 +1227,7 @@ Robot::AudioList::SubmitDriverMax()
 	while (blockCount)  {
 		if (!array[oldestBlockIndex]->Submit())  {
 #ifndef MACINTOSH
-			msgMgr->Mono(".");
+//			msgMgr->Mono(".");
 #endif
 			return;
 		}
@@ -1115,7 +1240,7 @@ Robot::AudioList::SubmitDriverMax()
 
 		blockCount--;
 #ifndef MACINTOSH
-		msgMgr->Mono("_");
+//		msgMgr->Mono("_");
 #endif
 	}
 }

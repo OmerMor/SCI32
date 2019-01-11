@@ -1,8 +1,6 @@
 #ifndef CURSORW_HPP
 #define CURSORW_HPP
 
-#ifndef COLORCUR
-
 #ifndef CURSOR_HPP
 #include "cursor.hpp"
 #endif
@@ -13,6 +11,10 @@
 
 #ifndef BUFFERD_HPP
 #include "bufferd.hpp"
+#endif
+
+#ifndef BUFFERW_HPP
+#include "bufferw.hpp"
 #endif
 
 class PointerDevice;
@@ -48,28 +50,13 @@ class CursorWin : public SOL_Cursor
 	SOL_Rect		restrict;
 };
 
-#else		//COLORCUR
-
-#ifndef CURSOR_HPP
-#include "cursor.hpp"
-#endif
-
-#ifndef RECT_HPP
-#include "rect.hpp"
-#endif
-
-#ifndef BUFFERW_HPP
-#include "bufferw.hpp"
-#endif
-
-class PointerDevice;
 
 
-class CursorWin : public SOL_Cursor
+class CursorWinClr : public SOL_Cursor
 {
 	public:
-	CursorWin(const BufferWin&);
-	~CursorWin();
+	CursorWinClr(const BufferWin&);
+	~CursorWinClr();
 
 	void		Hide();
 	void		UnHide();
@@ -98,8 +85,6 @@ class CursorWin : public SOL_Cursor
 		Bool		invertedFlag;
 	};
 
-//	void		PushAndDisableInterrupts();
-//	void		PopInterrupts();
 	void		Paint(const Info& dest, const Info& src);
 	void		Copy(const Info& dest, const Info& src);
 	void		Move();
@@ -125,7 +110,6 @@ class CursorWin : public SOL_Cursor
 
 	SOL_Rect		restrict;
 	SOL_Point	nextPos;
-//	short			interruptState;
 	int			disableCount;
 	PointerDevice*	posDevice;
 
@@ -133,7 +117,6 @@ class CursorWin : public SOL_Cursor
 	SOL_Rect		restoreRestrict;
 };
 
-#endif	//COLORCUR
 
 #endif
 

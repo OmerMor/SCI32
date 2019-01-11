@@ -23,8 +23,10 @@
 #define TEJUSTCENTER 1
 #define TEJUSTRIGHT  2
 
-#define SYSTEMFONT ((ushort) -1)
+//	character that introduces a control sequence in text
+const char CTRL_CHAR	= '|';
 
+#define SYSTEMFONT ((ushort) -1)
 
 class FontHeader
 {
@@ -178,9 +180,8 @@ class FontMgr
 	ushort GetLongest(int* strOffset,int maxPixels);
 };
 
-// The font manager	(declared in font.cpp)
-extern FontMgr* fontMgr;
-extern uchar systemFont[];
+extern FontMgr*	fontMgr;
+extern uchar 		sciSystemFont[];
 
 #endif  //FONT_HPP
 

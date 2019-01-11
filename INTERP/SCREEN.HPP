@@ -44,6 +44,9 @@ class Screen
 	int	AddPic(long planeID,int thePic,SOL_Point& thePoint,int mirror);
 	void	CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[]);
 	void	Clear();
+#ifdef MACINTOSH
+	void	ClearForRestoreGame();
+#endif
 	void	DeletePic(long planeID,int oldPic,int newPic);
 	Plane*
 			GetPlane(int planeId);
@@ -83,4 +86,3 @@ Screen::operator=(const Screen& src)
 
 
 #endif
-

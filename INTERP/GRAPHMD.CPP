@@ -19,8 +19,12 @@
 GraphicsMgrDOS::GraphicsMgrDOS(int xdim, int ydim, int vesaMode, Bool usePri) : GraphicsMgr(xdim, ydim),
 	last(xdim, ydim), buffer(xdim, ydim, NULL), pmap(xdim, ydim, NULL)
 {
-	vmapID.Get(MemBitmap, xdim * ydim, VmapHandle);
-	buffer.start = (uchar*) *vmapID;
+	vmapPtr = (uchar*) memMgr->GetConvMem(xdim * ydim);
+	if (vmapPtr == NULL) {
+		vmapID.Get(MemBitmap, xdim * ydim, VmapHandle);
+		vmapPtr = (uchar*) *vmapID;
+	}
+	buffer.start = vmapPtr;
    buffer.Clear(SOL_BLACK);
 
 	if (usePri)
@@ -41,16 +45,28 @@ GraphicsMgrDOS::GraphicsMgrDOS(int xdim, int ydim, int vesaMode, Bool usePri) : 
 GraphicsMgrDOS::~GraphicsMgrDOS()
 {
 	DeletePriMap();
-	vmapID.Free();
+	if((int) vmapID)
+		vmapID.Free();
+	else
+		memMgr->FreeConvMem((char*)vmapPtr);
 	delete cursor;
 }
 
 void
 GraphicsMgrDOS::ResizeVmap(int xdim, int ydim)
 {
-	vmapID.Free();
-	vmapID.Get(MemBitmap, xdim * ydim, VmapHandle);
-	buffer = BufferStd(xdim, ydim, (uchar*) *vmapID);
+	if((int) vmapID)
+		vmapID.Free();
+	else
+		memMgr->FreeConvMem((char*) vmapPtr);
+		
+	vmapPtr = (uchar*) memMgr->GetConvMem(xdim * ydim);
+	if (vmapPtr == NULL) {
+		vmapID.Get(MemBitmap, xdim * ydim, VmapHandle);
+		vmapPtr = (uchar*) *vmapID;
+	}
+
+	buffer = BufferStd(xdim, ydim, vmapPtr);
 }
 
 void

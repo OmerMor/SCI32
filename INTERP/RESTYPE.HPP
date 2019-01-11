@@ -17,10 +17,17 @@
 
 typedef ushort ResNum;
 
-_Packed struct ResTag {
-	ResNum	resNum;
-	MemID		id;
-};
+#ifdef MACINTOSH
+	struct ResTag {
+		ResNum	resNum;
+		MemID		id;
+	};
+#else
+	_Packed struct ResTag {
+		ResNum	resNum;
+		MemID		id;
+	};
+#endif
 
 class SOL_ResType {
 public:
@@ -78,7 +85,11 @@ protected:
 
 struct ResChunk : SOL_ResType {
 	ResChunk() : SOL_ResType(".chk", "ResChunk")  {}
+#ifdef MACINTOSH
+	MemType GetType() const			{return (MemType) 0;} //KGN MemResChunk;}
+#else
 	MemType GetType() const			{return MemResChunk;}
+#endif
 };
 
 struct ResScript : SOL_ResType {
@@ -165,8 +176,13 @@ struct ResMsgTranslation : SOL_ResType {
 	
 	//	a translation resource file is just like a message file, but
 	//	in memory, the two types need to be distinguished
-	MemType	GetType() const 			{ return MemResMsgTranslation; }
-	MemType	GetFileType() const 		{ return MemResMsg; }
+	MemType GetType() const 			{ return MemResMsgTranslation; }
+	MemType GetFileType() const 		{ return MemResMsg; }
+};
+
+struct ResRobot : SOL_ResType {
+	ResRobot() : SOL_ResType(".rbt", "ResRobot")  {}
+	MemType GetType() const 			{ return MemResRobot; }
 };
 
 #endif  //RESTYPE_HPP

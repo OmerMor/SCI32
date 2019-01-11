@@ -61,7 +61,7 @@ _Packed struct ViewHeader
 	uchar	version;
 	uchar	futureExpansion;
 };
-typedef ID<ViewHeader, MemViewHeader>	ViewHeaderID;
+FakeTemplateID(ViewHeaderID, ViewHeader, MemViewHeader)
 
 _Packed struct LoopHeader
 {
@@ -95,6 +95,12 @@ _Packed struct CelHeaderPic : public CelBase
 	Int16		ypos;
 };
 
+_Packed struct CelHeaderView : public CelBase
+{
+	Int32    linkTableOffset;
+	Int16    linkTableCount;
+};
+
 const CELHEADERSIZE = sizeof(CelHeader);
 const uchar REPEATC = 0x80;
 const uchar REPSKIP = 0x40;
@@ -107,7 +113,7 @@ class Bitmap
 
 	Bitmap(const int v, const int l, const int c)	{view = v; loop = l; cel = c; type = tView;}
 	Bitmap(const int p, const int c)						{view = p; loop = 0; cel = c; type = tPic;}
-	Bitmap(const MemID id)									{view = loop = cel = 0; type = tMem; memid = id;}
+	Bitmap(const MemID id)									{view = loop = cel = 0; type = tMem; memid = id; id.Lock();}
 	Bitmap(const uchar c)									{view = loop = cel = 0; type = tColor; color = c;}
 	Bitmap() 													{view = loop = cel = 0; type = tMem;}
 
@@ -129,9 +135,9 @@ class Bitmap
 	void	SetLoop(int l)			{loop = l;}
 	void	SetView(int v)			{view = v; type = tView;}
 	void	SetPic(int p)			{view = p; loop = 0; type = tPic;}
-	void	SetHandle(MemID id)	{type = tMem; memid = id;}
+	void	SetHandle(MemID id)	{type = tMem; memid = id; id.Lock();}
 	void	SetType(int theType)	{type = theType;}
-	void	SetMemID(const MemID& id)	{memid = id;}
+	void	SetMemID(const MemID& id)	{memid = id; id.Lock(); }
 
 	private:
 	int	type;
@@ -172,10 +178,10 @@ class CelObj
 	virtual	void		Draw(const Buffer&, const ScreenItem&, const SOL_Rect&, Bool horzFlip) = 0;
 	virtual	void		Draw(const Buffer&, const SOL_Rect& drawRect, SOL_Point, Bool horzFlip) = 0;
 	virtual	uchar		ReadPix(int x, int y, Bool mirrFlag);
-
-	#ifdef INN
-   SOL_Rect ReadLineSpan(int y);
-	#endif
+	SOL_Rect	ReadLineSpan(int y);
+	SCIWord GetFirstLink();
+	SCIWord GetNextLink(int type);
+	SCIWord GetLinkPoint(int type,int which);
 
 	protected:
 	CelObj(int v, int l, int c) : bitmap(v,l,c) {mirrored = False; compressType = 1000; hasSkip = True;}
@@ -266,7 +272,7 @@ class CelObj
 		struct CelObjArrayItem
 		{
 			CelObjArrayItem() : cel(NULL), timeStamp(0) {}
-			~CelObjArrayItem();
+			inline ~CelObjArrayItem();
 
 			long			timeStamp;
 			CelObj*		cel;
@@ -379,5 +385,4 @@ Bitmap::operator!=(const Bitmap& src) const
 }
 
 #endif
-
 

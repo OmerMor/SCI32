@@ -178,7 +178,7 @@ ArrayAt(void* data, int esize, uint at)
 	dp = ArrayData(data, at, esize);
 
 	if (esize == 1)
-		return *(char*) dp;
+		return *(uchar*) dp;
 	else
 		return *(SCIWord*) dp;
 }
@@ -200,7 +200,7 @@ ArrayAtPut(void* data, int esize, uint at, uint n, char* args)
 
 		for (i = 0 ; i < n ; ++i) {
 			if (esize == 1)
-				*((char*) dp + i) = args[i];
+				*((char*) dp + i) = ((SCIWord *)args)[i];
 			else 
 				((SCIWord*) dp)[i] = ((SCIWord*) args)[i];
 			}
@@ -226,7 +226,7 @@ ArrayFill(void* data, int esize, uint from, size_t length, int value)
 		dp = ArrayData(data, from, esize);
 
 		if (esize == 1) {
-			char *cp = (char*) dp;
+			uchar *cp = (uchar*) dp;
 			for (i = 0 ; i < length ; ++i)
 				*cp++ = (uchar) value;
 		} else {

@@ -1,13 +1,13 @@
 //	integ.cpp
 
+#include "sol.hpp"
+
 #ifdef DEBUG
 
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "sol.hpp"
 
 #include "debug.hpp"
 #include "integ.hpp"
@@ -23,7 +23,8 @@ struct IntegrityMask {
 	int	mask;
 	char*	description;
 
-} static integrityMasks[] = {
+};
+static IntegrityMask integrityMasks[] = {
 
 	IntegrityMask(CHECK_SIGNATURES,	"Signatures"),
 	IntegrityMask(CHECK_CHECKSUMS,	"Checksums"),
@@ -84,7 +85,9 @@ IntegrityChecking(int mask, char* fmt, ...)
 				msgMgr->Mono("%sIntegrity checking DISABLED\n",buf);
 			if (strlen(buf))
 				msgMgr->Alert("%sIntegrity checking DISABLED",buf);
+#ifndef MACINTOSH
 			memMgr->IntegrityChecking();
+#endif
 		}
 		return;
 	}
@@ -115,7 +118,9 @@ IntegrityChecking(int mask, char* fmt, ...)
 	if (!mono)
 		mask |= CHECK_MONO_OFF;
 	checkIntegrity = mask;
+#ifndef MACINTOSH
 	memMgr->IntegrityChecking();
+#endif
 	return;
 }
 
@@ -167,23 +172,26 @@ CheckIntegrity(char* fmt, ...)
 	Bool mono = !(checkIntegrity & CHECK_MONO_OFF); 
 	Bool ok = True;
 
-#ifndef WINDOWS
-	if (mono)
-		msgMgr->Mono("\n%sCheckIntegrity...", buf);
-#endif
-	if ((checkIntegrity & CHECK_HEAP) && _heapchk() > _HEAPEMPTY) {
-		if (!msgMgr->Alert("%s Heap Check Error", buf))
-			EnterDebug();
-		ok = 0;
-	}
-	if (checkIntegrity & CHECK_GLOBALS)
-		ok &= pm.CheckIntegrity(buf);
-	ok &= memMgr->CheckIntegrity(buf);
-#ifndef WINDOWS
-	if (mono)
-		msgMgr->Mono("%s\n", ok? "OK" : "ERROR");
-#endif
+#ifndef MACINTOSH
+	#ifndef WINDOWS
+		if (mono)
+			msgMgr->Mono("\n%sCheckIntegrity...", buf);
+	#endif
+		if ((checkIntegrity & CHECK_HEAP) && _heapchk() > _HEAPEMPTY) {
+			if (!msgMgr->Alert("%s Heap Check Error", buf))
+				EnterDebug();
+			ok = 0;
+		}
+		if (checkIntegrity & CHECK_GLOBALS)
+			ok &= pm.CheckIntegrity(buf);
+		ok &= memMgr->CheckIntegrity(buf);
+	#ifndef WINDOWS
+		if (mono)
+			msgMgr->Mono("%s\n", ok? "OK" : "ERROR");
+	#endif
+#endif //MACINTOSH
 	return ok;
 }
 
 #endif
+

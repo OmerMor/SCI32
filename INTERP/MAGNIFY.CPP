@@ -1,4 +1,3 @@
-
 #include <string.h>
 
 #include "sol.hpp"
@@ -22,12 +21,16 @@
 */
 
 MagnifyView::MagnifyView(ObjectID ID,MagnifyView* theNext):
-	id(ID),
-	magID(ID.GetProperty(s_magnify)),
-	view(ID.GetIndexedProperty(actView)),
-	loop(ID.GetIndexedProperty(actLoop)),
-	cel(ID.GetIndexedProperty(actCel))
+	magID(ID),
+	id(ID.GetProperty(s_client)),
+	view(id.GetProperty(s_view)),
+	loop(id.GetProperty(s_loop)),
+	cel(id.GetProperty(s_cel))
 {
+	int v(magID.GetProperty(s_view));
+	int l(magID.GetProperty(s_loop));
+	int c(magID.GetProperty(s_cel));
+
    // prepare forground and background info
 	CelObjView forground(view, loop, cel);
 	CelObjView background(	magID.GetProperty(s_view),
@@ -38,9 +41,11 @@ MagnifyView::MagnifyView(ObjectID ID,MagnifyView* theNext):
    // calculate boundy rectangle on screen
 	boundry.A.x = magID.GetProperty(s_x);
 	boundry.A.y = magID.GetProperty(s_y);
+
 	power = magID.GetProperty(s_power);
 	boundry.B.x = boundry.A.x + (background.Width() - 1) / power;
 	boundry.B.y = boundry.A.y + (background.Height() - 1) / power;
+
 
    // store skip and remap colors
 #ifndef WIN32S
@@ -68,8 +73,10 @@ MagnifyView::MagnifyView(ObjectID ID,MagnifyView* theNext):
    org.x = forground.XOrg();
    org.y = forground.YOrg();
 
+	int resx = forground.ResX();
+	int resy = background.ResX();
 	// build the header for the BMData
-	BuildHeader(BMData,BMWidth,BMHeight,skip,org.x,org.y); 
+	BuildHeader(BMData,BMWidth,BMHeight,skip,org.x,org.y,forground.ResX(),background.ResY()); 
 
 	// inset is size of data
 	SOL_Rect rect(0,0,BMWidth - 1,BMHeight - 1);
@@ -101,6 +108,8 @@ MagnifyView::MagnifyView(ObjectID ID,MagnifyView* theNext):
    // where does this get drawn
 	pt.x = id.GetIndexedProperty(actX);
 	pt.y = id.GetIndexedProperty(actY);
+
+
    // created cel to be displayed
 	FillData(pt);
 
@@ -108,11 +117,19 @@ MagnifyView::MagnifyView(ObjectID ID,MagnifyView* theNext):
 	Bitmap bitmap(BMData);
 	ScaleInfo scaleInfo;
 
+	MemID  m = bitmap.Handle();
    // created screen item
-	si = New ScreenItem(id.GetIndexedProperty(actPlaneID),bitmap,pt,scaleInfo,id);
-
+	si = New ScreenItem(id.GetProperty(s_planeID),bitmap,pt,scaleInfo,magID);
+	int w = si->GetCel()->ResX();
+	Bool a;
+	long	d;
+	d = si->Id();
+	a = bitmap.Cel();
    // add to picture
 	graphMgr->AddScreenItem(si);
+   si->SetCel(background.Duplicate());
+	w = si->GetCel()->ResX();
+	w = si->GetCel()->ResX();
 }
 	
 MagnifyView::~MagnifyView()
@@ -149,10 +166,13 @@ MagnifyView::FillData(SOL_Point pt)
       //  |        |
       //  |        |
       //  +--------+
-      // then correct the location be the offset of the origen of the
+      // then correct the location be the offset of the origin of the
       // forground.
-		focus.x = (pt.x - boundry.A.x) * power - org.x;
-		focus.y = (pt.y - boundry.A.y) * power - org.y;
+//		focus.x = ( pt.x - boundry.A.x) * power - org.x;
+//		focus.y = ( pt.y - boundry.A.y) * power - org.y;
+		focus.x = 2*( pt.x - boundry.A.x) * power - org.x;
+		focus.y = 2.4*( pt.y - boundry.A.y) * power - org.y;
+		// change the above lines when hi-res coordinates are added
 
       // intialize forground and virtual cel
 		uchar* ptrBM = (uchar *)*BMData + CELHEADERSIZE;
@@ -164,7 +184,7 @@ MagnifyView::FillData(SOL_Point pt)
          // if this y location is in the background get the start of that 
          // line.
 			if (y + focus.y >= 0 && y + focus.y < BGHeight)
-				ptrBG = (uchar *)*BGData + (y + focus.y) * BGWidth;
+				ptrBG = (uchar *)*BGData +  (y + focus.y ) * BGWidth;
 			else
          	ptrBG = NULL;
          // for every pizel in this forground line
@@ -174,10 +194,11 @@ MagnifyView::FillData(SOL_Point pt)
                // if there is a current background line and our x location
                // is within the bound of that line get the background color
                // else it is skip.
-					if (ptrBG && x + focus.x >= 0 && x + focus.x < BGWidth)
+					if (ptrBG && x + focus.x >= 0 && x + focus.x < BGWidth) 
 						*ptrBM = *((uchar*)(ptrBG + x + focus.x));
 					else
 						*ptrBM = skip;
+
 				}
 				ptrBM++;
 				ptrFG++;
@@ -281,5 +302,6 @@ MagnifyView::Update()
 	
    // update it
 	graphMgr->UpdateScreenItem(si);
+
 }
 

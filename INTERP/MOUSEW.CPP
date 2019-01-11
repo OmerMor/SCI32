@@ -1,8 +1,10 @@
-#ifndef COLORCUR
+#include <dos.h>
+#include <string.h>
 
 #include "sciwin.hpp"
 #include "sol.hpp"
 
+#include "cursor.hpp" 
 #include "cursorw.hpp"
 #include "event.hpp"
 #include "graphmgr.hpp"
@@ -10,8 +12,9 @@
 #include "kernel.hpp"
 #include "mousew.hpp"
 #include "pmachine.hpp"
+#include "ratio.hpp"
 #include "savegame.hpp"
-//#include "mbox.hpp"
+#include "mbox.hpp"
 
 SOL_Cursor*	MouseWin::cursor = NULL;
 Bool			MouseWin::restrictFlag = False;
@@ -200,26 +203,6 @@ SOL_Point	tmp;
 	eventMgr->Post(&event);
 }
 
-#else		//COLORCUR
-#include <dos.h>
-#include <string.h>
-
-#include "sciwin.hpp"
-#include "sol.hpp"
-
-#include "cursor.hpp" 
-#include "event.hpp"
-//#include "graphmw.hpp" 
-#include "graphmgr.hpp" 
-//#include "intflag.hpp"
-#include "kbdmgr.hpp"
-#include "kernel.hpp"
-#include "mousew.hpp"
-#include "pmachine.hpp"
-#include "ratio.hpp"
-#include "savegame.hpp"
-#include "mbox.hpp"
-//#include "vga.hpp"
 
 const mouseInt	= 0x33;
 const short mouseInstalled = 0;
@@ -235,26 +218,26 @@ const short swiftVibrate = 0x5330;
 const short swiftInstalled = 0x53C1;
 const short mouseMoved	= 0x01;
 
-SOL_Cursor*	MouseWin::cursor = NULL;
-SOL_Rect		MouseWin::restrict;
-Bool			MouseWin::useMouse = True;
-Bool			MouseWin::isSwift = False;
-Bool			MouseWin::exists = False;
-uchar*		MouseWin::stackBuff = NULL;
-SOL_Point	MouseWin::pos;
-short			MouseWin::zaxis = 0;
-short			MouseWin::pitch = 0;
-short			MouseWin::roll = 0;
-short			MouseWin::yaw = 0;
-int			MouseWin::buttonState = 0;
-SOL_Event	MouseWin::event;		//  Watcom 9.5 insisted that the interrupt
+SOL_Cursor*	MouseWinClr::cursor = NULL;
+SOL_Rect		MouseWinClr::restrict;
+Bool			MouseWinClr::useMouse = True;
+Bool			MouseWinClr::isSwift = False;
+Bool			MouseWinClr::exists = False;
+uchar*		MouseWinClr::stackBuff = NULL;
+SOL_Point	MouseWinClr::pos;
+short			MouseWinClr::zaxis = 0;
+short			MouseWinClr::pitch = 0;
+short			MouseWinClr::roll = 0;
+short			MouseWinClr::yaw = 0;
+int			MouseWinClr::buttonState = 0;
+SOL_Event	MouseWinClr::event;		//  Watcom 9.5 insisted that the interrupt
 											//  routine couldn't create one locally on
 											//  the stack.  DF
 
 #pragma warning 579  9				//   Shut off cast warning for mouse handler
 
 
-MouseWin::MouseWin()
+MouseWinClr::MouseWinClr()
 {
 	cursor = NULL;
 	useMouse = True;
@@ -273,7 +256,7 @@ MouseWin::MouseWin()
 }
 
 
-MouseWin::~MouseWin()
+MouseWinClr::~MouseWinClr()
 {
 	if (useMouse)  { // Exists())  {
 //		ReleaseMouseInterrupt();
@@ -283,7 +266,7 @@ MouseWin::~MouseWin()
 
 
 int
-MouseWin::GlobalPos(SOL_Point* pt) const
+MouseWinClr::GlobalPos(SOL_Point* pt) const
 {
 	pt->x = pos.x;
 	pt->y = pos.y;
@@ -292,7 +275,7 @@ MouseWin::GlobalPos(SOL_Point* pt) const
 
 
 int
-MouseWin::GlobalPosSci(SOL_Point* pt) const
+MouseWinClr::GlobalPosSci(SOL_Point* pt) const
 {
 	pt->x = pos.x * Ratio(LOWRESX, graphMgr->Xdim());
 	pt->y = pos.y * Ratio(LOWRESY, graphMgr->Ydim());
@@ -301,7 +284,7 @@ MouseWin::GlobalPosSci(SOL_Point* pt) const
 
 
 int
-MouseWin::GetSwiftInfo(int* z, int* p, int* r, int* y) const
+MouseWinClr::GetSwiftInfo(int* z, int* p, int* r, int* y) const
 {
 	// Return interrupt level position in global coords of mouse in the point
 	*z = zaxis;
@@ -313,14 +296,14 @@ MouseWin::GetSwiftInfo(int* z, int* p, int* r, int* y) const
 
 
 Bool
-MouseWin::Exists() const
+MouseWinClr::Exists() const
 {
 	return exists;
 }
 
 
 void
-MouseWin::SetRestrictRect(const SOL_Rect& r1)
+MouseWinClr::SetRestrictRect(const SOL_Rect& r1)
 {
 	Ratio ratiox(graphMgr->Xdim(), LOWRESX);
 	Ratio ratioy(graphMgr->Ydim(), LOWRESY);
@@ -330,7 +313,7 @@ MouseWin::SetRestrictRect(const SOL_Rect& r1)
 	restrict.B.x = r1.B.x * ratiox;
 	restrict.B.y = r1.B.y * ratioy;
 
-	SOL_Point p = MouseWin::pos;
+	SOL_Point p = MouseWinClr::pos;
 	if (p.x < restrict.A.x)
 		p.x = restrict.A.x;
 	if (p.x > restrict.B.x)
@@ -345,32 +328,77 @@ MouseWin::SetRestrictRect(const SOL_Rect& r1)
 }
 
 void
-MouseWin::ClearRestrictRect()
+MouseWinClr::ClearRestrictRect()
 {
 	restrict = SOL_Rect(0, 0, graphMgr->Xdim() - 1, graphMgr->Ydim() - 1);
 }
 
 
 void
-MouseWin::Setup(SOL_Cursor& cur)
+MouseWinClr::Setup(SOL_Cursor& cur)
 {
 	cursor = &cur;
 }
 
+Bool	outOfGame = False;
 
 void
-MouseWin::SetPos(const SOL_Point& p)
+MouseWinClr::SetPos(const SOL_Point& p)
 {
+SOL_Point	tmp;
+Bool	outSide;
 
-	pos = p;
-//	pos.x = pos.x * Ratio(graphMgr->Xdim(), LOWRESX);
-//	pos.y = pos.y * Ratio(graphMgr->Ydim(), LOWRESY);
 
-//sprintf(mbuff,"x:%d y:%d", pos.x, pos.y);
-//SciDisplay(mbuff);
+	tmp = p;
+
+	// allow for the black border
+	tmp.x -= gameBorder;
+	tmp.y -= gameBorder;
+
+	outSide = False;
+
+	// restrict the coordinates to the game window and set a flag 
+	// if we are outside.
+	if (tmp.x < 0) {
+		outSide = True;
+		tmp.x = 0;
+	}
+	if (tmp.x > gameWidth-1) {
+		outSide = True;
+		tmp.x = gameWidth-1;
+	}
+	if (tmp.y < 0) {
+		outSide = True;
+		tmp.y = 0;
+	}
+	if (tmp.y > gameHeight-1) {
+		outSide = True;
+		tmp.y = gameHeight-1;
+	}
+
+	// if we just left the game window, then show the Windows cursor and
+	// do a ReleaseCapture so we don't get mouse move messages.
+
+	if (outSide && !outOfGame) {
+		ReleaseCapture();
+		while (ShowCursor (1) < 0);
+		outOfGame = True;
+	}
+
+	// if we just entered the game window, then hide the Windows cursor and
+	// capture the the mouse so that the user can't sneak out without us
+	// knowing about it.
+
+	if (!outSide && outOfGame) {
+		SetCapture(hMyWnd);
+		while (ShowCursor (0) > -1);
+		outOfGame = False;
+	}
+
+	pos = tmp;
+
 
 	if (useMouse)  {
-//		SetMouseDriverPos(pos);
 		if (cursor)
 			cursor->DeviceMovedTo(pos);
 	}
@@ -379,13 +407,13 @@ MouseWin::SetPos(const SOL_Point& p)
 
 
 Bool
-MouseWin::IsSwift() const
+MouseWinClr::IsSwift() const
 {
 	return isSwift;
 } 
 
 void
-MouseWin::WinMouseButton(unsigned iMessage, const SOL_Point& p)
+MouseWinClr::WinMouseButton(unsigned iMessage, const SOL_Point& p)
 {
 
 	SetPos(p);
@@ -421,7 +449,5 @@ MouseWin::WinMouseButton(unsigned iMessage, const SOL_Point& p)
 		// Post the event.
 	eventMgr->Post(&event);
 }
-
-#endif	//COLORCUR
 
 

@@ -1,3 +1,7 @@
+#ifndef MACINTOSH
+#include <malloc.h>
+#endif
+
 #include <stdio.h>
 
 #include "sol.hpp"
@@ -11,9 +15,7 @@
 #include "selector.hpp"
 #include "resource.hpp"
 
-//#include <malloc.h>
-
-// Internally created screenItems and SCI 
+// Internally created screenItems and SCI
 // created lines get their ID from nextId
 long ScreenItem::nextId = 20000;
 
@@ -196,16 +198,27 @@ ScreenItem::ScreenItem(ObjectID& theId)
 	z = theId.GetIndexedProperty(actZ);
 	pos.y -= z;
 
-	if (theId.GetIndexedProperty(actUseInsetRect))	{
+#ifdef NETWORK
+	if (theId.GetIndexedProperty(actSeenRect)) {
+		insetRect.A.x =	theId.GetIndexedProperty(actLeft);
+		insetRect.A.y =	theId.GetIndexedProperty(actTop);
+		insetRect.B.x =	theId.GetIndexedProperty(actRight);
+		insetRect.B.y =	theId.GetIndexedProperty(actBottom);
+		useInsetRect = True;
+	} else {
+		useInsetRect = False;
+	}
+#else
+	if (theId.GetIndexedProperty(actUseInsetRect)) {
 		insetRect.A.x =	theId.GetIndexedProperty(actInsetRectL);
 		insetRect.A.y =	theId.GetIndexedProperty(actInsetRectT);
 		insetRect.B.x =	theId.GetIndexedProperty(actInsetRectR);
 		insetRect.B.y =	theId.GetIndexedProperty(actInsetRectB);
 		useInsetRect = True;
-	}
-	else {
+	} else {
 		useInsetRect = False;
 	}
+#endif
 
 	userMirror = False;
 	picResNum = -1;
@@ -291,16 +304,27 @@ ScreenItem::operator=(ObjectID& theId)
 	z = theId.GetIndexedProperty(actZ);
 	pos.y -= z;
 
+#ifdef NETWORK
+	if (theId.GetIndexedProperty(actSeenRect))	{
+		insetRect.A.x =	theId.GetIndexedProperty(actLeft);
+		insetRect.A.y =	theId.GetIndexedProperty(actTop);
+		insetRect.B.x =	theId.GetIndexedProperty(actRight);
+		insetRect.B.y =	theId.GetIndexedProperty(actBottom);
+		useInsetRect = True;
+	} else {
+		useInsetRect = False;
+	}
+#else
 	if (theId.GetIndexedProperty(actUseInsetRect))	{
 		insetRect.A.x =	theId.GetIndexedProperty(actInsetRectL);
 		insetRect.A.y =	theId.GetIndexedProperty(actInsetRectT);
 		insetRect.B.x =	theId.GetIndexedProperty(actInsetRectR);
 		insetRect.B.y =	theId.GetIndexedProperty(actInsetRectB);
 		useInsetRect = True;
-	}
-	else {
+	} else {
 		useInsetRect = False;
 	}
+#endif
 
 	userMirror = False;
 	picResNum = -1;
@@ -508,6 +532,9 @@ ScreenItem::Update(Plane& plane)
 
 			draw.Offset((x ^ Ratio(graphMgr->Xdim(), LOWRESX)) - xorg,0);
 			int newx1 = plane.DefRect().Xlen() - draw.B.x - 1;
+#ifdef MACINTOSH
+			newx1 -= 2;
+#endif
 			int offx = newx1 - draw.A.x;
 			x1 += offx;
 			toDraw.Offset(offx, 0);
@@ -670,4 +697,27 @@ ScreenItem::NowSeen(Plane& plane,SOL_Rect& nowSeen)
 	}
 }
 
-
+//	this function was inline, but CodeWarrior 1.1.1.2 complains about
+//	it being an illegal inline function definition.  we don't know why.
+
+void
+ScreenItem::GetCelObj()
+{
+	if (!cel) {
+		switch (bitmap.Type()) {
+			case Bitmap::tView:
+				cel = New CelObjView(bitmap.View(),bitmap.Loop(),bitmap.Cel());
+				break;
+			case Bitmap::tPic:
+				msgMgr->Fatal(SrcLoc,"Internal error, pic screen item with no cel.");
+				break;
+			case Bitmap::tMem:
+				cel = New CelObjMem(bitmap.Handle());
+				break;
+			case Bitmap::tColor:
+				cel = New CelObjColor(bitmap.Color(),insetRect.Xlen(),insetRect.Ylen());
+				break;
+		}
+	}
+}
+

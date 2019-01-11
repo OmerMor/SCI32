@@ -61,14 +61,16 @@ SOL_ResType::Load(ResTag& tag, Bool lock)
 	int result = 0;
 	if (fd == sfxVolFD) {
 		result = ::ReadMemID(fd, tag.id, resLength);
-	} else if (fd != altVolFD && fd != resVolFD) {
+	} else if (fd != altVolFD && fd != resVolFD && fd != resVolFDPre) {
 		result = tag.id.Read(fd);
 		Close(fd);
 
 	} else if (volEntryHeader.compressUsed == 0x20) {
 		if(volEntryHeader.resId != tag.resNum)
 			msgMgr->Fatal(SrcLoc,Msg_ResourceData);
+		tag.id.SetNotDiscardable();
 		Decompress(tag);
+		tag.id.SetDiscardable();
 	} else {
 		if(volEntryHeader.resId != tag.resNum)
 			msgMgr->Fatal(SrcLoc,Msg_ResourceData);
@@ -231,18 +233,29 @@ SOL_ResType::Open(ResNum num, char* path)
 		}
 	} else if ((resOffset = FindDirEntry(num, resourceMap)) != -1) {
 		// requested resource is volume-resident
-		LSeek(fd = resVolFD,resOffset,SEEK_SET);
-		Read(&volEntryHeader, sizeof volEntryHeader);
-		ConfirmType((MemType)volEntryHeader.type);
-		resOffset += sizeof(volEntryHeader);
-		resLength = volEntryHeader.expandedLength;
-		compressedLength = volEntryHeader.compressedLength;
+		if (resOffset + sizeof(volEntryHeader) < preVolLength) {
+			LSeek(fd = resVolFDPre,resOffset,SEEK_SET);
+			Read(&volEntryHeader, sizeof volEntryHeader);
+			ConfirmType((MemType)volEntryHeader.type);
+			resOffset += sizeof(volEntryHeader);
+			resLength = volEntryHeader.expandedLength;
+			compressedLength = volEntryHeader.compressedLength;
+			if (resOffset + resLength > preVolLength)
+				LSeek(fd = resVolFD,resOffset,SEEK_SET);
+		} else {
+			LSeek(fd = resVolFD,resOffset,SEEK_SET);
+			Read(&volEntryHeader, sizeof volEntryHeader);
+			ConfirmType((MemType)volEntryHeader.type);
+			resOffset += sizeof(volEntryHeader);
+			resLength = volEntryHeader.expandedLength;
+			compressedLength = volEntryHeader.compressedLength;
+		}
 
 #ifdef DEBUG	
 	   if (tracking)
 			rmResList->Add(GetType(), num, resLength);
 #endif
-		return resVolFD;
+		return fd;
 	}
 
 	return -1;
@@ -251,9 +264,10 @@ SOL_ResType::Open(ResNum num, char* path)
 int
 SOL_ResType::Close(int fd) const
 {
-	if (fd == -1 || fd == resVolFD || fd == altVolFD || fd == sfxVolFD)
-		return -1;
-	return ::Close(fd);
+	if (fd != -1 && fd != resVolFD && fd != resVolFDPre && fd != altVolFD &&
+			fd != sfxVolFD && fd != audVolFD)
+		return ::Close(fd);
+	return -1;
 }
 
 void
@@ -314,6 +328,9 @@ SOL_ResType::ConfirmType(MemType type) const
 
 	if (GetFileType() == MemResAudio)
 		return;
+
+// Delete the next line when robot resources are converted to the proper type
+	if (GetFileType() == MemResRobot) return;
 
 	//	allow 0x80-based or 0-based numbers
 	if((MemType)(type & ~0x80) != GetFileType())
@@ -455,6 +472,3 @@ ResAudio36::SeekToData() const
 {
 	return 0;
 }
-
-
-

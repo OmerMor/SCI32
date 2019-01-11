@@ -10,7 +10,6 @@
 #include "memmgr.hpp"
 
 
-
 inline int sqr(int i) {return i * i;}
 
 /*
@@ -266,7 +265,9 @@ HunkPalette::SetVersion(int ver)
 		pal->valid = ver;
 		version = ver;
 #ifdef DEBUG
+	#ifndef MACINTOSH
 		memMgr->SetChecksum(palInHunk);
+	#endif
 #endif
 	}
 }
@@ -504,10 +505,16 @@ KPalCycle(argList)
 			break;
 
 		case CyclePause:
+			if (argCount < 2)
+			graphMgr->GPalette().CycleAllPause();
+			else
 			graphMgr->GPalette().CyclePause(arg(2)); 
 			break;
 
 		case CycleGo:
+			if (argCount < 2)
+			graphMgr->GPalette().CycleAllOn();
+			else
 			graphMgr->GPalette().CycleOn(arg(2)); 
 			break;
 

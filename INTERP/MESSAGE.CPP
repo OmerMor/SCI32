@@ -54,7 +54,7 @@ private:
 	int		sp;
 };
 
-typedef ID<MsgStack, MemMsgStack>	MsgStackID;
+FakeTemplateID(MsgStackID, MsgStack, MemMsgStack)
 
 static MsgStack stack;
 
@@ -241,8 +241,10 @@ GetNext(TextID buffer)
 			curSeq = entry.seq;
 			stack.IncSeq();
 #ifdef DEBUG
+	#ifndef MACINTOSH
 			if (configMgr->Get(ConfigMgr::Translation))
 				ShowTranslation();
+	#endif
 #endif
 		}
 		pm.acc = ((IndexEntry*) &id[indexOffset])->talker;
@@ -575,4 +577,3 @@ MessageMgr::SaveRestore(SaveGame* saveGame, Bool save)
 
 	saveGame->SaveRestore(&stackStack, sizeof stackStack, save);
 }
-

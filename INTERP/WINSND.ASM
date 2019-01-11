@@ -122,6 +122,15 @@ _TEXT	       segment  byte public use32 'CODE'
 ; the low-memory problem with volume changes re-appears, we will have to find
 ; another solution.
 
+; NOTE 1/27/95: Problem showed up again in Phantasm.  Have re-instated
+; scaling velocities for high-level.
+; To make it easier, this is now controlled with the following define.
+; Comment it out to scale velocities.
+; Un-comment it to allow volume changes.
+
+USEVOLCHANGE	equ 1
+
+
 extrn	MIDIOUTGETNUMDEVS:NEAR
 extrn	MIDIOUTOPEN:NEAR
 extrn	MIDIOUTCLOSE:NEAR
@@ -338,9 +347,13 @@ NoteOn 	PROC	NEAR		;TURN NOTE ON
 
 ; conditional commented out 6/9/94 in order to also scale for HIGHSYNTH
 ; conditional un-commented 9/28/94 per Mark S.
+ifdef USEVOLCHANGE
 	.if	_devType == BASESYNTH
 		jmp	noteonbase
 	.endif
+else
+	jmp	noteonbase
+endif
 
 ;	high-level synth, no general midi
 	push	ax
@@ -417,6 +430,7 @@ ctlChanVol:
 
 ; code commented out 6/9/94 in order to not send volume change for HIGHSYNTH
 ; code un-commented 9/28/94 per Mark S.
+ifdef USEVOLCHANGE
 	.if	_devType == HIGHSYNTH	;send modified volume to device
 		pop	cx
 		pop	ax
@@ -426,6 +440,7 @@ ctlChanVol:
 		mov	cl, chVolM[esi]
 		call	StdShortMsg
 	.endif
+endif
 
 endControl:
 	pop	cx
@@ -533,6 +548,7 @@ chanloop:
 
 ; conditional commented out 6/9/94 in order to also scale for HIGHSYNTH
 ; conditional un-commented 9/28/94 per Mark S.
+ifdef USEVOLCHANGE
 	.if	_devType == HIGHSYNTH	;send control msg
 		push	ax
 		push	cx
@@ -548,6 +564,7 @@ chanloop:
 		pop	cx
 		pop	ax
 	.endif
+endif
 
 	cmp	si, 0			;finished all channels?
 	jne	chanloop
@@ -607,6 +624,7 @@ chanloop2:
 
 ; conditional commented out 6/9/94 in order to also scale for HIGHSYNTH
 ; conditional un-commented 9/28/94 per Mark S.
+ifdef USEVOLCHANGE
 	.if	_devType == HIGHSYNTH	;send control msg
 		push	ax
 		push	cx
@@ -622,6 +640,7 @@ chanloop2:
 		pop	cx
 		pop	ax
 	.endif
+endif
 
 	cmp	si, 0			;finished all channels?
 	jne	chanloop2

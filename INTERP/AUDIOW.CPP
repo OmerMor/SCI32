@@ -65,7 +65,7 @@ static int	*DACArgs;
 unsigned
 GetDACDefaultSize(void)
 {
-	return 30*1024;
+	return 32*1024;
 }
 
 void *

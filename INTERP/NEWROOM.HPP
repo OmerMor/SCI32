@@ -3,7 +3,6 @@
 
 #include "sol.hpp"
 
-
 #ifndef MEMTYPE_HPP
 #include "memtype.hpp"
 #endif
@@ -12,8 +11,6 @@
 #include "restype.hpp"
 #endif
 
-
-#define	USER		80
 extern Bool		tracking;
 extern Bool		trackingFrameOut;
 
@@ -50,4 +47,6 @@ extern	int	roomMaxAloc;
 extern	int	gameMaxAloc;
 extern	int	gameMaxRoom;
 extern	int	currentRoom;
+
 #endif
+

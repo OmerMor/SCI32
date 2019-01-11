@@ -202,6 +202,7 @@ class MemTypeDesc {
 	{ MemWindow,			"Window" },
    { MemWindowEntry,		"Window_Entry" },
    { MemFontMgr,			"Font_Mgr" },
+   { MemEdit,				"Edit" },
 
 	{ MemResNone,			"No_Resource" },
 	{ MemFree,				"Free" }
@@ -432,3 +433,4 @@ MemoryMgr::ThrashReport()
 
 #endif
 
+

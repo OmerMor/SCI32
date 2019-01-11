@@ -75,10 +75,17 @@ class Remap : public Saveable
 		protected:
 		Bool			Apply(uchar*);
 
+#ifdef MACINTOSH
+		Rgb24			targetColor[256];
+		Rgb24			colorArray[256];
+		uchar			colorChanged[256];
+		int			dist[256];
+#else
 		Rgb24			targetColor[236];
 		Rgb24			colorArray[236];
 		uchar			colorChanged[236];
 		int			dist[236];
+#endif
 		uchar*		remap;
 	};
 
@@ -89,4 +96,3 @@ class Remap : public Saveable
 
 
 #endif
-

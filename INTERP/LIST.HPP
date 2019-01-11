@@ -27,13 +27,13 @@ protected:
 	SOL_NodeKey	key;
 };
 
-typedef ID<SOL_Node, MemListNode> SOL_NodeID;
+FakeTemplateID(SOL_NodeID, SOL_Node, MemListNode);
 
 struct KNode : SOL_Node {
 	SCIWord		val;
 };
 
-typedef ID<KNode, MemListKNode> KNodeID;
+FakeTemplateID(KNodeID, KNode, MemListKNode);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -56,8 +56,11 @@ public:
 	Bool				Delete(SOL_NodeID);
 	void				Dump(char* msg = "");
 	SOL_NodeID		FindKey(SOL_NodeKey);
+	void				MoveToFront(SOL_NodeID);
+	void				MoveToEnd(SOL_NodeID);
 	void				PushNext()	{ nextPtr++; }
 	void				PopNext()	{ nextPtr--; }
+	void				Sort(int criterion, Bool descending);
 
 	void	SaveRestore(SaveGame*, Bool save);
 
@@ -68,7 +71,6 @@ protected:
 	int			nextPtr;
 };
 
-typedef ID<SOL_List, MemList> SOL_ListID;
+FakeTemplateID(SOL_ListID, SOL_List, MemList)
 
 #endif
-

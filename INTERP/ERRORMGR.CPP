@@ -266,7 +266,7 @@ ErrorMgr::BuildFontTable()
 	// Build the table of font widths and initializes the font pointSize
 
 	FontHeader * fontHeader;
-	fontHeader = (FontHeader *) systemFont;
+	fontHeader = (FontHeader *) sciSystemFont;
 	
 	// initialize the font constants
 	pointSize = fontHeader->pointSize;
@@ -326,7 +326,7 @@ ErrorMgr::CharHeight(char theChar)
 	// Determine the given character's height using the current font
 			
 	FontHeader * fontHeader;
-	fontHeader = (FontHeader *) systemFont;
+	fontHeader = (FontHeader *) sciSystemFont;
 	Int16* charRecsAddr = (Int16*) &fontHeader->charRecs;
 	unsigned char height = *((unsigned char *) fontHeader + charRecsAddr[theChar] +1);
 
@@ -441,7 +441,7 @@ ErrorMgr::DrawChar(char theChar)
 
 	// Address the character pattern
 	FontHeader * fontHeader;
-	fontHeader = (FontHeader *) systemFont;
+	fontHeader = (FontHeader *) sciSystemFont;
 
 	// Check for a valid character
 	if ((theChar >= highChar) || (theChar < lowChar))

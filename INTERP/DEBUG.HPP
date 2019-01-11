@@ -17,12 +17,13 @@
 
 class	ObjectID;
 
-struct Debugger : Saveable {
-	~Debugger();
+struct SCIDebugger : Saveable {
+	~SCIDebugger();
 	void	SaveRestoreBefore(SaveGame*, Bool save);
 	void	SaveRestore(SaveGame*, Bool) {}
 	void	SaveRestoreAfter(SaveGame*, Bool save);
-} extern * debugger;
+};
+extern SCIDebugger* debugger;
 
 void	Debug();
 void	EnterDebug();
@@ -58,5 +59,4 @@ extern Bool	singleStep;
 
 #endif
 #endif
-
 

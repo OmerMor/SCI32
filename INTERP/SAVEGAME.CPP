@@ -97,7 +97,7 @@ SaveGame::CheckSaveGame(char* gameName, int saveNum, char* gameVersion)
 		Close(fd);
 	}
 
-	UInitBuffer();
+	UnInitBuffer();
 
 	critErrHandler->SetMethod(CritErrHandler::Abort);
 	
@@ -190,7 +190,7 @@ SaveGame::DumpFile(char* gameName, int saveNum)
 		fclose(fp);
 	}
 
-	UInitBuffer();
+	UnInitBuffer();
 }
 
 void
@@ -252,7 +252,7 @@ SaveGame::InitBuffer(Bool save)
 }
 
 void
-SaveGame::UInitBuffer()
+SaveGame::UnInitBuffer()
 {
 	resMgr->DecompBuffer(0);
 }
@@ -411,7 +411,7 @@ SaveGame::Restore(TextID gameName, int saveNum, TextID gameVersion)
 		Close(fd);
 	}
 
-	UInitBuffer();
+	UnInitBuffer();
 
 	critErrHandler->SetMethod(CritErrHandler::Abort);
 	
@@ -465,7 +465,7 @@ SaveGame::Save(TextID gameName, int saveNum, TextID desc, TextID gameVersion)
 		Close(fd);
 	}
 
-	UInitBuffer();
+	UnInitBuffer();
 
 	critErrHandler->SetMethod(CritErrHandler::Abort);
 
@@ -626,83 +626,100 @@ SaveGame::WriteData(void* data, size_t size)
 ////////////////////////////////////////////////////////////////////////////////
 
 void
-KSaveGame(argList)
+KSave(argList)
 {
-	pm.acc = saveGame->Save(
-		arg(1),		//	game name
-		arg(2),		//	save game number
-		arg(3),		//	description
-		arg(4)		// game version
-	);
-}
+	enum {
+		SaveGame,
+		RestoreGame,
+		GetSaveDir,
+		CheckSaveGame,
+		GetSaveCDisc,
+		GetSaveFiles,
+		MakeSaveCatName,
+		MakeSaveFileName,
+		GameIsRestarting,
+		Restart
+	};
 
-void
-KRestoreGame(argList)
-{
-	pm.acc = saveGame->Restore(
-		arg(1),		//	game name
-		arg(2),		//	save game number
-		arg(3)		// game version
-	);
-}
+	switch (arg(1)) {
+		case SaveGame:
+			pm.acc = saveGame->Save(
+				arg(2),		//	game name
+				arg(3),		//	save game number
+				arg(4),		//	description
+				arg(5)		// game version
+			);
+			break;
 
-void
-KGetSaveDir(kArgs)
-{
-	//	SCI will write into this when the user changes directories in the 
-	//	save/restore dialog
-	
-	pm.acc = saveGame->GetDir();
-}
+		case RestoreGame:
+			pm.acc = saveGame->Restore(
+				arg(2),		//	game name
+				arg(3),		//	save game number
+				arg(4)		// game version
+			);
+			break;
 
-void
-KCheckSaveGame(argList)
-{
-	pm.acc = saveGame->CheckSaveGame(
-		*(TextID) arg(1),		//	game name
-		arg(2),					//	save game num
-		*(TextID) arg(3)		//	game version
-	);
-}
+		case GetSaveDir:
+			// SCI programmers will modify the returned string
+			pm.acc = saveGame->GetDir();
+			break;
 
-void
-KGetSaveCDisc(kArgs)
-{
-	pm.acc = saveGame->GetCDisc();
-}
+		case CheckSaveGame:
+			pm.acc = saveGame->CheckSaveGame (
+				*(TextID) arg(2),		//	game name
+				arg(3),					//	save game num
+				*(TextID) arg(4)		//	game version
+			);
+			break;
 
-void
-KGetSaveFiles(argList)
-{
-	TextID names = arg(2);
-	names.Realloc(SaveGame::MaxGames * SaveGame::NameLen + 1);
-	pm.acc = saveGame->ReadCatalog(
-		*(TextID) arg(1),								//	game name
-		*names,											//	names destination
-		(SCIWord*) ((ArrayID) arg(3)).Data());	//	nums destination
-}
+		case GetSaveCDisc:
+			pm.acc = saveGame->GetCDisc();
+			break;
 
-void
-KMakeSaveCatName(argList)
-{
-	TextID id = arg(1);
-	id.Realloc(MaxPath + 1);
-	saveGame->MakeCatalogName(
-		*id,						//	destination
-		*(TextID) arg(2)		//	game name
-	);
-	id.Snug();
-}
+		case GetSaveFiles: {
+			TextID names = arg(3);
+			names.Realloc(SaveGame::MaxGames * SaveGame::NameLen + 1);
 
-void
-KMakeSaveFileName(argList)
-{
-	TextID id = arg(1);
-	id.Realloc(MaxPath + 1);
-	saveGame->MakeFileName(
-		*id,						//	destination
-		*(TextID) arg(2),		//	game name
-		arg(3)					//	game number
-	);
-	id.Snug();
+			pm.acc = saveGame->ReadCatalog (
+				*(TextID) arg(2),
+				*names,
+				(SCIWord *) ((ArrayID) arg(4)).Data()
+			);
+
+			break;
+		}
+
+		case MakeSaveCatName: {
+			TextID text(arg(2));
+			text.Realloc(MaxPath + 1);
+
+			saveGame->MakeCatalogName(
+				*text,				// dest
+				*(TextID) arg(3)	// game name
+			);
+			text.Snug();
+			break;
+		}
+
+		case MakeSaveFileName: {
+			TextID text(arg(2));
+			text.Realloc(MaxPath + 1);
+
+			saveGame->MakeFileName(
+				*text,						// dest
+				*((TextID) arg(3)),		// game name
+				arg(4)						// game number
+			);
+			break;
+		}
+         
+		case GameIsRestarting:
+		case Restart:
+			break;
+
+		default:
+			msgMgr->Fatal(SrcLoc, Msg_InvalidSaveFunc, arg(1));
+			break;
+	}
 }
+

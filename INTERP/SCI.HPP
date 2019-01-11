@@ -42,6 +42,7 @@ protected:
 	virtual ResourceMgr*    MakeResourceMgr();
 	virtual TimeMgr*        MakeTimeMgr() = 0;
 
-} extern * sci;
+};
+extern SCI * sci;
 
 #endif

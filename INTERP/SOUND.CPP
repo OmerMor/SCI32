@@ -31,19 +31,6 @@
 #include	"sound.hpp"
 #include "debug.hpp"
 
-struct SoundID : ID<Sound, MemSound> {
-	SoundID() {}
-	SoundID(const MemID& id) : ID<Sound, MemSound>(id) {}
-	SoundID(const SoundID& id) : ID<Sound, MemSound>((MemID&) id) {}
-	SoundID(SOL_Handle h) : ID<Sound, MemSound>(h) {}
-
-	void
-	Get()
-	{
-		ID<Sound, MemSound>::Get(sizeof(Sound), LOCKEDSAVE);
-	}
-};
-
 Bool					kernelCall = False;
 Bool					soundInstalled = False;
 int					numberOfVoices;
@@ -58,6 +45,7 @@ struct {
 	ushort	arg4;
 	ushort	arg5;
 	ushort	arg6;
+	ushort	arg7;
 } static audArgs;
 
 void
@@ -80,9 +68,10 @@ KillAllSounds()
 		SoundID snID = sounds.First();
 		Sound* sn = *snID;
 		if (sn->sSample) {
-			audArgs.count = 2;
+			audArgs.count = 3;
 			audArgs.func = STOP;
 			audArgs.arg2 = sn->sNumber;
+			audArgs.arg3 = snID;
 			KDoAudio((kArgs) &audArgs);
 		} else {
 			DoSound(SEnd, (char*) sn);
@@ -407,9 +396,10 @@ PlaySnd(ObjectID soundObject)
 	if (int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 		/* why is the following not set in InitSnd? TM - 7/17/92 */
 		if (GetSoundResType(snID->sNumber) == MemResAudio) {
-			audArgs.count = 2;
+			audArgs.count = 3;
 			audArgs.func = STOP;
 			audArgs.arg2 = snID->sNumber;
+			audArgs.arg3 = snID;
 			KDoAudio ((kArgs) &audArgs);
 		}
 		soundNum = soundObject.GetIndexedProperty(sndNumber);
@@ -495,6 +485,7 @@ PlaySnd(ObjectID soundObject)
 			audArgs.arg2 = soundObject.GetIndexedProperty(sndNumber);
 			audArgs.arg3 = soundObject.GetIndexedProperty(sndLoop);
 			audArgs.arg4 = soundObject.GetIndexedProperty(sndVol);
+			audArgs.arg5 = snID;
 			KDoAudio ((kArgs) &audArgs);
 		}
 		
@@ -520,9 +511,10 @@ StopSnd(ObjectID soundObject)
 	if (int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 		Sound* sn = *snID;
 		if(sn->sSample) {
-			audArgs.count = 2;
+			audArgs.count = 3;
 			audArgs.func = STOP;
 			audArgs.arg2 = sn->sNumber;
+			audArgs.arg3 = snID;
 			KDoAudio ((kArgs) &audArgs);
 			soundObject.SetIndexedProperty(sndHandle, 0);
 			soundObject.SetIndexedProperty(sndSignal, -1);
@@ -579,8 +571,9 @@ PauseSnd(ObjectID soundObject, Bool stopStart)
 		SoundID snID;
 		if(int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 			if (snID->sSample && kernelCall) {
-				audArgs.count = 2;
+				audArgs.count = 3;
 				audArgs.arg2 = soundObject.GetIndexedProperty(sndNumber);
+				audArgs.arg3 = snID;
 				audArgs.func = stopStart? PAUSE : RESUME;
 				KDoAudio((kArgs) &audArgs);
 			} else
@@ -601,13 +594,14 @@ FadeSnd(ObjectID soundObject, int newVol, int fTicks, int fSteps, int fEnd)
 	if (int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 		Sound* sn = *snID;
 		if (sn->sSample) {
-			audArgs.count = 6;
+			audArgs.count = 7;
 			audArgs.func = FADE;
 			audArgs.arg2 = soundObject.GetIndexedProperty(sndNumber);
 			audArgs.arg3 = newVol;
 			audArgs.arg4 = fTicks;
 			audArgs.arg5 = fSteps;
 			audArgs.arg6 = fEnd;
+			audArgs.arg7 = snID;
 			KDoAudio((kArgs) &audArgs);
 		} else {
 			DoSound(SFade,*snID,newVol += fEnd? 128:0,fTicks,fSteps);
@@ -642,9 +636,10 @@ SetSndVol(ObjectID soundObject, int newVol)
 	SoundID snID;
 	if(int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 		if (snID->sSample) {
-			audArgs.count = 3;
+			audArgs.count = 4;
 			audArgs.arg2 = newVol;
 			audArgs.arg3 = soundObject.GetIndexedProperty(sndNumber);
+			audArgs.arg4 = snID;
 			audArgs.func = VOLUME;
 			KDoAudio((kArgs) &audArgs);
 		}
@@ -732,8 +727,9 @@ UpdateCues(ObjectID soundObject)
 	if (int(snID = (SoundID) soundObject.GetIndexedProperty(sndNodePtr))) {
 		if (snID->sSample) {
 			saveAcc = pm.acc;
-			audArgs.count = 2;
+			audArgs.count = 3;
 			audArgs.arg2 = soundObject.GetIndexedProperty(sndNumber);
+			audArgs.arg3 = snID;
 			audArgs.func = LOC;
 			KDoAudio((kArgs) &audArgs);
 			signal = (int)pm.acc;

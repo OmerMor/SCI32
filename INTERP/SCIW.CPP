@@ -106,11 +106,15 @@ SCIWin::MakeMemoryMgr()
 SOL_Mouse*
 SCIWin::MakeMouse()
 {
-	SOL_Mouse* mouse = New MouseWin();
-#ifdef COLORCUR
-	assert(graphMgr);
-	graphMgr->GCursor().SetDevice(*mouse);
-#endif
+SOL_Mouse* mouse;
+
+	if (COLORCURSOR) {
+		mouse = New MouseWinClr();
+		assert(graphMgr);
+		graphMgr->GCursor().SetDevice(*mouse);
+	} else {
+		mouse = New MouseWin();
+	}
 	return mouse;
 }
 

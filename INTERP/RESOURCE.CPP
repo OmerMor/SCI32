@@ -27,6 +27,7 @@
 #include "newroom.hpp"
 #include "pmachine.hpp"
 #include "resource.hpp"
+#include "savegame.hpp"
 #ifdef WIN32S
 #include "shiftpal.hpp"
 #endif
@@ -38,9 +39,11 @@
 int				altVolFD;
 MemID 			alternateMap;
 int				altDirNum;
-int				discNum = 0;
+int				discNum = -1;
 char				discPath[MaxPath+1];
+int				preVolLength;
 int				resVolFD;
+int				resVolFDPre;
 MemID 			resourceMap;
 ResourceMgr*	resMgr;
 MemID				resPatches;
@@ -57,10 +60,11 @@ Bool	loadingDiskCursor = False;
 Bool	unLoadingDiskCursor = False;
 #endif
 
-struct ResTagID : ID<ResTag, MemResourceList>
+FakeTemplateID(FakeResTagID, ResTag, MemResourceList)
+struct ResTagID : FakeResTagID
 {
 	ResTagID() {}
-	ResTagID(MemID& id) : ID<ResTag, MemResourceList>(id) {}
+	ResTagID(MemID& id) : FakeResTagID(id) {}
 	ResTag&	operator[](int s) { return (**this)[s]; }
 };
 
@@ -149,7 +153,8 @@ struct ResourceList {
    ResourceList(New ResChunk, ChunkResListHandle),
 	ResourceList(New ResAudio36, Audio36ResListHandle),
 	ResourceList(New ResSync36, Sync36ResListHandle),
-	ResourceList(New ResMsgTranslation, MsgTranslationResListHandle)
+	ResourceList(New ResMsgTranslation, MsgTranslationResListHandle),
+	ResourceList(New ResRobot, RobotResListHandle)
 };
 
 const nResourceTypes = sizeof(resources) / sizeof(*resources);
@@ -181,6 +186,35 @@ ResourceMgr::~ResourceMgr()
 	rmResList->Print();
 	delete rmResList;
 #endif
+}
+
+int
+ResourceMgr::Open(MemType type, ResNum num, char* path)
+{
+	return resources[type].obj->Open(num, path);
+}
+
+/*
+int
+ResourceMgr::Open(MemType resType, ResNum resNum, char* path)
+{
+	//	SCI still uses the old numbers
+	SCI16ToSCI32ResType(resType);
+
+	SOL_ResType*	obj = resources[resType].obj;
+	if (!obj->IsSupported())
+		msgMgr->Fatal(SrcLoc, Msg_InvalidResType, (int) resType);
+	return resources[resType].obj->Open(resNum,path);
+}
+*/
+
+int
+ResourceMgr::Close(int fd)
+{
+	if (fd != -1 && fd != resVolFD && fd != resVolFDPre && fd != altVolFD &&
+			fd != sfxVolFD && fd != audVolFD)
+		return ::Close(fd);
+	return -1;
 }
 
 MemID
@@ -388,12 +422,6 @@ ResourceMgr::Find(MemType resType, ResNum resNum)
 		return array[i].id;
 	else
 		return 0;
-}
-
-int
-ResourceMgr::Open(MemType type, ResNum num, char* path)
-{
-	return resources[type].obj->Open(num, path);
 }
 
 char*
@@ -615,6 +643,7 @@ ResourceMgr::InitResourceMgr()
 		char* cp = &discPath[strlen(discPath)-1];
 		if (*cp != ':' && *cp != '\\')
 			strcat(discPath,"\\");
+/*
 		int attempts = 0;
 		do {
 			CheckDiscNum(1);
@@ -627,6 +656,9 @@ ResourceMgr::InitResourceMgr()
 			puts("Insert the first disc in the CD-ROM drive; then press ENTER");
 			getch();
 		} while(1);
+*/
+		CheckDiscNum(0);
+		return;
 	}
 	BuildPatchTables();
 	LoadResMaps(0);
@@ -718,6 +750,27 @@ ResourceMgr::LoadResMaps(uint volNum)
 }
 // ...end of temporary code
 
+	// Open the 'preferred' resource-volume if specified
+	preVolLength = 0;
+	strcpy(volName, configMgr->Get("resMap",1));
+	if (strlen(volName)) {
+		char* cp = &volName[strlen(volName)-1];
+		if (*cp != ':' && *cp != '\\')
+			strcat(volName,"\\");
+		sprintf(str,"RESSCI.%03d",volNum);
+		strcat(volName,str);
+		resVolFDPre = ::Open(volName, O_RDONLY | O_BINARY);
+// some temporary code for backwards compatibility (CFS)...
+		if (resVolFDPre == -1) {
+			volName[strlen(volName)-10] = '\0';
+			strcat(volName,"RESOURCE.000");
+			resVolFDPre = ::Open(volName, O_RDONLY | O_BINARY);
+		}
+// ...end of temporary code
+		if (resVolFDPre != -1)
+			preVolLength = LSeek(resVolFDPre,0,SEEK_END);
+	}
+
 	// Find trackable version stamp in resource map file
 	ResDirHdrEntry* header = (ResDirHdrEntry *) *resourceMap;
 	while ((uchar)header->resType != 0xff)
@@ -772,6 +825,7 @@ ResourceMgr::LoadResMaps(uint volNum)
 			altDirNum = dirNum;
 		break;
 	}
+	InitAudioVols();
 	return True;
 }
 
@@ -1171,11 +1225,25 @@ KResCheck(argList)
 }
 
 void
-KCheckCDisc(argList)
+KCD(argList)
 {
-	if (argCount >= 1)
-		resMgr->CheckDiscNum((uint)arg(1));
-	else
-		resMgr->CheckDiscNum(0);
-	pm.acc = (Acc) discNum;
+	enum {
+		CheckCD,
+		GetSaveCD
+	};
+
+	switch (arg(1)) {
+		case CheckCD:
+			if (argCount >= 2)
+				resMgr->CheckDiscNum((uint)arg(2));
+			else
+				resMgr->CheckDiscNum(0);
+
+			pm.acc = (Acc) discNum;
+			break;
+
+		case GetSaveCD:
+			pm.acc = saveGame->GetCDisc();
+			break;
+	}
 }

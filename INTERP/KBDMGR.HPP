@@ -16,8 +16,8 @@ class KbdMgr
 	virtual	void	MapToDir(SOL_Event*) const;
 	virtual	Bool	Get(SOL_Event*) = 0;
 	virtual	Kbd::Mod	Modifiers() = 0;
-} extern * kbdMgr;
+};
+extern KbdMgr * kbdMgr;
 
 
 #endif
-

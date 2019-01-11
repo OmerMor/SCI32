@@ -12,7 +12,7 @@
 #include "palmgr.hpp"
 #include "pmachine.hpp"
 #include "time.hpp"
-
+#include "integ.hpp"
 #include <string.h>
 
 char palMorphArray[256] = {
@@ -32,6 +32,602 @@ char palMorphArray[256] = {
 	1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1,
 	1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+int  randArray[12288][2];
+long randMask[20] = { 0, 0, 0x03, 0x06, 0x0c, 0x14, 0x30,
+	0x60,	0xB8, 0x0110, 0x0240, 0x0500, 0x0CA0, 0x1b00,
+   0x3500, 0x6000, 0xB400, 0x12000, 0x20400, 0x72000};
+
+void ProcessEffects(PlaneShowStyle* style)
+{
+
+	switch(style->style) {
+		case PIXELDISSOLVE:
+				PixelDissolveEffect(style);
+				break;
+			case IRISOUT:
+				IrisOutEffect(style);
+				break;
+			case IRISIN:
+				IrisInEffect(style);
+				break;
+ 			case WIPERIGHT:
+				WipeRightEffect(style);
+			case WIPELEFT:
+				WipeLeftEffect(style);
+			case WIPEDOWN:
+				WipeDownEffect(style);	
+				break;
+			case WIPEUP:
+				WipeUpEffect(style);
+				break;
+			case HSHUTTEROUT:
+				HShutterOutEffect(style);
+				break;				
+			case HSHUTTERIN:
+				HShutterInEffect(style);
+				break;
+			case VSHUTTERIN:
+				VShutterInEffect(style);
+				break;
+			case VSHUTTEROUT:
+				VShutterOutEffect(style);
+				break;
+
+	}
+}
+
+void
+IrisOutEffect(PlaneShowStyle* style)
+{
+	int x,y,l,m,width,height,modx,mody;
+	int x_l,x_r,y_t,y_b;
+	x = 20;
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+ 	SOL_Rect	B(0,0,x,x);
+
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+	
+	y = (x * height)/width;
+
+	mody = height%y;
+	
+
+	modx = width%x;
+
+	x_l 	= width/(2*x)-1;
+
+	x_r	= width/(2*x);
+
+	y_t	= height/(2*y)-1 ;
+
+	y_b	= height/(2*y);
+
+		while((x_l>=0 )&&(y_t>=0)) {
+			for(l=x_l;l<=x_r;l++) {  //draw top	
+				m = y_t;
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+			l--;
+
+			for(m=y_t;m<=y_b+1;m++) {  //draw right	
+				
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+			m--;
+
+			for(l=x_r;l>=x_l;l--) {  //draw bottom	
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+			l++;
+
+			for(m=y_b;m>=y_t;m--) {  //draw left	
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+
+			x_l -= 1;
+			
+			x_r += 1;
+
+			y_t -= 1;
+		
+			y_b += 1;
+		}
+
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+}
+
+void
+IrisInEffect(PlaneShowStyle* style)
+{
+	int x,y,l,m,width,height,modx,mody,modyy;
+	x = 20;
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+	y = (x * height)/width;
+ 	SOL_Rect	B(0,0,x,x);
+
+	mody = height%y;
+
+	modx = width%x;
+
+	if (mody)
+		modyy = 1;
+	else
+		modyy = 0;
+
+		while((r.A.x < width/x) || (r.A.y < height/y)) {
+			for(l=r.A.x;l<=width/x;l++) {  //draw top	
+				m = r.A.y;
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+
+			for(m=r.A.y;m<=height/y;m++) {  //draw right	
+				l = r.B.x/x ;
+				B.Set(l*x,m*y,l*x+x-1,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+
+			for(l=width/x-1;l>=r.A.x;l--) {  //draw bottom	
+				m = r.B.y/y ;
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+
+			for(m=height/y-1;m>=r.A.y;m--) {  //draw left	
+				l = r.A.y;
+				B.Set(l*x,m*y,l*x+x,m*y+y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+			r.A.x  += 1;
+			width	 -= x;
+			r.A.y	 += 1;
+			height -= y;
+			r.B.x  -= x;
+			r.B.y	 -= y;
+		}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+void
+VShutterInEffect(PlaneShowStyle* style)
+{
+	int x,l,m,n,width,height,mody,modx;
+	x = 20;
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+ 	SOL_Rect	B(0,0,x,x);
+
+	if (height%(2*x))
+ 		mody = 1;
+ 	else
+ 		mody = 0;
+
+	if (width%x)
+		modx = 1;
+	else
+		modx = 0;
+
+	if (height%(2*x))
+		n = height/x;
+	else
+		n = height/x-1;
+
+
+	for(m=r.A.y;m<height/(2*x)+r.A.y+mody;m++) {
+		for(l=r.A.x;l<width/x+r.A.x+modx;l++) 	
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		for( l=r.A.x;l<width/x+r.A.x+modx;l++) 	
+		{
+			B.Set(l*x,(n-m)*x,l*x+x,(n-m)*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+}
+
+
+void
+VShutterOutEffect(PlaneShowStyle* style)
+{
+	int x,l,m,n,height,width,mody,modx;
+	x = 20;
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+ 	SOL_Rect	B(0,0,x,x);
+
+	if (height%(2*x))
+		mody = 1;
+	else
+		mody = 0;
+
+	if (width%x)
+		modx = 1;
+	else
+		modx = 0;
+
+	if (height%(2*x))
+		n = height/x;
+	else
+		n = height/x-1;
+
+	for(m=height/(2*x)-1+mody;m>=0;m--) {	
+		for(l=0;l<width/x+modx;l++) 
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	  	for( l=0;l<width/x+modx;l++) 	
+		{
+			B.Set(l*x,(n-m)*x,l*x+x,(n-m)*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+void
+HShutterOutEffect(PlaneShowStyle* style)
+{
+	int x,l,m,n,height,width,mody;
+	x = 20;
+ 	SOL_Rect	B(0,0,x,x);
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+	if (width%(2*x))
+		mody = 1;
+	else
+		mody = 0;
+
+
+	if (width%(2*x))
+		n = width/x;
+	else
+		n = width/x-1;
+
+	for(l=width/(2*x)-1+mody;l>=0;l--) {
+		for(m=0;m<=height/x;m++) 	
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+ 		for( m=0;m<=height/x;m++) 	
+		{
+			B.Set((n-l)*x,m*x,(n-l)*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+void
+HShutterInEffect(PlaneShowStyle* style)
+{
+	int x,l,m,n,height,width,mody;
+	x = 20;
+ 	SOL_Rect	B(0,0,x,x);
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+	if (width%(2*x))
+		n = width/x;
+	else
+		n = width/x-1;
+
+	if (width%(2*x))
+		mody = 1;
+	else
+		mody = 0;
+
+
+
+
+	for(l=0;l<width/(2*x)+mody;l++) {
+		for(m=0;m<=height/x;m++) 	
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		for( m=0;m<=height/x;m++) 	
+		{
+			B.Set((n-l)*x,m*x,(n-l)*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+
+void
+WipeLeftEffect(PlaneShowStyle* style)
+{
+	int x,height,width;
+	x = 10;
+
+ 	SOL_Rect	B(0,0,x,x);
+
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+
+	for(int l=width/x-1;l>=0;l--) {
+		for(int m=height/x;m>=0;m--) 	
+		{
+			B.Set(l*x,m*x,l*x+x-1,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+void
+WipeRightEffect(PlaneShowStyle* style)
+{
+	int x,height,width;
+	x = 10;
+
+ 	SOL_Rect	B(0,0,x,x);
+
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+
+	for(int l=0;l<=width/x;l++) {
+		for(int m=0;m<=height/x;m++) 	
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+
+void
+WipeUpEffect(PlaneShowStyle* style)
+{
+	int x,height,width;
+	x = 10;
+
+ 	SOL_Rect	B(0,0,x,x);
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+
+	for(int m=height/x;m>=0;m--) {	
+		for(int l=width/x;l>=0;l--) 
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+
+void
+WipeDownEffect(PlaneShowStyle* style)
+{
+	int x,height,width;
+	x = 10;
+
+ 	SOL_Rect	B(0,0,x,x);
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+
+	for(int m=0;m<height/x;m++) {	
+		for(int l=0;l<width/x;l++) 
+		{
+			B.Set(l*x,m*x,l*x+x,m*x+x);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+int
+Bitwidth(int number)
+{
+	int width = 0;
+
+	while (number != 0) {
+		number = number >> 1;
+		width += 1;
+	}
+	return(width);
+
+}
+
+// This dissolve random number generator was taken from Graphics Gems
+// pp 224 - 226;
+
+void
+PixelDissolveEffect(PlaneShowStyle* style)
+{
+	int x = 10;
+	int width,height;
+	int row,col;
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+
+	width  = (r.B.x - r.A.x + 1);
+	height = (r.B.y - r.A.y + 1);
+
+	if (width%x)
+		width 	= width/x + 1;
+	else
+		width 	= width/x;
+
+	if (height%x)
+		height	= height/x + 1;
+	else
+		height	= height/x;	
+
+	long mask ;
+	int seq;
+ 	SOL_Rect	B(0,0,x,x);
+   int y = style->style;
+	seq = 1;	
+
+   mask = randMask[Bitwidth(width*height-1)];
+
+		do
+  		{
+			row = seq/width;
+			col = seq%width;
+			
+ 			if (row < height) {
+				B.Set(col*x,row*x,col*x+x,row*x+x);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+
+			if (seq & 1) {
+				seq = (seq >> 1) ^ mask;
+			}
+			else
+				seq = (seq >> 1);
+		} while(seq != 1);
+		// Clear entire screen 
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
 
 void
 KSetPalStyleRange(argList)
@@ -342,30 +938,30 @@ KSetShowStyle(argList)
 //				PlainSetUp();
 				break;
 			case PIXELDISSOLVE:
-				PixelDissolveSetUp(style,priority,planeRect);
+//				PixelDissolveSetUp(style,priority,planeRect);
 				break;
 			case DISSOLVE:
 				DissolveSetUp(style,priority,planeRect);
 				break;
 			case IRISOUT:
 			case IRISIN:
-				IrisSetUp(style,priority); 
+//				IrisSetUp(style,priority); 
 				break;
 			case WIPERIGHT:
 			case WIPELEFT:
-				HWipeSetUp(style,priority);
+//				HWipeSetUp(style,priority);
 				break;
 			case WIPEDOWN:
 			case WIPEUP:
-				VWipeSetUp(style,priority);
+//				VWipeSetUp(style,priority);
 				break;
 			case HSHUTTEROUT:
 			case HSHUTTERIN:
-				HShutterSetUp(style,priority); 
+//				HShutterSetUp(style,priority); 
 				break;
 			case VSHUTTEROUT:
 			case VSHUTTERIN:
-				VShutterSetUp(style,priority); 
+//				VShutterSetUp(style,priority); 
 				break;
 			case FADEOUT:
 				break;
@@ -423,10 +1019,12 @@ ProcessShowStyle(PlaneShowStyle* style,uint time)
 			done = Plain(style);
 			break;
 		case PIXELDISSOLVE:
-			done = PixelDissolve(style);
+//			done = PixelDissolve(style);
+			done = PalMorph(style);
 			break;
 		case DISSOLVE:
-			done = Dissolve(style);
+//			done = Dissolve(style);
+			done = PalMorph(style);
 			break;
 		case FADEOUT:
 			done = Fade(-1,style);
@@ -435,21 +1033,27 @@ ProcessShowStyle(PlaneShowStyle* style,uint time)
 			done = Fade(1,style);
 			break;
 		case PALETTEMORPH:
+#ifdef MACINTOSH
+			done = Plain(style); //KGN PalMorph(style);
+#else
 			done = PalMorph(style);
+#endif
 			break;
 		case HSHUTTEROUT:
 		case IRISOUT:
 		case VSHUTTEROUT:
 		case WIPELEFT:
 		case WIPEUP:
-			done = GenericProcess(-1,style);
+			done = PalMorph(style);
+//			done = GenericProcess(-1,style);
 			break;
 		case HSHUTTERIN:
 		case IRISIN:
 		case VSHUTTERIN:
 		case WIPERIGHT:
 		case WIPEDOWN:
-			done = GenericProcess(1,style);
+//			done = GenericProcess(1,style);
+			done = PalMorph(style);
 			break;
 	}
 	return (done);
@@ -458,7 +1062,7 @@ ProcessShowStyle(PlaneShowStyle* style,uint time)
 Bool
 PalMorph(PlaneShowStyle* style)
 {
-			graphMgr->PalMorphFrameOut(palMorphArray);
+			graphMgr->PalMorphFrameOut(palMorphArray,style);
 			style->deleteMe = True;
 			return True;
 }
@@ -506,7 +1110,7 @@ ShutDownStyle(PlaneShowStyle* style)
 	switch (style->style) {
 		case DISSOLVE:
 		case PIXELDISSOLVE:
-			DissolveShutDown(style);
+//			DissolveShutDown(style);
 			break;
 		case HSHUTTEROUT:
 		case HSHUTTERIN:
@@ -518,7 +1122,7 @@ ShutDownStyle(PlaneShowStyle* style)
 		case WIPELEFT:
 		case WIPEDOWN:
 		case WIPEUP:
-			GenericShutDown(style);
+//			GenericShutDown(style);
 			break;
 		case PLAINFORM:
 		case FADEOUT:
@@ -772,7 +1376,11 @@ VWipeSetUp(PlaneShowStyle* style,int priority)
 void
 DissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect)
 {
+#ifdef MACINTOSH
+	style->BM = memMgr->Alloc(MemResBitmap,MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
+#else
 	style->BM = memMgr->Alloc(MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
+#endif
 
 	// build the header for the BM
 	BuildHeader(style->BM,style->BMWidth,style->BMHeight,SOL_SKIP);
@@ -893,7 +1501,8 @@ Dissolve(PlaneShowStyle* style)
 		style->clock += style->speed;
 		style->percent++;
 		noChange	= False;
-		style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
+		if (!style->siPlane->AddCount())
+			style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
 	}
 	if ((style->percent >= style->divisions) && noChange)	{
 		if (style->entry) style->deleteMe = True;
@@ -906,7 +1515,11 @@ Dissolve(PlaneShowStyle* style)
 void
 PixelDissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect)
 {
+#ifdef MACINTOSH
+	style->BM = memMgr->Alloc(MemResBitmap,MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
+#else
 	style->BM = memMgr->Alloc(MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
+#endif
 
 	// build the header for the BM
 	BuildHeader(style->BM,style->BMWidth,style->BMHeight,SOL_SKIP);
@@ -961,7 +1574,7 @@ PixelDissolve(PlaneShowStyle* style)
 		// Get the seed pixel
 		// index = LCGRandom() % pixels;
 		index = 53427;	// fake out to be similar to SCI16 with SP = 0xff00
-
+		index %= pixels;
 		style->firstPixel = index;
 		style->pixel = index;
 	}
@@ -1012,7 +1625,8 @@ PixelDissolve(PlaneShowStyle* style)
 		style->clock += style->speed;
 		style->percent++;
 		noChange	= False;
-		style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
+		if (!style->siPlane->AddCount())
+			style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
 	}
 	if ((style->percent >= style->divisions) && noChange)	{
 		if (style->entry) style->deleteMe = True;
@@ -1155,4 +1769,3 @@ PlaneShowStyle* showStyles;
 
 // List of scrolling planes
 PlaneScroll* planeScrolls;
-

@@ -18,8 +18,8 @@ struct TimeMgr : Saveable
 	
 	void				SaveRestore(SaveGame*, Bool save);
 
-} extern * timeMgr;
+};
+extern TimeMgr * timeMgr;
 
 #endif
 
-

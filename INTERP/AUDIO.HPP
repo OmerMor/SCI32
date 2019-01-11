@@ -14,7 +14,6 @@ void Merge(void far *, void *, int, char, char);
 void Distort(void far *, int, char, char);
 void Volume(void far *, int, char, char);
 void Silence(void far *, int, char);
-void Fill(void *, int, char);
 char Decomp4To8(void *, void *, int, char);
 int  Decomp8To16(void *, void *, int, int);
 void Conv16To8(void *, void *, int);
@@ -28,7 +27,6 @@ void DupeChannel(void *, int, int, char);
 #pragma aux (PushArgs) Distort;
 #pragma aux (PushArgs) Volume;
 #pragma aux (PushArgs) Silence;
-#pragma aux (PushArgs) Fill;
 #pragma aux (PushArgs) Decomp4To8;
 #pragma aux (PushArgs) Decomp8To16;
 #pragma aux (PushArgs) Conv16To8;
@@ -37,6 +35,7 @@ void DupeChannel(void *, int, int, char);
 #pragma aux (PushArgs) CopyEOS;
 #pragma aux (PushArgs) DupeChannel;
 
+void		AdjustAudBuffSizes(unsigned *,unsigned *);
 void		AudioServer();
 int		CallDAC(int,int);
 Bool		InitAudioDriver();
@@ -127,19 +126,21 @@ _Packed struct ResAud36Entry {
 struct RobotAudInfo
 {
 	RobotAudInfo(char* buff, int byteLen, int fileLoc)	:
-		adr(buff), blen(byteLen), floc(fileLoc)  {}
+		adr(buff), len(byteLen), floc(fileLoc)  {}
 
 	RobotAudInfo() {}
 
 	char*		adr;			// compressed buffer address
-	int		blen;			// compressed buffer length
-	int		floc;			// original file-relative offset
-	int		bofs[2];		// next uncompressed buffer offset
-	int		hwm[2];		// next uncompressed file-relative offset
+	int		len;			// compressed buffer length
+	int		floc;			// original unc file-rel offset
+	int		ext;			// original unc file-rel extent
+	int		hwm[2];		// highest unc file-rel offset buffered
+	int		min;			// lowest unc file-rel offset that can be buffered
+	int		max;			// highest unc file-rel offset that can be buffered
 	MemID		id;			// uncompressed buffer
-	int		len;			// uncompressed buffer length
+	int		blen;			// uncompressed buffer length
 	int		channel;		// even or odd buffer
-	int		pofs;			// next uncompressed file-relative offset to play
+	int		cofs;			// uncompressed buffer offset
 };
 
 Bool	AudRobot(RobotAudInfo);

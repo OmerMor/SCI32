@@ -26,7 +26,7 @@ ScrollWindowID::Get(SOL_Rect& theWindow,
 						short		theBorder,
 						int		theSize)
 {
-	ID<ScrollWindow, MemWindow>::Get(sizeof(ScrollWindow), LOCKED | LOCKEDNOSAVE);
+	FakeScrollWindowID::Get(sizeof(ScrollWindow), LOCKED | LOCKEDNOSAVE);
 	new(handle) ScrollWindow(theWindow,	thePos, thePlaneID, theFore,
 									theBack,theFont,theMode,theBorder,theSize);
 }
@@ -36,7 +36,7 @@ ScrollWindowID::Free()
 {
 	if(handle)
 		(**this)->~ScrollWindow();
-	ID<ScrollWindow, MemWindow>::Free();
+	FakeScrollWindowID::Free();
 }
 
 // Window with a title
@@ -604,13 +604,13 @@ SOL_Window::GetLineIndices()
 	// Allocate some memory
 	uint lineCount = 100;
 	MemID indexMemory;
-	indexMemory.Get(MemBitmap,(lineCount + 2)*sizeof(uint));
+	indexMemory.Get(MemWindowEntry,(lineCount + 2)*sizeof(uint));
 	MemID fontIndexMemory;
-	fontIndexMemory.Get(MemBitmap,(lineCount + 2)*sizeof(uint));
+	fontIndexMemory.Get(MemWindowEntry,(lineCount + 2)*sizeof(uint));
 	MemID colorIndexMemory;
-	colorIndexMemory.Get(MemBitmap,(lineCount + 2)*sizeof(uint));
+	colorIndexMemory.Get(MemWindowEntry,(lineCount + 2)*sizeof(uint));
 	MemID modeIndexMemory;
-	modeIndexMemory.Get(MemBitmap,(lineCount + 2)*sizeof(uint));
+	modeIndexMemory.Get(MemWindowEntry,(lineCount + 2)*sizeof(uint));
 
 	uint* indices = (uint*) *indexMemory;
 	uint* fonts = (uint*) *fontIndexMemory;
@@ -1341,10 +1341,17 @@ KScrollWindow(argList)
 		SOL_Rect window;
    	SOL_Point pt;
 	
+#ifdef NETWORK
+		pt.x = window.A.x = obj.GetProperty(s_left);
+		pt.y = window.A.y = obj.GetProperty(s_top);
+		window.B.x = obj.GetProperty(s_right);
+		window.B.y = obj.GetProperty(s_bottom);
+#else
 		pt.x = window.A.x = obj.GetProperty(s_nowSeenL);
 		pt.y = window.A.y = obj.GetProperty(s_nowSeenT);
 		window.B.x = obj.GetProperty(s_nowSeenR);
 		window.B.y = obj.GetProperty(s_nowSeenB);
+#endif
 
 		scrollWindow.Get( window, pt,
 						obj.GetProperty(s_planeID),
@@ -1434,10 +1441,18 @@ KScrollWindow(argList)
             if(arg(0) != 3)
                msgMgr->Fatal("Illegal number of arguments to ScrollWindow - RESIZE"); 
 		      obj = arg(3);
+#ifdef NETWORK
+				window.A.x = obj.GetProperty(s_left);
+				window.A.y = obj.GetProperty(s_top);
+				window.B.x = obj.GetProperty(s_right);
+				window.B.y = obj.GetProperty(s_bottom);
+#else
 				window.A.x = obj.GetProperty(s_nowSeenL);
 				window.A.y = obj.GetProperty(s_nowSeenT);
 				window.B.x = obj.GetProperty(s_nowSeenR);
 				window.B.y = obj.GetProperty(s_nowSeenB);
+#endif
+
 				scrollWindow->ResizeWindow(window);
 				break;
 

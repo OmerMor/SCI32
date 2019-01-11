@@ -39,6 +39,12 @@ struct SaveGame {
 	void		SaveRestore(SCIWord& data, Bool save);
 	void		SaveRestore(unsigned& data, Bool save);
 	void		SaveRestore(int& data, Bool save);
+#ifdef MACINTOSH
+	//			Mac Alternate save game functions.
+	short		InitGlobalSaveFile(void);
+	void		SaveGlobalFile(void);
+	short		RestoreGlobalFile(void);
+#endif
 
 protected:
 	void		Do(Saveable::Func, Bool save);
@@ -51,7 +57,7 @@ protected:
 	void		InitBuffer(Bool save);
 	void		MakeDumpFileName(char* dest, char* gameName, int saveNum);
 	Bool		ReadData(void* output, size_t size);
-	void		UInitBuffer();
+	void		UnInitBuffer();
 	Bool		WriteData(void* data, size_t size);
 	Bool		WriteCatalog(char* gameName, char* desc, SCIWord saveNum);
 	void		WriteChecksum();
@@ -73,6 +79,8 @@ protected:
 	ulong		srcCnt;
 	uint		version;
 
-} extern * saveGame;
+};
+extern SaveGame * saveGame;
 
 #endif
+

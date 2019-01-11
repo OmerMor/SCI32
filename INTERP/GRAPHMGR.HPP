@@ -5,6 +5,10 @@
 #include "plane.hpp"
 #endif
 
+#ifndef SHWSTYLE_HPP
+#include "shwstyle.hpp"
+#endif
+
 #ifndef SCREEN_HPP
 #include "screen.hpp"
 #endif
@@ -43,6 +47,7 @@ class GraphicsMgr : public Saveable
 	static 	Bool	drawToPriMap;
    MagnifyView* 	magHead;
 	Bool				vmapValid;
+	Bool           morphOn;
 
 	void		AddPlane(Plane* plane)				{next.AddPlane(plane);}
 	void		AddScreenItem(ScreenItem* si)		{next.AddScreenItem(si);}
@@ -90,7 +95,7 @@ class GraphicsMgr : public Saveable
 	virtual	SOL_Cursor&		GCursor() = 0;
 	virtual	PaletteMgr&		GPalette() = 0;
 	virtual  void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex, char* palArray=0) = 0;
-	virtual  void	 	PalMorphFrameOut(char* palArray=0);
+	virtual  void	 	PalMorphFrameOut(char* palArray=0,PlaneShowStyle* style=0);
 	virtual	void		ClearLastScreen() = 0;
 	virtual	Plane* 	GetPlaneCurrent(int planeId) = 0;
 	virtual	void		PlayMovie(char* filename,int tickCount,int xOff=0,int yOff=0) = 0;
@@ -103,6 +108,7 @@ class GraphicsMgr : public Saveable
 	virtual	char*		SnapShot(char* filename) = 0;
 #endif
 #endif
+	virtual	void	ShowBits() = 0;  // for showstyles only
 
  protected:
 	void	CreatePriMap();
@@ -113,7 +119,6 @@ class GraphicsMgr : public Saveable
 
 	virtual	void	CalcLists(DrawList** drawLists, RectList** eraseLists) = 0;
 	virtual	void	ResizeVmap(int xdim, int ydim) = 0;
-	virtual	void	ShowBits() = 0;
 	virtual	void	UpdateScreen() = 0;
 
 	Bool			lastRemapFlag;

@@ -90,12 +90,13 @@ class HunkPalette
 	};
 
 	public:
+#ifdef MACINTOSH
+	CompPal*	PalAddr() const	{return (CompPal*) ((uchar*) palInHunk + (sizeof(PalHeader) - 1 + (2 * count)));}
+#else
 	CompPal*	PalAddr() const					{return (CompPal*) ((uchar*) palInHunk + (sizeof(PalHeader) + (2 * count)));}
+#endif
 
 };
 
 
 #endif
-
-
-

@@ -539,26 +539,6 @@ silence8:
 
 Silence endp
 
-Fill proc public uses es edi,\
-	outb:near ptr, count:dword, bits:byte
-
-	push	ds
-	pop	es
-	mov	edi, outb
-	mov	ecx, count
-	cmp	bits, 8
-	jle	fill8
-	shr	ecx, 1
-	mov	ax, es:[edi-2]
-	rep	stosw
-	ret
-fill8:
-	mov	al, es:[edi-1]
-	rep	stosb
-	ret
-
-Fill endp
-
 Decomp4To8 proc public uses es edi esi ebx\
 	outb:near ptr, inb:near ptr, count:dword, compVal:byte
 
