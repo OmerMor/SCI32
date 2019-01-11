@@ -256,11 +256,15 @@
 		;
 		; Invoked from the kernel, this starts the game going, then goes into the
 		; main game loop of doit: then wait for the next animation cycle
-
+(MonoOut {Play 1})
 		(= theGame self)
+(MonoOut {Play 2})
 		(= curSaveDir (String new:))
+(MonoOut {Play 3})
 		(= sysLogPath (String new:))
+(MonoOut {Play 4})
 		(curSaveDir data: (SaveGame SGGetSaveDir))
+(MonoOut {Play 5})
 
 		; Setup the cursors
 		(= normalCursor theNormalCursor)

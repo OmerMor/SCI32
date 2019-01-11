@@ -32,6 +32,7 @@ dtext
 dbutton
 dedit
 dicon
+dslider
 plane
 dselectr
 filesel
@@ -73,6 +74,7 @@ movecyc
 randcyc
 osc
 rangeosc
+polyedit
 pmouse
 pchase
 pfollow

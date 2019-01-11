@@ -1,0 +1,20 @@
+; 64994.SHM -- Produced by SCI Message Editor 4.321
+; This file should only be edited with ME
+
+; NOUNS
+
+(define CANCEL_BUTTON     4)
+(define CAT_READ_ERROR   11)
+(define CHG_DIR_BUTTON    5)
+(define DISK_FULL         1)
+(define GAME_DISK         8)
+(define INSERT_DISK       6)
+(define INVALID_DIR       9)
+(define NO_MESSAGE       12)
+(define OK_BUTTON         2)
+(define SAVE_DISK         7)
+(define SAVE_ERROR       10)
+(define WRONG_INTERP      3)
+
+; CASES
+

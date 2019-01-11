@@ -3350,3 +3350,44 @@
 )
 
 
+(classdef Bench
+	script# 0
+	class# 119
+	super# 80
+	file# "0.sc"
+
+	(properties
+		-script- 119
+		-super- 80
+		-info- -32768
+		name 0
+	)
+
+	(methods
+		init
+	)
+)
+
+
+(classdef DummyActor
+	script# 1
+	class# 120
+	super# 48
+	file# "bench.sc"
+
+	(properties
+		-script- 120
+		-super- 48
+		-info- -32768
+		name 0
+	)
+
+	(methods
+		posn
+		setPri
+		setLoop
+		setCel
+	)
+)
+
+

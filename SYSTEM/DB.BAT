@@ -1,2 +1,2 @@
-wvideo /tr=rsi /d=120 scub *.sc
+wd /tr=rsi sierraub -W
 

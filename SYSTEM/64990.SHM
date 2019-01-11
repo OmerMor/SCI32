@@ -1,0 +1,48 @@
+; 64990.SHM -- Produced by SCI Message Editor 4.321
+; This file should only be edited with ME
+
+; NOUNS
+
+(define BUTTON_CANCEL    22)
+(define BUTTON_CHANGE    23)
+(define BUTTON_DELETE    24)
+(define BUTTON_DOWN      40)
+(define BUTTON_NO        31)
+(define BUTTON_NODIRCHG  38)
+(define BUTTON_OK        27)
+(define BUTTON_REPLACE   25)
+(define BUTTON_RESTORE   26)
+(define BUTTON_SAVE      28)
+(define BUTTON_UP        39)
+(define BUTTON_YES       32)
+(define BUT_REPLACE       9)
+(define BUT_RESTORE       7)
+(define BUT_SAVE          8)
+(define CANCEL_BUTTON     5)
+(define CHANGE_BUTTON    18)
+(define DELETE_BUTTON    19)
+(define DEL_NO           13)
+(define DEL_TEXT         12)
+(define DEL_YES          14)
+(define DIALOG_RESTORE   20)
+(define DIALOG_SAVE      21)
+(define DIR_INVALID      29)
+(define DIR_NOROOM       30)
+(define DIR_PROMPT        1)
+(define DTEXT_REPLACE    33)
+(define DTEXT_WITH       34)
+(define INVALID_DIR       2)
+(define NOROOM            6)
+(define NO_DESC           3)
+(define OK_BUTTON         4)
+(define REPLACE_BUTTON   15)
+(define RESTORE_BUTTON   16)
+(define SAVE_BUTTON      17)
+(define SELECT_GAME      10)
+(define TEXT_REPLACE     37)
+(define TEXT_RESTORE     35)
+(define TEXT_SAVE        36)
+(define TYPE_DESC        11)
+
+; CASES
+
