@@ -43,6 +43,8 @@ const unsigned	AUDMODNUM	= 65535U;
 const	unsigned DAC_ARGS_IN	= 5;
 const unsigned MAXSAMPLES = 5;
 const unsigned MAXVOLUME = 127;
+#define AUDIO_TEMP MOVEABLE+TRANSITORY
+#define AUDIO_PERM MOVEABLE+PERSIST
 
 struct Sample {
 	int		attrs;
@@ -306,6 +308,39 @@ KDoAudio(argList)
 			}
 			pm.acc = True;
 			break;
+		case FADE36:
+			if (argCount < 9 && argCount != 6) {
+				pm.acc = -1;
+				break;		
+			}
+			n = FindSampleN(args,0);
+			if (n < 0 || n >= activeSamples) {
+				pm.acc = -1;
+				break;
+			}
+			if (argCount > 6 && sample[n].volume == arg(7)) {
+				pm.acc = -1;
+				break;
+			}
+			if (argCount > 6 && arg(9) == 0) {
+				AudioVolume(arg(9),n);
+				pm.acc = 0;
+				break;
+			}
+			if (argCount > 6) {
+				sample[n].fadeVol = arg(7);
+				sample[n].fadeTicks = arg(8);
+				sample[n].fadeStep = arg(9);
+				sample[n].fadeEnd = argCount >= 10? arg(10) : False;
+			} else {
+				sample[n].fadeVol = 0;
+				sample[n].fadeTicks = 25;
+				sample[n].fadeStep = 10;
+				sample[n].fadeEnd = True;
+			}
+			sample[n].fadeLoc = timeMgr->GetTickCount();
+			pm.acc = sample[n].fadeStep * sample[n].fadeTicks;
+			break;
 		default:
 			msgMgr->Alert(SrcLoc, Msg_NoAudio);
 			pm.acc = 0;
@@ -566,7 +601,7 @@ AudioSelect(int n)
 		CheckRawFormat(n);
 
 	if (preLoad && n+1 >= preLoad && sample[n].fd > 0) {
-		sample[n].id.Get(MemAudioBuffer, sample[n].length);
+		sample[n].id.Get(MemAudioBuffer, sample[n].length, AUDIO_TEMP);
 		sample[n].attrs = sample[n].id.Attrs();
 		memMgr->SetNotDiscardable(sample[n].id);
 		sample[n].id.Read(sample[n].fd);
@@ -638,7 +673,7 @@ AudioSelect(int n)
 	} else
 		sample[n].do11KConv22K = False;
 
-	sample[n].buffID.Get(MemAudioBuffer, intHbufferSize * 2);
+	sample[n].buffID.Get(MemAudioBuffer, intHbufferSize * 2, AUDIO_TEMP);
 	FillBuffer(n);
 	FillBuffer(n);
 
@@ -1544,4 +1579,3 @@ AudioCheck()
 				if (!CallDAC(DAC_LOC,0))
 					AudioStop(n);
 }
-

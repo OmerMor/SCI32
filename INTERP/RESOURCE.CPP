@@ -12,7 +12,6 @@
 #include <sys\stat.h>
 #endif
 
-
 #include "sol.hpp"
 
 #include "audio.hpp"
@@ -47,13 +46,11 @@ ResourceMgr*	resMgr;
 MemID				resPatches;
 MemID				resPatches36;
 
-
 const	NOT_FOUND = 0;
 const	RESOURCE_VOLUME = 4;
 const	ALTERNATE_VOLUME = 2;
 const	AUDIO = 1;
 const	PATCH = 4;
-
 
 #ifdef DEBUG
 Bool	loadingDiskCursor = False;
@@ -166,7 +163,6 @@ SCI16ToSCI32ResType(MemType& t)
 	t = MemType(t & ~0x80);
 }
 
-
 /////////////////////////////////////////////////////////////////////////////
 
 ResourceMgr::ResourceMgr()
@@ -202,8 +198,6 @@ ResourceMgr::Get(MemType resType, ResNum resNum, Bool lock)
 
 	if (!obj->IsSupported())
 		msgMgr->Fatal(SrcLoc, Msg_InvalidResType, (int) resType);
-
-
 
 	// See if already in memory
 	if (id = Find(resType, resNum)) {
@@ -255,6 +249,15 @@ ResourceMgr::Get(MemType resType, ResNum resNum, Bool lock)
 			ShiftPalettePic((uchar*)*id);
 	}
 #endif
+
+	if (obj->GetType() == MemResChunk) {
+		SplitChunk(resTag);
+		// Don't free the remaining chunk stub -- its presence can serve
+		// as a flag to prevent re-loading a 'recent' chunk most of which
+		// may still be memory-resident
+		id.Realloc(1);
+//	   id.Free();
+	}
 
 #ifdef DEBUG
 	if ((graphMgr != NULL)  						&&
@@ -548,7 +551,6 @@ ResourceMgr::DeleteIndex(MemType resType, ResNum resNum)
 	resources[resType].curSize--;
 }
 
-
 #ifdef DEBUG
 void
 ResourceMgr::ExtractResources()
@@ -599,7 +601,6 @@ ResourceMgr::ExtractResources()
 	} while(++resNum);
 }
 #endif
-
 
 void
 ResourceMgr::InitResourceMgr()
@@ -908,7 +909,6 @@ ResourceMgr::DecompBuffer(int requestedSize)
 	return decompID;
 }
 
-
 int
 ResourceMgr::FindOffset(MemType resType, ResNum resNum, int& location)
 {
@@ -941,7 +941,6 @@ ResourceMgr::FindOffset(MemType resType, ResNum resNum, int& location)
 		return(resOffset);
 	}
 
-
 	// If it's another type of file, we're not interested in preloading
 	// it anyway.  This is not necessarily an error though
 
@@ -971,7 +970,7 @@ Compare(const void* ptr1, const void* ptr2)
 }
 
 void
-ResourceMgr::LoadChunk(ResTag& resTagH,int resLength)
+ResourceMgr::SplitChunk(ResTag& resTagH)
 {
 	int num,j;
 	int newIndex;
@@ -981,13 +980,11 @@ ResourceMgr::LoadChunk(ResTag& resTagH,int resLength)
 	MemAttrs attrs;
 	MemID id;
  
-	typedef struct {
+	typedef _Packed struct {
 	MemType resourceType;
-	uchar   compress;
 	ResNum  resourceID;
 	int	  fileOffset;
 	int	  fileLength;
-	int	  expandLength;
 	}	chkHeaderInfo;
 
 	chkHeaderInfo  header;
@@ -997,46 +994,44 @@ ResourceMgr::LoadChunk(ResTag& resTagH,int resLength)
 	num    =	(header.fileOffset)/sizeof(chkHeaderInfo);
 	headers = (chkHeaderInfo*)malloc((num)*sizeof(chkHeaderInfo));
 	memcpy(&headers[0],*resTagH.id,num*sizeof(chkHeaderInfo));
- 
 
+	resTagH.id.SetNotDiscardable();
 
-	for(j=num-1;j>=0;j--) {
+	for(j=num-1; j>=0; j--) {
+
+		// If fileLength is zero skip this resource
+		if (!headers[j].fileLength)
+			continue;
 
 		// If its already in memory, discard it and continue loading
 	   if (id = Find(headers[j].resourceType, headers[j].resourceID)) {
-		  	memMgr->Realloc(resTagH.id,resLength-headers[j].fileLength);
-		  	resLength -= headers[j].fileLength;
+		  	memMgr->Realloc(resTagH.id,resTagH.id.Size()-headers[j].fileLength);
 			continue;
 		}
 	
     	obj = resources[headers[j].resourceType].obj;		
 
-		if (obj->CheckPatches(headers[j].resourceID) != 0)	{
-		  	memMgr->Realloc(resTagH.id,resLength-headers[j].fileLength);
-		  	resLength -= headers[j].fileLength;
+		if (obj->CheckPatches(headers[j].resourceID)) {
+		  	memMgr->Realloc(resTagH.id,resTagH.id.Size()-headers[j].fileLength);
 			continue;
 		}
 
-
 		array = resources[headers[j].resourceType].id;
 
-   // make a copy and work with that, in case the array moves
+	   // make a copy and work with that, in case the array moves
 	   resTag = array[AddIndex(headers[j].resourceType,headers[j].resourceID)];
 
 		attrs =  obj->GetAttrs()  ;
-		resTag.id = memMgr->Split(resTagH.id,headers[j].fileOffset,attrs|headers[j].resourceType,headers[j].resourceID,resMgr);
+		resTag.id = memMgr->Split(resTagH.id,headers[j].fileOffset,
+			attrs|headers[j].resourceType,headers[j].resourceID,resMgr);
 		
     	newIndex = GetIndex(headers[j].resourceType,headers[j].resourceID);
    	array[newIndex] = resTag;
 	}
-#ifdef DEBUG
-	memMgr->SetChecksum(resTagH.id);
-#endif
-   resTagH.id.Free();
-  
+
+	resTagH.id.SetDiscardable();
 	free(headers);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1073,7 +1068,6 @@ KLoadChunk(argList)
 
       pm.acc = (Acc) resMgr->Get((MemType) MemResChunk, (ResNum) arg(1));
 }
-
 
 void
 KLoad(argList)

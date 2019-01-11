@@ -515,12 +515,14 @@ MemoryMgr::Alloc(	MemAttrs			theMemAttrs,
 #ifdef DEBUG
 	if (checkVolatile)
 		VolatileMethod("Alloc");
-	int sum = theSize;
-	for (int id = mruList; id; id = desc[id].next)
-		if (!desc[id].memInfo.bits.moveable)
-			sum += desc[id].size - SIGNATURESIZE;
-	if (sum > roomMaxAloc)
-		roomMaxAloc = sum;
+	if (configMgr->Get(configMgr->RoomMinK)) {
+		int sum = theSize;
+		for (int id = mruList; id; id = desc[id].next)
+			if (!desc[id].memInfo.bits.moveable)
+				sum += desc[id].size - SIGNATURESIZE;
+		if (sum > roomMaxAloc)
+			roomMaxAloc = sum;
+	}
 #endif
 
 	SOL_Handle	theID;
@@ -1206,6 +1208,7 @@ MemoryMgr::Realloc(SOL_Handle theID,size_t theNewSize)
 		SwapOrderedLinks(theID,theNewID);
 
    	// free the old memory allocation
+		desc[theNewID].client = 0;
   		Free(theNewID);
 
    } else if (desc[theID].size > memorySize) {
@@ -1645,8 +1648,11 @@ int
 MemoryMgr::ThrashAdd(SOL_Handle theID)
 {
 	MemType	theType = desc[theID].memInfo.type;
-	
-	if (theType > MemResLast)
+
+// HOOK
+// This show that 0.heap 0.hunk are thrashing early in the game!!	
+//	if (theType > MemResLast)
+	if ((theType != MemResView) && (theType != MemResPic))
 		return 0;
 
 	ushort	theResNumber = desc[theID].resNumber;

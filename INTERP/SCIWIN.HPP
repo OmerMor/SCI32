@@ -27,6 +27,9 @@ extern	BOOL		HIRES;
 extern	BOOL		TRUECOLOR;
 extern	int		forcePPC;
 extern	int		reserveK;
+extern	int		reserveK4;
+extern	int		reserveK8;
+extern	int		reserveK16;
 extern	int		sciMinK;
 extern	int		sciMaxK;
 extern	int		DACSize;
@@ -40,6 +43,8 @@ extern	char		szWinPatchDir[];
 
 #ifndef WIN32S
 extern	HINDIR	hTickCount;
+#else
+extern	int		wingMinK;
 #endif
 
 #endif

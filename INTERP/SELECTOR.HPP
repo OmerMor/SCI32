@@ -248,6 +248,10 @@ const s_mirrored			= 141;
 const s_pitch  			= 142;
 const s_roll   			= 143;
 const s_yaw    			= 144;
+const s_input				= 508;
 
 #endif
-
+
+
+
+

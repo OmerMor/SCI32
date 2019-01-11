@@ -34,6 +34,7 @@ PMachine::Run()
 	
 	setjmp(restartBuf);
 
+	rmResList->NewRoom(0);
 	if (!game) {
 		//	this code can't be executed twice unless we implement restart
 		LoadPropOffsets();
@@ -77,7 +78,6 @@ PMachine::Run()
 	CheckIntegrity("pm start");
 #endif
 
-	NewRoom(0);
 	InvokeMethod(game, startMethod, 0);
 
 #ifdef DEBUG
@@ -399,4 +399,3 @@ PMachine::SaveRestoreAfter(SaveGame* saveGame, Bool save)
 	if (save)
 		globalPtr = (Property*) globals.Lock();
 }
-

@@ -66,7 +66,8 @@ enum	audioFuncs {
 	DACMIXNORMAL,
 	CHANNELS,
 	PRELOAD,
-	FADE
+	FADE,
+	FADE36
 };
 
 // Codes to be sent to the audio driver.

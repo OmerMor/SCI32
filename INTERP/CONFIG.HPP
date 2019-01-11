@@ -30,6 +30,7 @@ public:
 		MonoEcho,
 		PriScreen,
 		PlayAudio,
+		RoomMinK,
 		Translation,
 		VESA,
 		WVIDEO

@@ -21,6 +21,7 @@
 static	Bool	timerEnabled = False;
 #ifndef WIN32S
 int far			*timeToCheck;
+HANDLE			hMylib32;			// kludge
 #else
 int				*timeToCheck;
 #endif
@@ -44,7 +45,6 @@ PUTUNREGISTER	pUTUnRegister = NULL;
 UT32PROC			pfnUTProc = NULL;
 HMODULE			hKernel32 = 0;
 static	DWORD			myArgs[2];
-static	PVOID			TransList[5];
 #endif
 
 
@@ -55,6 +55,7 @@ HINDIR	hInitTimeMgr;
 
 	_disable();
   hlib32 = LoadLibrary( "scidll.dll" );
+  hMylib32 = hlib32;		// kludge
   fp = GetProcAddress( hlib32, "Win386LibEntry" );
 
   hInitTimeMgr = GetIndirectFunctionHandle( fp, INDIR_WORD, INDIR_CDECL, INDIR_ENDLIST );
@@ -210,9 +211,7 @@ TimeMgrWin::EndCheckTime(int *addr)
 {
 	_disable();
 	myArgs[0] = (DWORD)addr;
-	TransList[0] = &myArgs[0];
-	TransList[1] = 0;
-	(* pfnUTProc)(myArgs, (DWORD)DLL_END_CHECK_TIME, TransList);
+	(* pfnUTProc)(myArgs, (DWORD)DLL_END_CHECK_TIME, NULL);
 	_enable();
 }
 #endif
@@ -222,7 +221,7 @@ void UnloadDll(void)
 // All this Thunk stuff should be put in a separate module
 // No time right now. TM 11/8/94
 #ifndef WIN32S
-	FreeLibrary( hlib32 );
+	FreeLibrary( hMylib32 );
 #else
 	(*pUTUnRegister) (Main::hInstance);
 	FreeLibrary(hKernel32);

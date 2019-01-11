@@ -103,8 +103,9 @@ BOOL	  TITLEBAR = TRUE;
 BOOL	  ALLOWRESIZE = TRUE;
 BOOL	  TRUECOLOR = FALSE;
 BOOL	  TRAPCLOSE = TRUE;
+Bool	  WING = FALSE;
 #ifdef WIN32S
-Bool	  WING = TRUE;
+int     wingMinK = 3000;
 #endif
 
 /* Windows sound devices */
@@ -115,7 +116,7 @@ Bool	  WING = TRUE;
 extern  int     MidiType;
 
 static char		szIniFile[50] = "resource.win";
-static char		szTitle[30] = "Sierra On-Line";
+static char		szTitle[80] = "Sierra On-Line";
 static char		szInfo[] = "Windows";
 static char		szAppName [] = "SciWin" ;
 char				szWinPatchDir[50] = "";
@@ -129,8 +130,11 @@ int     forceWidth = 0;
 int     forceHeight = 0;
 int     ratioX, ratioY;
 int     reserveK = 0;
+int     reserveK4 = 0;
+int     reserveK8 = 0;
+int     reserveK16 = 0;
 int     sciMinK = 1500;
-int     sciMaxK = 2000;
+int     sciMaxK = 8000;
 int     vmapWidth = 640;
 int     vmapHeight = 480;
 int	  DACSize = 10240;
@@ -400,8 +404,14 @@ char            buff[80];
 	borderPixels	= GetPrivateProfileInt ((LPSTR)szInfo, "borderpixels", 5, (LPSTR)szIniFile);
 	gameBorder = borderPixels;
 	reserveK			= GetPrivateProfileInt ((LPSTR)szInfo, "reservek", 0, (LPSTR)szIniFile);
+	reserveK4		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek4", 700, (LPSTR)szIniFile);
+	reserveK8		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek8", 1500, (LPSTR)szIniFile);
+	reserveK16		= GetPrivateProfileInt ((LPSTR)szInfo, "reservek16", 2000, (LPSTR)szIniFile);
 	sciMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "scimink", 1500, (LPSTR)szIniFile);
-	sciMaxK			= GetPrivateProfileInt ((LPSTR)szInfo, "scimaxk", 2000, (LPSTR)szIniFile);
+	sciMaxK			= GetPrivateProfileInt ((LPSTR)szInfo, "scimaxk", 8000, (LPSTR)szIniFile);
+#ifdef WIN32S
+	wingMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "wingmink", 3000, (LPSTR)szIniFile);
+#endif
 #ifndef COLORCUR
 	cursorViewAdd	= GetPrivateProfileInt ((LPSTR)szInfo, "cursorviewadd", 0, (LPSTR)szIniFile);
 #else
@@ -610,7 +620,7 @@ BOOL                            dlgResult;
 	}
 #endif
 
-#ifdef WIN32S
+#ifdef WIN32SX
 	if (WING) {
 		if (!WingInit(640,480)) {
 			WING = FALSE;
@@ -772,7 +782,7 @@ struct {
 			}
 			break;
 
-#ifdef WIN32S
+#ifdef XWIN32S
 		case WM_PALETTECHANGED:
 			// This was added because when the application called WinHelp,
 			// the user minimized the help screen, and the application then

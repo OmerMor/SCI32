@@ -34,22 +34,22 @@ public:
 	virtual void			MakeName(char* dest, char* fileSpec, ResNum) const;
 	virtual void  			MakeWildName(char* dest, char* fileSpec) const;
 	virtual int				Open(ResNum, char* path = 0);
-	virtual int			FindDirEntry(ResNum, MemID) const;
-	virtual int			FindPatchEntry(ResNum) const;
-	virtual MemType	GetType() const 			{ return MemResNone; }
-	virtual int       CheckPatches(ResNum num, char* path=0);
-	virtual MemAttrs	GetAttrs() const
+	virtual int				FindDirEntry(ResNum, MemID) const;
+	virtual int				FindPatchEntry(ResNum) const;
+	virtual Bool			CheckPatches(ResNum) const;
+	virtual MemType		GetType() const 			{ return MemResNone; }
+	virtual MemAttrs		GetAttrs() const
 								{ return DISCARDABLE | MOVEABLE | CHECKSUMMABLE; }
 
 protected:
-	virtual void		ConfirmType(MemType) const;
-	virtual void		Decompress(ResTag&) const;
-	virtual int			FindPatch36Entry(char*) const;
-	virtual long		GetFileSize() const;
-	virtual MemType	GetFileType() const 		{ return GetType(); }
-	virtual void		MakeName(char* dest, char* fileSpec, char* rootName) const;
-	virtual int			Read(void* dest, int num) const;
-	virtual int			SeekToData() const;
+	virtual void			ConfirmType(MemType) const;
+	virtual void			Decompress(ResTag&) const;
+	virtual int				FindPatch36Entry(char*) const;
+	virtual long			GetFileSize() const;
+	virtual MemType		GetFileType() const 		{ return GetType(); }
+	virtual void			MakeName(char* dest, char* fileSpec, char* rootName) const;
+	virtual int				Read(void* dest, int num) const;
+	virtual int				SeekToData() const;
 
 	char			ext[MaxExt + 1];
 	char*			label;
@@ -170,4 +170,3 @@ struct ResMsgTranslation : SOL_ResType {
 };
 
 #endif  //RESTYPE_HPP
-

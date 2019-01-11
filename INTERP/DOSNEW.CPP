@@ -94,7 +94,7 @@ KFileIO(argList)
 									arg(4), ((TextID)arg(3)).Size());
 			}
 #endif
-			pm.acc = (Acc) ReadMemID(arg(2), (TextID) arg(3), arg(4));
+			pm.acc = (Acc) Read(arg(2), *(TextID) arg(3), arg(4));
 			break;
 
 		case fileWrite:
@@ -411,34 +411,44 @@ Open(const char* name, uint mode)
 int
 ReadMemID(int fd, MemID id, int size)
 {
-	static Bool checking = False;
+	//	read 'n' bytes from file 'fd' into the hunk pointed to by 'id'
 
-	if (activeSamples && size >= 65536 && !checking) {
-		int requested, received;
-		int bytesRead = 0;
-		int filePos = LSeek(fd,0,SEEK_CUR);
-		do {
-			char* cp = (char *)*id+bytesRead;
-			checking = True;
-			AsyncEventCheck();
-			checking = False;
-			critErrHandler->Clear();
-			LSeek(fd,filePos,SEEK_SET);
-			bytesRead += received = read(fd, cp, requested = Min(size,65536));
-			filePos += received;
-			if (received != requested)
-				return received;
-		} while (size -= requested);
-		return bytesRead;
-	} else
-		return Read(fd,*id,size);
+	return Read(fd, *id, size);
 }
 
 int
 Read(int fd, void* buf, int n)
 {
-	critErrHandler->Clear();
-	return read(fd, buf, n);
+	static Bool checking = False;
+	uchar* buffer = (uchar*) buf;
+
+	if (activeSamples && n > 65536 && !checking) {
+		int requested, received, total = n;
+		char* cp = (char *)buf;
+		do {
+			checking = True;
+			AsyncEventCheck();
+			checking = False;
+			critErrHandler->Clear();
+			cp += received = read(fd, cp, requested = Min(n,65536));
+			if (received != requested)
+				return received;
+		} while (n -= requested);
+		return total;
+	}
+	else {
+		critErrHandler->Clear();
+		int count = 0;
+		int smallsector = n / 2048;
+		for (int i = 0; i < smallsector; i++)  {
+			count += read(fd, buffer, 2048);
+			buffer += 2048;
+		}
+		int remain = n % 2048;
+		if (remain)
+			count += read(fd, buffer, remain);
+		return count;
+	}
 }
 
 int
@@ -792,3 +802,4 @@ GetCurDevice(char* device)
 	GetCWD(path);
 	GetDevice(path, device);
 }
+

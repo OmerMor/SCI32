@@ -121,20 +121,23 @@ GraphicsMgrWin::AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray)
 
 	Rgb24 oldColor,newColor;
 	uchar pixels[256];
-	int i,j,newVal,index,oldVal;
+	int i,j,index;
+	long	oldVal, newVal;
 
-	for(i=0;i<236;i++) {
+	for(i=0;i<256;i++) {
+		pixels[i] = i;
+		oldColor = (*myPal)[i];
+
 		if (palArray[i] == palIndex) {
-			oldVal = 65535;
-			oldColor = (*myPal)[i];
+			oldVal = 65535 * 4; // get a number larger than we generate
 
-			for(j=0;j<256;j++) {
-				if (palArray[j] != palIndex) {
+			for(j=0;j<236;j++) {
+				if ((palArray[j] != palIndex) && (palArray[j] != 0)) {
 					newColor = (*myPal)[j];
-					newVal   = abs(oldColor.red-newColor.red) + 
-								  abs(oldColor.blue-newColor.blue) +
-								  abs(oldColor.green-newColor.green);
-
+					newVal   = (oldColor.red-newColor.red)*(oldColor.red-newColor.red) + 
+								  (oldColor.blue-newColor.blue)*(oldColor.blue-newColor.blue) +
+								  (oldColor.green-newColor.green)*(oldColor.green-newColor.green);
+								  // sum of squares difference
 					if (newVal < oldVal)	{
 						oldVal = newVal;
 						index  = j;
@@ -146,15 +149,17 @@ GraphicsMgrWin::AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray)
 	}
 
 	for(i=0;i<next.Xdim()*next.Ydim();i++)	{
-
-		if (palArray[buffer.start[i]] == palIndex) {	 // found odd pixel
 #ifdef WIN32S
-			if (WING)
-				buffer.start[i] = (uchar) pixels[buffer.start[i] - 10] + 10;	
-			else
+		if (WING) {
+		if (palArray[buffer.start[i]-10] == palIndex) {	 // found odd pixel
+							buffer.start[i] = (uchar) pixels[buffer.start[i] - 10] + 10;	
+		} 
+		}	else
 #endif
+		if (palArray[buffer.start[i]] == palIndex) 	 // found odd pixel
 				buffer.start[i] = (uchar) pixels[buffer.start[i]];	
-		}
+		
+
 	}
 
 }

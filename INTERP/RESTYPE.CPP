@@ -11,7 +11,8 @@
 #include "msg.hpp"
 #include "resource.hpp"
 #include "dcomp.hpp"
-#include "roomlist.hpp"
+#include "newroom.hpp"
+#include "memtype.hpp"
 
 int	SOL_ResType::fd = -1;
 int	SOL_ResType::resLength;
@@ -59,7 +60,7 @@ SOL_ResType::Load(ResTag& tag, Bool lock)
 
 	int result = 0;
 	if (fd == sfxVolFD) {
-		result = ::Read(fd, *tag.id, resLength);
+		result = ::ReadMemID(fd, tag.id, resLength);
 	} else if (fd != altVolFD && fd != resVolFD) {
 		result = tag.id.Read(fd);
 		Close(fd);
@@ -67,33 +68,32 @@ SOL_ResType::Load(ResTag& tag, Bool lock)
 	} else if (volEntryHeader.compressUsed == 0x20) {
 		if(volEntryHeader.resId != tag.resNum)
 			msgMgr->Fatal(SrcLoc,Msg_ResourceData);
-//msgMgr->Alert("COMPRESSED RESOURCE: %d%s\n",tag.resNum,GetExtension());
 		Decompress(tag);
 	} else {
 		if(volEntryHeader.resId != tag.resNum)
-			msgMgr->Alert(SrcLoc,Msg_ResourceData);
+			msgMgr->Fatal(SrcLoc,Msg_ResourceData);
 
-			result = ::Read(fd, *tag.id,resLength);
-			if (result != resLength)
-				msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
-			if (tag.id[0] == 0xff)
-				return;
-
+		result = ::ReadMemID(fd, tag.id, resLength);
+		if (result != resLength)
+			msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
+		if (tag.id[0] == 0xff) {
+			tag.id.Realloc(resLength);
+			return;
+		}
 	}
 
 	if (result == -1)
 		msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
 
-	if (GetType() == MemResChunk)
-		resMgr->LoadChunk(tag,resLength);
+	tag.id.Realloc(resLength);
 }
 
 void
 SOL_ResType::Decompress(ResTag& tag) const
 {
 	char* src;
-	if (::Read(fd, src = (char*)*resMgr->DecompBuffer(compressedLength),
-			compressedLength) != compressedLength)
+	MemID srcID = resMgr->DecompBuffer(compressedLength);
+	if (::ReadMemID(fd, srcID, compressedLength) != compressedLength)
 		msgMgr->Fatal(SrcLoc, Msg_ResLoadErr, tag.resNum, GetExtension());
 	char* dest = (char*) *tag.id;
 	char* workBuffer = (char*) *resMgr->decompWorkBuffer;
@@ -139,8 +139,8 @@ SOL_ResType::Open(ResNum num, char* path)
 			resOffset = SeekToData();
 			resLength = GetFileSize() - resOffset;
 #ifdef DEBUG	
-		   if (configMgr->GetNTokens("tracking"))
-				rmResList->Add(GetType(), num);
+		   if (tracking)
+				rmResList->Add(GetType(), num, resLength);
 #endif
 			return fd;
 		}
@@ -158,8 +158,8 @@ SOL_ResType::Open(ResNum num, char* path)
 			resOffset = SeekToData();
 			resLength = GetFileSize() - resOffset;
 #ifdef DEBUG	
-		   if (configMgr->GetNTokens("tracking"))
-				rmResList->Add(GetType(), num);
+		   if (tracking)
+				rmResList->Add(GetType(), num, resLength);
 #endif
 			return fd;
 		}
@@ -175,8 +175,8 @@ SOL_ResType::Open(ResNum num, char* path)
 		resLength = volEntryHeader.expandedLength;
 		compressedLength = volEntryHeader.compressedLength;
 #ifdef DEBUG	
-	   if (configMgr->GetNTokens("tracking"))
-			rmResList->Add(GetType(), num);
+	   if (tracking)
+			rmResList->Add(GetType(), num, resLength);
 #endif
 		return altVolFD;
 	}
@@ -198,8 +198,8 @@ SOL_ResType::Open(ResNum num, char* path)
 				resOffset = 0;
 			resLength = GetFileSize() - resOffset;
 #ifdef DEBUG	
-		   if (configMgr->GetNTokens("tracking"))
-				rmResList->Add(GetType(), num);
+		   if (tracking)
+				rmResList->Add(GetType(), num, resLength);
 #endif
 			return fd;
 		}
@@ -224,8 +224,8 @@ SOL_ResType::Open(ResNum num, char* path)
 			resLength += hdrLength;
 			LSeek(fd,resOffset,SEEK_SET);
 #ifdef DEBUG	
-		   if (configMgr->GetNTokens("tracking"))
-				rmResList->Add(GetType(), num);
+		   if (tracking)
+				rmResList->Add(GetType(), num, resLength);
 #endif
 			return sfxVolFD;
 		}
@@ -239,8 +239,8 @@ SOL_ResType::Open(ResNum num, char* path)
 		compressedLength = volEntryHeader.compressedLength;
 
 #ifdef DEBUG	
-		if (configMgr->GetNTokens("tracking"))
-			rmResList->Add(GetType(), num);
+	   if (tracking)
+			rmResList->Add(GetType(), num, resLength);
 #endif
 		return resVolFD;
 	}
@@ -399,31 +399,11 @@ SOL_ResType::FindPatch36Entry(char* name) const
 	return -1;
 }
 
-int
-SOL_ResType::CheckPatches(ResNum num, char* path)
+Bool
+SOL_ResType::CheckPatches(ResNum num) const
 {
 	// check patch table and alternate-resource volume
-	int dirNum = FindPatchEntry(num);
-	int dirNum36 = FindPatch36Entry(path);
-	resOffset = FindDirEntry(num, alternateMap);
-
-	// if patched resource found, use it unless it is also found in the
-   // alternate-resource volume at an earlier patchDir-specified dir
-	if (dirNum != -1 && (resOffset == -1 || altDirNum >= dirNum)) {
-			return(1);
-	}
-
-	// if found in patch36 table use it
-	if (dirNum36 != -1) {
-			return(1) ;
-	}
-
-	// if found in alternate-resource volume use it
-	if (resOffset != -1) {
-		// requested resource is alternate volume-resident
-		return (1);
-	}
-   return(0);
+	return FindPatchEntry(num) != -1 || FindDirEntry(num, alternateMap) != -1;
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -61,7 +61,7 @@ public:
 
 	MemID		DecompBuffer(int requestedSize = 0);
 	MemID		decompWorkBuffer;
-	void 		LoadChunk(ResTag& resTagH,int fLength);
+	void 		SplitChunk(ResTag& resTagH);
 	MemType	GetExtType(char*);
 
 

@@ -304,7 +304,7 @@ enum {    // enums for KScrollWindow kernel call
 };
 
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(NOT_SHIPPING_VERSION)
 // external subroutines:
 EventWindow*	CenterXWindow(char* contents,
 								  char* title,

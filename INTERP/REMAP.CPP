@@ -251,7 +251,7 @@ Remap::SaveRestore(SaveGame* saveGame, Bool save)
       	saveGame->SaveRestore(&(singleRemap[j]->delta), sizeof singleRemap[j]->delta, save);
          if (!save)  {
 				updateFlag = True;
-				remapOn[254 - j] = True;
+				remapOn[REMAP_END_COLOR - j] = True;
 			}
       }
    }
@@ -563,14 +563,14 @@ Remap::SingleRemap::Apply(uchar* targetChanged)
 
 			int distance;
 			//	 If the color and remap color didn't change, check new list only
-			if (!targetChanged[i]  &&  !colorChanged[remap[j]])  {
+			if (!targetChanged[i]  &&  !colorChanged[remap[j] - PALSHIFT])  {
 				//  NEW **** Ignore search for better - has failed KQ7 - DF - 10/26/94
 				continue;
 			}
 
 			//  If they both changed and within previous tolerance, don't search
-			if (targetChanged[i]  &&  colorChanged[remap[j]])
-				if (dist[i] < 100  &&  targetColor[i].Dist(colorArray[remap[j]]) <= dist[i])
+			if (targetChanged[i]  &&  colorChanged[remap[j] - PALSHIFT])
+				if (dist[i] < 100  &&  targetColor[i].Dist(colorArray[remap[j] - PALSHIFT]) <= dist[i])
 					continue;
 
 			int result = graphMgr->GPalette().Next().Match(targetColor[i], dist[i], &distance, colorForbidden);

@@ -88,6 +88,12 @@ SCI::MakeFontMgr()
 ResourceMgr*
 SCI::MakeResourceMgr()
 {
+#ifdef NOT_SHIPPING_VERSION
+	if (*configMgr->Get("thrashDetect", 0))  {
+		thrashDetectCount = atoi(configMgr->Get("thrashDetect", 0));
+		thrashReporting = False;
+	}
+#endif
 	return New ResourceMgr;
 }
 
@@ -100,6 +106,7 @@ SCI::Run(int argc, char* argv[])
 		resMgr->ExtractResources();
 	else
 #endif
+//	pm.Run();
 	Test();
 }
 

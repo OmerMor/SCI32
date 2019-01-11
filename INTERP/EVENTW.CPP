@@ -23,7 +23,15 @@ EventMgrWin::Get(SOL_Event* event, SOL_Event::Type mask)
 	
 	// first, see if anything in Windows' event queue
 	AsyncEventCheck();
-	return EventMgr::Get(event, mask);
+	Bool rc = EventMgr::Get(event, mask);
+	
+	//	capture mouse on mouse down and release it on mouse up
+	if (event->type == SOL_Event::MouseDown)
+		SetCapture(hMyWnd);
+	else if (event->type == SOL_Event::MouseUp)
+		ReleaseCapture();
+	
+	return rc;
 }
 
 Kbd::Mod

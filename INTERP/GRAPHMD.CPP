@@ -68,19 +68,20 @@ GraphicsMgrDOS::AlterVMAP(SOLPalette* myPal,int palIndex, char* palArray)
 
 	Rgb24 oldColor,newColor;
 	uchar pixels[256];
-	int i,j,newVal,index,oldVal;
+	int i,j,index;
+	long newVal, oldVal;
 
 	for(i=0;i<256;i++) {
 		if (palArray[i] == palIndex) {
-			oldVal = 65535;
+			oldVal = 65535 * 4; // get a number larger than we will generate
 			oldColor = (*myPal)[i];
 
-			for(j=0;j<256;j++) {
+			for(j=0;j<236;j++) {
 				if (palArray[j] != palIndex) {
 					newColor = (*myPal)[j];
-					newVal   = abs(oldColor.red-newColor.red) + 
-								  abs(oldColor.blue-newColor.blue) +
-								  abs(oldColor.green-newColor.green);
+					newVal   = (oldColor.red-newColor.red)*(oldColor.red-newColor.red) + 
+								  (oldColor.blue-newColor.blue)*(oldColor.blue-newColor.blue) +
+								  (oldColor.green-newColor.green)*(oldColor.green-newColor.green);
 
 					if (newVal < oldVal)	{
 						oldVal = newVal;

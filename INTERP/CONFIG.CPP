@@ -38,6 +38,7 @@ struct FlagEntry {
 	FlagEntry('M', "   Mono monitor echo Alert messages"),
 	FlagEntry('p', "   priority screen allocated, enable related features"),
 	FlagEntry('P', "   Play digital audio test (examples: -P100.WAV -PA0010203.045)"),
+	FlagEntry('r', "   room-by-room min memory requirements printed to C:\\DUMP"),
 	FlagEntry('t', "   translation messages shown on mono monitor"),
 	FlagEntry('v', "   vesa mode (obsolete; use videoDrv=vesa.drv in CFG file)"),
 	FlagEntry('W', "   WVIDEO compatibility")

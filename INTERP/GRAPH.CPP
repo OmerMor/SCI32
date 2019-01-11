@@ -10,6 +10,7 @@
 #include	"line.hpp"
 #include	"magnify.hpp"
 #include "msg.hpp"
+#include "newroom.hpp"
 #include "object.hpp"
 #include "pmachine.hpp"
 #include "rect.hpp"
@@ -125,6 +126,9 @@ KFrameOut(kArgs)
 #ifdef NOT_SHIPPING_VERSION
 	if (doThrashReport)
 		memMgr->ThrashReport();
+#endif
+#ifdef DEBUG
+	trackingFrameOut = True;
 #endif
 
 	if (showStyles)

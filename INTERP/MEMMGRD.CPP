@@ -7,6 +7,7 @@
 
 #include "sol.hpp"
 
+#include "config.hpp"
 #include "memmgrd.hpp"
 #include "newroom.hpp"
 
@@ -120,8 +121,10 @@ MemoryMgrDOS::~MemoryMgrDOS()
 	char buf[100];
 	sprintf(buf, "Heap high water mark: %u bytes\n", highWaterMark);
 	msgMgr->AddFatalStr(buf);
-	sprintf(buf,"Min bytes required:%d in Room# %d\n",gameMaxAloc,gameMaxRoom);
-	msgMgr->AddFatalStr(buf);
+	if (configMgr->Get(configMgr->RoomMinK)) {
+		sprintf(buf,"Min bytes required:%d in Room# %d\n",gameMaxAloc,gameMaxRoom);
+		msgMgr->AddFatalStr(buf);
+	}
 #endif
 
 	for (int i = 0; i < convAllocs; i++) {

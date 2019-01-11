@@ -26,7 +26,7 @@
 
 // This is for thrashing detection
 // Remove the define on the shipping game
-//#define NOT_SHIPPING_VERSION
+#define NOT_SHIPPING_VERSION
 
 #ifndef MEMTYPE_HPP
 #include "memtype.hpp"

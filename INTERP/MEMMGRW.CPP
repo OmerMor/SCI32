@@ -14,34 +14,37 @@
 #include "mbox.hpp"
 #include "msg.hpp"
 #include "newroom.hpp"
+#include "shiftpal.hpp"
 #include "sound.hpp"
 
 
 #ifdef WIN32S
+#include "wingfunc.hpp"
 #include "scidllws.h"
 #define	W32SUT_32
 #include "w32sut.h"
 extern	UT32PROC	pfnUTProc;
-static	DWORD			Args[5];
-static	PVOID			TransList[5];
+static	DWORD		Args[5];
 #endif
 
-void UnloadDll(void);
+void	UnloadDll(void);
+int	GetMemSize(int limit);
 
-#define DPMI_INT	0x31
-#define	MAXIMUM_SYSTEM_MEMORY			8192* 1024
+#define	DPMI_INT								0x31
+#define	MAXIMUM_SYSTEM_MEMORY			8192 * 1024
+#define	WINGSIZE								400  * 1024
 
 extern	uchar *wAudioBuffAddr;
 int	wAudioBuffSize;
+int	cursorBuffSize;
 
 #ifdef COLORCUR
 extern	uchar *cursorBuffAddr;
 extern	int	maxCursorSize;
-int				cursorBuffSize;
 #endif
 
+HLOCAL	hLocal;
 #ifdef WIN32S
-HLOCAL	hMem;
 HGLOBAL	hAudioBuff;
 #ifdef COLORCUR
 HGLOBAL	hCursorBuff;
@@ -63,23 +66,61 @@ size_t
 MemoryMgrWin::GetSysMemAvail()
 {
 int sciMin, sciMax, availMem;
-int hiSize, loSize, currSize;
-int reserveMem, totMem, allocMem;
+int totMem, allocMem;
+int reserveMem;
+int reserveMem4;
+int reserveMem8;
+int reserveMem16;
+int totExternalBuffs;
 DWORD		lockedPageSize;
 char		errbuff[200];
 
 #ifdef WIN32S
+int wingMin;
 int maxSize;
-HLOCAL hGlobal;
+int lockableSize;
+#else
+int hiSize, loSize, currSize;
+#endif
+	
+	memPtrWin = NULL;
+	wAudioBuffAddr = NULL;
+	lockedPagePtr = NULL;
+#ifdef COLORCUR
+	cursorBuffAddr = NULL;
 #endif
 
 	wAudioBuffSize = DACSize;
 	reserveMem = reserveK * 1024;
+	reserveMem4 = reserveK4 * 1024;
+	reserveMem8 = reserveK8 * 1024;
+	reserveMem16 = reserveK16 * 1024;
 	sciMin = sciMinK * 1024;
 	sciMax = sciMaxK * 1024;
 	lockedPageSize = 0;
+	cursorBuffSize = 0;
+#ifdef WIN32S
+	lockableSize = PageLockableBytes();
+	if (lockableSize < (4 * 1024 * 1024))
+		reserveMem = reserveMem4;
+	else if (lockableSize < (8 * 1024 * 1024))
+		reserveMem = reserveMem8;
+	else 		  
+		reserveMem = reserveMem16;
+	if (SHOWMEM) {
+		sprintf(mbuff,"detected:%d reserving:%d",lockableSize,reserveMem);
+		MBox(mbuff,"");
+	}
+#endif
+
+	totExternalBuffs = wAudioBuffSize + reserveMem;
+#ifdef COLORCUR
+	cursorBuffSize = 12 * maxCursorSize;
+	totExternalBuffs += cursorBuffSize;
+#endif
 
 #ifndef WIN32S
+//************************** NOT WIN32S ***********************************
 	lockedPageSize = smallMidiSize + largeMidiSize + 
 							(numSoundNodes * sizeof(SNodeData)) + 30;
 	lockedPagePtr = (char far *)AllocWinMem(lockedPageSize, PAGELOCK);
@@ -112,68 +153,81 @@ HLOCAL hGlobal;
 	_nheapmin();
 
 #else
+//************************** WIN32S ***********************************
 
-	maxSize = MAXIMUM_SYSTEM_MEMORY + wAudioBuffSize + reserveMem;
+	wingMin = wingMinK * 1024;
 
-	totMem = PageLockableBytes();
-	if (totMem > maxSize)
-		totMem = maxSize;
+	// How much do we want for the memory manager?
+	if (sciMax > MAXIMUM_SYSTEM_MEMORY)
+		maxSize = MAXIMUM_SYSTEM_MEMORY;
+	else
+		maxSize = sciMax;
 
-	// Now see if we can actually allocate this much.  If not,
-	// find out how much we can get.
-	hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)totMem);
-	if (!hGlobal) {
-		hiSize = totMem;
-		loSize = 0;
+	// Add in the external buffers
+	maxSize += totExternalBuffs;
 
-		while ((hiSize - loSize) > 1000) {
-			currSize = (hiSize + loSize) / 2;
-			hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)currSize);
-			if (hGlobal) {
-				GlobalFree(hGlobal);
-				loSize = currSize;			
+	if (WING) 
+		// Add in WinG size
+		maxSize += WINGSIZE;
+
+	// find out how much we can get up to the limit
+	totMem = GetMemSize(maxSize);
+
+#endif
+
+
+	// Subtract off the external buffers
+	availMem = totMem - totExternalBuffs;
+
+	allocMem = availMem;
+
+#ifdef WIN32S
+	if (WING) {
+		// do we have enough memory to run WinG?
+		if (wingMin > allocMem) {
+			WING = FALSE;
+			if (SHOWMEM)
+				MBox("Not enough memory for WING","");
+		} else {
+			// load WinG
+			if (!WingInit(640,480)) {
+				WING = FALSE;
+				if (SHOWMEM)
+					MBox("Could not load WING","");
 			} else {
-				hiSize = currSize;
+				if (SHOWMEM) {
+					sprintf(mbuff, "total:%d\n\n-reserve:%d\n-audio:%d\n-midi:%d\n-cursor:%d\n\navailable:%d",
+						totMem, reserveMem, wAudioBuffSize, lockedPageSize, cursorBuffSize, allocMem);
+					MBox(mbuff,"Before WING");
+				}
+				// reduce avail memory by amount WinG takes
+//				totMem = GetMemSize(totMem);
+				totMem -= WINGSIZE;
+				allocMem = totMem - totExternalBuffs;
 			}
-		}
-		totMem = loSize;
-	} else {
-		GlobalFree(hGlobal);
+		}	
 	}
 
+	if (SHOWMEM) {
+		if (WING)
+			MBox("Using WinG","");
+		else
+			MBox("Not using WinG","");
+	}
 #endif
-
-
-	// Subtract off reserve and audio buffer
-	availMem = totMem - reserveMem - wAudioBuffSize;
-#ifdef COLORCUR
-	cursorBuffSize = 12 * maxCursorSize;
-	availMem -= (cursorBuffSize);
-#endif
-
-	// Get what we can up to sciMax.  After that, split the difference.
-	if (sciMax > availMem)
-		allocMem = availMem;
-	else
-		allocMem = sciMax + ((availMem - sciMax) / 2);
 
 	if (SHOWMEM) {
-#ifndef COLORCUR
-		sprintf(mbuff, "alloc:%d\ntot:  %d\nres:  %d\naud:  %d\npage lock:  %d",
-					allocMem, totMem, reserveMem, wAudioBuffSize, lockedPageSize);
-#else
-		sprintf(mbuff, "alloc:%d\ntot:  %d\nres:  %d\naud:  %d\ncur:  %d\npage lock:  %d",
-					allocMem, totMem, reserveMem, wAudioBuffSize, cursorBuffSize, lockedPageSize);
-#endif
+		sprintf(mbuff, "total:%d\n\n-reserve:%d\n-audio:%d\n-midi:%d\n-cursor:%d\n\navailable:%d",
+					totMem, reserveMem, wAudioBuffSize, lockedPageSize, cursorBuffSize, allocMem);
 		MBox(mbuff,"Memory");
 	}
 
-	if (sciMin > availMem) {
+	if (sciMin > allocMem) {
 		// If not enough memory, can't play.
 		sprintf(errbuff, "You need %d more bytes of available memory to "
 					"run under Windows.  If other applications are running, "
 					"you might try terminating them.",
-					sciMin - availMem);
+					sciMin - allocMem);
 		MBox(errbuff,"");  
 		exit(255);
 	}
@@ -214,7 +268,13 @@ MemoryMgrWin::GetSysMem(size_t theSize)
 
 #else
 	// allocate for the memory manager
-	memPtrWin = (char *)AllocWinMem(theSize, LOCKMAIN);
+//	memPtrWin = (char *)AllocWinMem(theSize, LOCKMAIN);
+	hLocal = LocalAlloc(LMEM_MOVEABLE | LMEM_ZEROINIT, (UINT)theSize);
+	if (!hLocal) {
+		MBox("main alloc error","");
+		return (char *)0;
+	}
+	memPtrWin = (char *)LocalLock(hLocal);
 	if (!memPtrWin) {
 		MBox("mem alloc error","");
 		return (char *)0;
@@ -255,8 +315,10 @@ MemoryMgrWin::~MemoryMgrWin()
 	FreeWinMem(lockedPagePtr, PAGELOCK);
 
 #else
-	FreeWinMem(memPtrWin, PAGELOCK);
-	FreeWinMem(wAudioBuffAddr, PAGELOCK);
+//	FreeWinMem(memPtrWin, LOCKMAIN);
+	LocalUnlock(hLocal);
+	LocalFree(hLocal);
+	FreeWinMem(wAudioBuffAddr, LOCKAUDIO);
 #ifdef COLORCUR
 	FreeWinMem(cursorBuffAddr, PAGELOCK);
 #endif
@@ -286,6 +348,63 @@ void
 MemoryMgrWin::FreeConvMem(char *base)
 {
 	char *x = base;
+}
+
+int	GetMemSize(int limit)
+{
+int hiSize, loSize, currSize, lockableSize;
+//HLOCAL hGlobal;
+
+	// do DPMI call to get number of bytes which are lockable
+	lockableSize = PageLockableBytes();
+
+	// subtract 16k from this number; it's always too large
+	lockableSize -= 16384;
+
+	// only go after what was requested
+	if (lockableSize < limit)
+		limit = lockableSize;
+
+	if (SHOWMEM) {
+		sprintf(mbuff,"start size:%d",limit);
+		MBox(mbuff,"");
+	}
+
+	// try to get it
+//	hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)limit);
+//	hGlobal = GlobalAlloc(GMEM_MOVEABLE, (UINT)limit);
+	hLocal = LocalAlloc(LMEM_MOVEABLE, (UINT)limit);
+//	if (!hGlobal) {
+	if (!hLocal) {
+		// if couldn't get it, do binary search
+		hiSize = limit;
+		loSize = 0;
+
+		while ((hiSize - loSize) > 1000) {
+			currSize = (hiSize + loSize) / 2;
+//			hGlobal = GlobalAlloc(GMEM_FIXED, (UINT)currSize);
+//			hGlobal = GlobalAlloc(GMEM_MOVEABLE, (UINT)currSize);
+			hLocal = LocalAlloc(LMEM_MOVEABLE, (UINT)currSize);
+//			if (hGlobal) {
+			if (hLocal) {
+//				GlobalFree(hGlobal);
+				LocalFree(hLocal);
+				loSize = currSize;			
+			} else {
+				hiSize = currSize;
+			}
+		}
+		limit = loSize;
+	} else {
+//		GlobalFree(hGlobal);
+		LocalFree(hLocal);
+	}
+
+	if (SHOWMEM) {
+		sprintf(mbuff,"end size:%d",limit);
+		MBox(mbuff,"");
+	}
+	return limit;
 }
 
 int	PageLockableBytes(void)
@@ -377,6 +496,8 @@ void FreeWinMem(void far *lpMem, int pageLock)
 HGLOBAL	hGlobal;
 LPVOID	lpMem16;
 
+	if (lpMem == NULL)
+		return;
 	lpMem16 = (LPVOID)MK_FP16((void far *)lpMem);
 	if (pageLock == PAGELOCK)
 		GlobalPageUnlock(SELECTOROF(lpMem16));
@@ -395,12 +516,11 @@ void * AllocWinMem(int size, int pageLock)
 
 void FreeWinMem(void *lpMem, int pageLock)
 {
+	if (lpMem == NULL)
+		return;
 	Args[0] = (DWORD)lpMem;
 	Args[1] = (DWORD)(pageLock);
-	Args[1] = (DWORD)(0);
-	TransList[0] = &Args[0];
-	TransList[1] = 0;
-	(* pfnUTProc)(Args, (DWORD)DLL_FREE_MEM, TransList);
+	(* pfnUTProc)(Args, (DWORD)DLL_FREE_MEM, NULL);
 }
 #endif
 

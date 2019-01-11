@@ -21,6 +21,11 @@ CritErrHandlerDOS::CritErrHandlerDOS()
 int __far
 CritErrHandlerDOS::Handler(unsigned deverr, unsigned errcode, unsigned far*)
 {
+	// if the players aren't up yet we can't read the error file
+	// nor buffer the error
+	if (!errorMgr || !memMgr)
+		msgMgr->Fatal("Media Critical Error");
+
 	// downcast, since we know what type it really is, and we need access
 	// to protected members
 	CritErrHandlerDOS* handler = (CritErrHandlerDOS*) critErrHandler;
@@ -86,4 +91,3 @@ CritErrHandlerDOS::Handler(unsigned deverr, unsigned errcode, unsigned far*)
 		}
 	};
 }
-
