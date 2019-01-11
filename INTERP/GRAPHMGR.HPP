@@ -34,6 +34,19 @@ class SOL_Cursor;
 class RectList;
 class MagnifyView;
 
+
+#ifdef HIRES
+const SCIRESX = 640;
+const SCIRESY = 480;
+const XSCALE  = 2;
+const YSCALE  = 2.4;
+#else
+const SCIRESX = 320;
+const SCIRESY = 200;
+const XSCALE  = 1;
+const YSCALE  = 1;
+#endif
+
 const LOWRESX = 320;
 const LOWRESY = 200;
 

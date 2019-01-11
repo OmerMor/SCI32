@@ -125,7 +125,7 @@ SCIDOS::MakeGraphicsMgr()
 		else
 			return New GraphicsMgrDOS(640, 480, True, usePri);
 
-	return New GraphicsMgrDOS(320, 200, False, usePri);
+	return New GraphicsMgrDOS(SCIRESX, SCIRESY, False, usePri);
 }
 
 MemoryMgr*

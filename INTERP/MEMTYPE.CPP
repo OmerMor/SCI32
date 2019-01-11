@@ -422,9 +422,9 @@ MemoryMgr::ThrashReport()
 					memTypes.GetMemTypeStr(thrashArray[i].type));
 	}
 
-	const width = 100;
+	const width = 100 * XSCALE;
 	EventWindow	* debugWindow =
-		DebugWindow(*buf,"Thrashing Report",width,SOL_Point((319 - width)/2,50),True);
+		DebugWindow(*buf,"Thrashing Report",width,SOL_Point((SCIRESX - 1 - width)/2,50*YSCALE),True);
 
 	buf.Free();
 

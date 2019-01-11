@@ -447,8 +447,8 @@ GraphicsMgr::RobotStatus() const
 Bool
 GraphicsMgr::IsOnMe(ScreenItem& si,Plane& plane,const SOL_Point& p,Bool checkSkip)
 {
-	Ratio scaleX(graphMgr->Xdim(), LOWRESX);
-	Ratio scaleY(graphMgr->Ydim(), LOWRESY);
+	Ratio scaleX(graphMgr->Xdim(), SCIRESX);
+	Ratio scaleY(graphMgr->Ydim(), SCIRESY);
 
 	SOL_Point pScreen;
 	pScreen.x = (p.x * scaleX) + plane.DefRect().A.x;

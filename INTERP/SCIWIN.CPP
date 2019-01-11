@@ -125,8 +125,8 @@ static char		szTitle[80] = "Sierra On-Line";
 static char		szInfo[] = "Windows";
 static char		szAppName [] = "SciWin" ;
 char				szWinPatchDir[50] = "";
-int     gameWidth = 320;
-int     gameHeight = 200;
+int     gameWidth = SCIRESX;
+int     gameHeight = SCIRESY;
 int     gameBorder = 0;
 int     borderPixels = 5;
 int     maximizedBorder = 0;
@@ -932,7 +932,7 @@ struct {
 						gameWidth = cliRect.right;
 					else
 						gameWidth = (ratioX * cliRect.bottom) / ratioY;
-					gameWidth = Min(Max(gameWidth,LOWRESX),vmapWidth);
+					gameWidth = Min(Max(gameWidth,SCIRESX),vmapWidth);
 					if (isMaximized) {
 //						sprintf(mbuff,"Max width:%d",gameWidth);
 //						MBox(mbuff,"");

@@ -26,16 +26,16 @@ class RectList;
 void		BuildHeader(uchar* bmAddr, int width, int height, int skip,
 							int xHot = 0,
 							int yHot = 0,
-							int xRes = LOWRESX,
-							int yRes = LOWRESY,
+							int xRes = SCIRESX,
+							int yRes = SCIRESY,
 							Bool palFlag = False,
 							Bool remap = False);
 
 inline void		BuildHeader(MemID bm, int width, int height, int skip,
 									int xHot = 0,
 									int yHot = 0,
-									int xRes = LOWRESX,
-									int yRes = LOWRESY,
+									int xRes = SCIRESX,
+									int yRes = SCIRESY,
 									Bool palFlag = False,
 									Bool remap = False)
 {

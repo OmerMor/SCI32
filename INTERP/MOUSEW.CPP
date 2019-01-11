@@ -91,10 +91,10 @@ Bool			prevInCage;
 	// scale to sci dimensions
 	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
 	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
-	tmp.x = (tmp.x * LOWRESX) / gameWidth;
-	tmp.y = (tmp.y * LOWRESY) / gameHeight;
-	tmp.x = (tmp.x > LOWRESX-1)? LOWRESX-1: tmp.x;
-	tmp.y = (tmp.y > LOWRESY-1)? LOWRESY-1: tmp.y;
+	tmp.x = (tmp.x * SCIRESX) / gameWidth;
+	tmp.y = (tmp.y * SCIRESY) / gameHeight;
+	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
+	tmp.y = (tmp.y > SCIRESY-1)? SCIRESY-1: tmp.y;
 
 	// change cursor if we have moved into or out of the restrict rect
 	prevInCage = inCage;
@@ -162,10 +162,10 @@ SOL_Point	tmp;
 	// scale to sci dimensions
 	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
 	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
-	tmp.x = (tmp.x * LOWRESX) / gameWidth;
-	tmp.y = (tmp.y * LOWRESY) / gameHeight;
-	tmp.x = (tmp.x > LOWRESX-1)? LOWRESX-1: tmp.x;
-	tmp.y = (tmp.y > LOWRESY-1)? LOWRESY-1: tmp.y;
+	tmp.x = (tmp.x * SCIRESX) / gameWidth;
+	tmp.y = (tmp.y * SCIRESY) / gameHeight;
+	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
+	tmp.y = (tmp.y > SCIRESY-1)? SCIRESY-1: tmp.y;
 
 	// ignore if not within restrict rect
 	if (restrictFlag & !restrict.Intersect(tmp))
@@ -277,8 +277,8 @@ MouseWinClr::GlobalPos(SOL_Point* pt) const
 int
 MouseWinClr::GlobalPosSci(SOL_Point* pt) const
 {
-	pt->x = pos.x * Ratio(LOWRESX, graphMgr->Xdim());
-	pt->y = pos.y * Ratio(LOWRESY, graphMgr->Ydim());
+	pt->x = pos.x * Ratio(SCIRESX, graphMgr->Xdim());
+	pt->y = pos.y * Ratio(SCIRESY, graphMgr->Ydim());
 	return buttonState;
 }
 
@@ -305,8 +305,8 @@ MouseWinClr::Exists() const
 void
 MouseWinClr::SetRestrictRect(const SOL_Rect& r1)
 {
-	Ratio ratiox(graphMgr->Xdim(), LOWRESX);
-	Ratio ratioy(graphMgr->Ydim(), LOWRESY);
+	Ratio ratiox(graphMgr->Xdim(), SCIRESX);
+	Ratio ratioy(graphMgr->Ydim(), SCIRESY);
 
 	restrict.A.x = r1.A.x * ratiox;
 	restrict.A.y = r1.A.y * ratioy;

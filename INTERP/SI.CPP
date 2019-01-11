@@ -199,11 +199,13 @@ ScreenItem::ScreenItem(ObjectID& theId)
 	pos.y -= z;
 
 #ifdef NETWORK
-	if (theId.GetIndexedProperty(actSeenRect)) {
-		insetRect.A.x =	theId.GetIndexedProperty(actLeft);
-		insetRect.A.y =	theId.GetIndexedProperty(actTop);
-		insetRect.B.x =	theId.GetIndexedProperty(actRight);
-		insetRect.B.y =	theId.GetIndexedProperty(actBottom);
+	ObjectID rectID;
+
+	if (rectID = theId.GetIndexedProperty(actSeenRect)) {
+		insetRect.A.x =	rectID.GetIndexedProperty(actLeft);
+		insetRect.A.y =	rectID.GetIndexedProperty(actTop);
+		insetRect.B.x =	rectID.GetIndexedProperty(actRight);
+		insetRect.B.y =	rectID.GetIndexedProperty(actBottom);
 		useInsetRect = True;
 	} else {
 		useInsetRect = False;
@@ -305,11 +307,13 @@ ScreenItem::operator=(ObjectID& theId)
 	pos.y -= z;
 
 #ifdef NETWORK
-	if (theId.GetIndexedProperty(actSeenRect))	{
-		insetRect.A.x =	theId.GetIndexedProperty(actLeft);
-		insetRect.A.y =	theId.GetIndexedProperty(actTop);
-		insetRect.B.x =	theId.GetIndexedProperty(actRight);
-		insetRect.B.y =	theId.GetIndexedProperty(actBottom);
+	ObjectID rectID;
+
+	if (rectID = theId.GetIndexedProperty(actSeenRect)) {
+		insetRect.A.x =	rectID.GetIndexedProperty(actLeft);
+		insetRect.A.y =	rectID.GetIndexedProperty(actTop);
+		insetRect.B.x =	rectID.GetIndexedProperty(actRight);
+		insetRect.B.y =	rectID.GetIndexedProperty(actBottom);
 		useInsetRect = True;
 	} else {
 		useInsetRect = False;
@@ -384,7 +388,7 @@ ScreenItem::Update(Plane& plane)
 
 		case SCALE_VANISHING:
 			vanish = plane.GetVanish();
-			userScaleX = Ratio((scale.maxScale * (pos.y - vanish.y)) / (LOWRESY - vanish.y), 128);
+			userScaleX = Ratio((scale.maxScale * (pos.y - vanish.y)) / (SCIRESY - vanish.y), 128);
 			userScaleY = userScaleX;
 			break;
 
@@ -470,8 +474,8 @@ ScreenItem::Update(Plane& plane)
 		toDraw = insetRect;
 
 		if (useInsetRect)  {
-			Ratio scaleupX(cel->ResX(), LOWRESX);
-			Ratio scaleupY(cel->ResY(), LOWRESY);
+			Ratio scaleupX(cel->ResX(), SCIRESX);
+			Ratio scaleupY(cel->ResY(), SCIRESY);
 
 			toDraw.A.x = toDraw.A.x * scaleupX;
 			toDraw.A.y = toDraw.A.y * scaleupY;
@@ -515,8 +519,8 @@ ScreenItem::Update(Plane& plane)
 		toDraw.B.y = toDraw.B.y ^ cel2vidY;
 
 		//  Make x1, y1 upper left of cel
-		x1 = (pos.x ^ Ratio(graphMgr->Xdim(), LOWRESX)) - xorg;
-		y1 = (pos.y ^ Ratio(graphMgr->Ydim(), LOWRESY)) - yorg;
+		x1 = (pos.x ^ Ratio(graphMgr->Xdim(), SCIRESX)) - xorg;
+		y1 = (pos.y ^ Ratio(graphMgr->Ydim(), SCIRESY)) - yorg;
 		toDraw.Offset(x1, y1);
 
 		if ((userMirror ^ cel->Mirrored())  &&  bitmap.IsPic())  {
@@ -530,7 +534,7 @@ ScreenItem::Update(Plane& plane)
 			draw.B.x = draw.B.x ^ cel2vidX;
 			int x = ((CelObjPic*) cel)->Pos().x;
 
-			draw.Offset((x ^ Ratio(graphMgr->Xdim(), LOWRESX)) - xorg,0);
+			draw.Offset((x ^ Ratio(graphMgr->Xdim(), SCIRESX)) - xorg,0);
 			int newx1 = plane.DefRect().Xlen() - draw.B.x - 1;
 #ifdef MACINTOSH
 			newx1 -= 2;
@@ -596,7 +600,7 @@ ScreenItem::NowSeen(Plane& plane,SOL_Rect& nowSeen)
 
 		case SCALE_VANISHING:
 			vanish = plane.GetVanish();
-			userScaleX = Ratio((scale.maxScale * (pos.y - vanish.y)) / (LOWRESY - vanish.y), 128);
+			userScaleX = Ratio((scale.maxScale * (pos.y - vanish.y)) / (SCIRESY - vanish.y), 128);
 			userScaleY = userScaleX;
 			break;
 
@@ -648,8 +652,8 @@ ScreenItem::NowSeen(Plane& plane,SOL_Rect& nowSeen)
 		//  Flip origin if mirroring a non-pic Cel
 		nowSeen = inset;
 		if (useInsetRect)  {
-			Ratio scaleupX(cel->ResX(), LOWRESX);
-			Ratio scaleupY(cel->ResY(), LOWRESY);
+			Ratio scaleupX(cel->ResX(), SCIRESX);
+			Ratio scaleupY(cel->ResY(), SCIRESY);
 
 			nowSeen.A.x = nowSeen.A.x * scaleupX;
 			nowSeen.A.y = nowSeen.A.y * scaleupY;
@@ -674,8 +678,8 @@ ScreenItem::NowSeen(Plane& plane,SOL_Rect& nowSeen)
 			nowSeen.B.y = (nowSeen.B.y ^ userScaleY) - 1;
 		}
 
-		Ratio scaleLoX(LOWRESX, cel->ResX());
-		Ratio scaleLoY(LOWRESY, cel->ResY());
+		Ratio scaleLoX(SCIRESX, cel->ResX());
+		Ratio scaleLoY(SCIRESY, cel->ResY());
 		xorg = xorg ^ userScaleX;
 		yorg = yorg ^ userScaleY;
 

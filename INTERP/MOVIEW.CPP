@@ -309,10 +309,10 @@ unsigned int AviPut(int movieNo,int x, int y, int width, int height)
 
 	if (width && height) {
 
-		rect.left = x * Ratio(gameWidth, LOWRESX) + gameBorder;
-		rect.top = y * Ratio(gameHeight, LOWRESY) + gameBorder;
-		rect.right = width * Ratio(gameWidth, LOWRESX);
-		rect.bottom = height * Ratio(gameHeight, LOWRESY);
+		rect.left = x * Ratio(gameWidth, SCIRESX) + gameBorder;
+		rect.top = y * Ratio(gameHeight, SCIRESY) + gameBorder;
+		rect.right = width * Ratio(gameWidth, SCIRESX);
+		rect.bottom = height * Ratio(gameHeight, SCIRESY);
 
 #ifdef DEBUG
 		if(rect.right != aviWidth || rect.bottom != aviHeight) {
@@ -322,13 +322,13 @@ unsigned int AviPut(int movieNo,int x, int y, int width, int height)
 		}
 #endif
    } else {
-		rect.left = x * Ratio(gameWidth, LOWRESX) + gameBorder;
-		rect.top = y * Ratio(gameHeight, LOWRESY) + gameBorder;
+		rect.left = x * Ratio(gameWidth, SCIRESX) + gameBorder;
+		rect.top = y * Ratio(gameHeight, SCIRESY) + gameBorder;
 		rect.right = aviWidth;
 		rect.bottom = aviHeight;
 		// setup width and height for the plane creation
-		width = rect.right * Ratio(LOWRESX,gameWidth);
-		height = rect.bottom * Ratio(LOWRESY,gameHeight);
+		width = rect.right * Ratio(SCIRESX,gameWidth);
+		height = rect.bottom * Ratio(SCIRESY,gameHeight);
 	}
 
 	sprintf(str,"put sciMovie%-1d destination at %u %u %u %u wait",movieNo,rect.left,
@@ -400,8 +400,8 @@ unsigned int AviPutDouble(int movieNo,int x, int y)
 	aviHeight = atoi(ptr);
 
 
-	rect.left = x * Ratio(gameWidth, LOWRESX) + gameBorder;
-	rect.top = y * Ratio(gameHeight, LOWRESY) + gameBorder;
+	rect.left = x * Ratio(gameWidth, SCIRESX) + gameBorder;
+	rect.top = y * Ratio(gameHeight, SCIRESY) + gameBorder;
 	rect.right = aviWidth * 2;
 	rect.bottom = aviHeight * 2;
 
@@ -422,8 +422,8 @@ unsigned int AviPutDouble(int movieNo,int x, int y)
 	// create a plane for the movie to play in (protect it from SCI)
 	// First, create an SOL_RECT with lo-res coordinates and offset by top/left
 	SOL_Rect sRect;
-	int width = rect.right * Ratio(LOWRESX,gameWidth);
-	int height = rect.bottom * Ratio(LOWRESY,gameHeight);
+	int width = rect.right * Ratio(SCIRESX,gameWidth);
+	int height = rect.bottom * Ratio(SCIRESY,gameHeight);
 	int sRight = x + width - 1;
 	int sBottom = y + height - 1;
 	sRect.Set(x,y,sRight,sBottom);

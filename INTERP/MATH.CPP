@@ -213,11 +213,11 @@ KRandom(argList)		// low, high */
 
 	} else if (argCount == 1) {
 		// Set seed to argument
-		lcgSeed = *(long*) arg(1);
+		lcgSeed = arg(1);
 		pm.acc = False;
 
 	} else if (argCount == 3) {
-		*(long*) arg(3) = lcgSeed;
+		arg(3) = lcgSeed;
 		pm.acc = False;
 
 	} else {

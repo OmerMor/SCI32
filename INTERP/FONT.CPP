@@ -22,8 +22,8 @@
 #endif
 #include "textid.hpp"
 
-int	FontMgr::xRes = LOWRESX;
-int	FontMgr::yRes = LOWRESY;
+int	FontMgr::xRes = SCIRESX;
+int	FontMgr::yRes = SCIRESY;
 
 MemID
 FontMgr::BuildFBM
@@ -46,7 +46,7 @@ FontMgr::BuildFBM
    borderColor = theBorderColor;
 
 	textBox = theTextBox;
-   textBox.Scale(xRes,LOWRESX,yRes,LOWRESY);
+   textBox.Scale(xRes,SCIRESX,yRes,SCIRESY);
 	text = theText;
 	fore = theFore;
 	dim = dimIt;
@@ -214,9 +214,9 @@ FontMgr::BuildFBM
 	BMHeight = theHeight;
 	textBox = theTextBox;
 	if (scale) {
-		BMWidth = BMWidth * xRes / LOWRESX;
-		BMHeight = BMHeight * yRes /LOWRESY;
-		textBox.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		BMWidth = BMWidth * xRes / SCIRESX;
+		BMHeight = BMHeight * yRes /SCIRESY;
+		textBox.Scale(xRes,SCIRESX,yRes,SCIRESY);
    }
 	text = theText;
 	fore = theFore;
@@ -281,8 +281,8 @@ FontMgr::TitledFBM
 	int frameSize = 1;
 
    if (scale) {
-		BMWidth = theWidth * xRes / LOWRESX;
-		BMHeight = theHeight * yRes / LOWRESY;
+		BMWidth = theWidth * xRes / SCIRESX;
+		BMHeight = theHeight * yRes / SCIRESY;
 	} else {  
 		BMWidth = theWidth;
 		BMHeight = theHeight;
@@ -354,7 +354,7 @@ FontMgr::TitledFBM
 	mode = theMode;
 	textBox = theTextBox;
    if(scale)
-		textBox.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		textBox.Scale(xRes,SCIRESX,yRes,SCIRESY);
 
 	SetFont(theFont);
 
@@ -388,7 +388,7 @@ FontMgr::ResizeBitMap(SOL_Rect newRect,Bool scale)
 	int frameSize = 1;
 
    if (scale)
-		newRect.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		newRect.Scale(xRes,SCIRESX,yRes,SCIRESY);
 
 	// Assume the textBox is what's left 
 	// after the title area is removed.
@@ -480,7 +480,7 @@ int
 FontMgr::StringWidth(MemID theString)
 {
 	text = theString;
-	return ((TextWidth(0,10000) * LOWRESX + xRes - 1) / xRes);
+	return ((TextWidth(0,10000) * SCIRESX + xRes - 1) / xRes);
 }
 
 void
@@ -493,7 +493,7 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 	theRect.A.y = 0;
 	theRect.B.y = 0;
 
-   maxSize = maxSize * xRes/LOWRESX;
+   maxSize = maxSize * xRes/SCIRESX;
 
 #define DEFAULTWIDE     192
 	// set the width
@@ -514,7 +514,7 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 		theRect.B.y = pointSize;
 	}
 	else {
-		if (!maxSize) maxSize = DEFAULTWIDE * xRes / LOWRESX;
+		if (!maxSize) maxSize = DEFAULTWIDE * xRes / SCIRESX;
 		theRect.B.x = maxSize - 1;
 		// get a local pointer to text
 		uchar* str = (uchar*) memMgr->GetAddr(text);
@@ -541,11 +541,11 @@ FontMgr::TextSize(MemID theString,int maxSize,SOL_Rect& theRect,Bool scale)
 		if (maxSize > longest) theRect.B.x = longest - 1;
 	}
 	if (scale) {
-		theRect.A.x = theRect.A.x * LOWRESX / xRes;
-		theRect.A.y = theRect.A.y * LOWRESY / yRes;
-		theRect.B.x = (theRect.B.x * LOWRESX + xRes - 1) / xRes;
-		theRect.B.y = (theRect.B.y * LOWRESY + yRes - 1) / yRes;
-//		theRect.Scale(LOWRESX,xRes,LOWRESY,yRes);
+		theRect.A.x = theRect.A.x * SCIRESX / xRes;
+		theRect.A.y = theRect.A.y * SCIRESY / yRes;
+		theRect.B.x = (theRect.B.x * SCIRESX + xRes - 1) / xRes;
+		theRect.B.y = (theRect.B.y * SCIRESY + yRes - 1) / yRes;
+//		theRect.Scale(SCIRESX,xRes,SCIRESY,yRes);
 	}
 	SetFont(oldfont);
 	fore = oldcolor;
@@ -569,7 +569,7 @@ FontMgr::TextCount(MemID theText,int theStart,int theFont,SOL_Rect& rect,Bool sc
 
 	SOL_Rect newRect = rect;
 	if (scale)
-		newRect.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		newRect.Scale(xRes,SCIRESX,yRes,SCIRESY);
 
 	SetFont(theFont);
 	// Save the original text
@@ -598,7 +598,7 @@ FontMgr::Erase(SOL_Rect& theRect, Bool scale)
 
 	SOL_Rect eraseRect = theRect;
 	if (scale)
-		eraseRect.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		eraseRect.Scale(xRes,SCIRESX,yRes,SCIRESY);
 
 	// Get the address of the BM
 	CelHeader* fontBM;
@@ -630,7 +630,7 @@ FontMgr::Frame(SOL_Rect& theRect,int thickness,uchar theColor,Bool scale)
 {
 	SOL_Rect frameRect = theRect;
 	if(scale)
-		frameRect.Scale(xRes,LOWRESX,yRes,LOWRESY);
+		frameRect.Scale(xRes,SCIRESX,yRes,SCIRESY);
 	// If the thickness is too large reduce it.
 	if (thickness*2 > frameRect.Ylen()) {
 		thickness = frameRect.Ylen()/2;
@@ -675,8 +675,8 @@ FontMgr::InvertRect(MemID theBM,int theWidth,SOL_Rect theRect,char fore,char bac
 	// Switches the fore ground and background 
 	// colors for the given rectangles
    if (scale) {
-	   theWidth = theWidth * xRes / LOWRESX;
-	   theRect.Scale(xRes,LOWRESX,yRes,LOWRESY);
+	   theWidth = theWidth * xRes / SCIRESX;
+	   theRect.Scale(xRes,SCIRESX,yRes,SCIRESY);
    }
 
 	// Sanity check
@@ -828,7 +828,7 @@ FontMgr::TextWidth(MemID theText,int first,int count)
 	// from the character str[index] for a length of count up
 	// to the end of the string
 	text = theText;
-	return ((TextWidth(first,count) * LOWRESX + xRes - 1) / xRes);
+	return ((TextWidth(first,count) * SCIRESX + xRes - 1) / xRes);
 }
 
 uchar 
@@ -836,7 +836,7 @@ FontMgr::CharWidth(uchar theChar,Bool scale)
 {
 	// Determine the given character's width using the current font
 	if(scale)
-		return (fontWidths[theChar] * LOWRESX + xRes - 1) / xRes;
+		return (fontWidths[theChar] * SCIRESX + xRes - 1) / xRes;
 
 	return fontWidths[theChar];
 }
@@ -868,7 +868,7 @@ FontMgr::CharHeight(uchar theChar,Bool scale)
 	uchar height = *((uchar*) fontHeader + charRecsAddr[theChar] +1);
 
 	if(scale)
-		return (height * LOWRESY + yRes - 1) / yRes;
+		return (height * SCIRESY + yRes - 1) / yRes;
 
 	return height;
 }

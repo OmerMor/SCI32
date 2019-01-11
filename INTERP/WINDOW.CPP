@@ -93,7 +93,7 @@ SOL_Window::SOL_Window(SOL_Rect& theWindow,	 // main info
 
 	// Save the parameters
 	scaleWindow = window = theWindow;
-   scaleWindow.Scale(xRes,LOWRESX,yRes,LOWRESY);
+   scaleWindow.Scale(xRes,SCIRESX,yRes,SCIRESY);
    border = theBorder;
 
 	textBox.A.x = 2;
@@ -169,7 +169,7 @@ SOL_Window::SOL_Window(SOL_Rect& theWindow,
 	plane = graphMgr->GetPlaneNext(thePlaneID);
 	pos = thePos;
 	scaleWindow = window = theWindow;
-   scaleWindow.Scale(xRes,LOWRESX,yRes,LOWRESY);
+   scaleWindow.Scale(xRes,SCIRESX,yRes,SCIRESY);
    border = theBorder;
 	textBox.A.x = 2;
 	textBox.A.y = 2;
@@ -489,7 +489,7 @@ SOL_Window::ResizeWindow(SOL_Rect& newWindow)
 
 	   SOL_Rect tempWindow = newWindow;
  		// The new window will work
-  	   newWindow.Scale(xRes,LOWRESX,yRes,LOWRESY);
+  	   newWindow.Scale(xRes,SCIRESX,yRes,SCIRESY);
 
 		// Calculate the new textBox
 		SOL_Rect newTextBox(textBox.A.x,
@@ -753,7 +753,7 @@ EventWindow::HandleEvent(SOL_Event& theEvent)
 				break;
 			mouseStart = theEvent.where;
 			SOL_Rect titleRect = window;
-			titleRect.B.y -= textBox.Ylen() * LOWRESY / yRes;
+			titleRect.B.y -= textBox.Ylen() * SCIRESY / yRes;
 			if (titleRect.Intersect(mouseStart))	{
 				// mouseDown in the title bar
 				// move the dialog until a mouse up
@@ -1254,10 +1254,10 @@ DebugWindow(char* 		text,
 
 	// If the window is too long for the screen reduce its height
 	if (
-		(windowRect.B.y > LOWRESY) &&
+		(windowRect.B.y > SCIRESY) &&
 		(windowRect.Ylen() > (fontMgr->PointSize() + titleHeight))
 		)
-		windowRect.B.y = LOWRESY - 15;
+		windowRect.B.y = SCIRESY - 15*YSCALE;
 
 	EventWindow* w =
 		title ? New EventWindow(windowRect,
@@ -1541,7 +1541,7 @@ CenterXWindow(char* contents,char* title,int width,int top,Bool wait)
 	return DebugWindow(contents,
 							 title,
 							 width,
-							 SOL_Point((320 - width)/2,top),
+							 SOL_Point((SCIRESX - width)/2,top),
 							 wait);
 }
 

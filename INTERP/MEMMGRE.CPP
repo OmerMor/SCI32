@@ -556,8 +556,8 @@ MemoryMgr::ShowBitmaps()
 	Plane* plane = NULL;
 	ScreenItem* si = NULL;
 
-	int width = 320 - 50;
-	int height = 200 - 30;
+	int width = SCIRESX - 50 * XSCALE;
+	int height = SCIRESY - 30 * YSCALE;
 
 	for (int i=RESERVEDHANDLES;i<maxDescriptors; ++i)	{
 		if(!desc[i].memInfo.bits.freeDescriptor && !desc[i].memInfo.bits.freeMemory) {
@@ -609,7 +609,7 @@ void
 MemoryMgr::ShowText(int from,int to)
 {
 	TextID	buf;
-	int width = 320 - 50;
+	int width = SCIRESX - 50 * XSCALE;
 	Bool escape = False;
 	from = Max(from,RESERVEDHANDLES);
 	to = Min(to,maxDescriptors);

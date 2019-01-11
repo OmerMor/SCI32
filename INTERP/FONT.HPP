@@ -103,7 +103,7 @@ class FontMgr
 	void				InvertRect(MemID theBM,int theWidth,SOL_Rect theRect,char fore,char back,Bool scale = True);
 	ushort			PenX() {return penX;}
 	ushort			PenY() {return penY;}
-	int 				PointSize(Bool scale = True) {if (scale) return (pointSize * LOWRESY + yRes - 1) / yRes; return pointSize;}
+	int 				PointSize(Bool scale = True) {if (scale) return (pointSize * SCIRESY + yRes - 1) / yRes; return pointSize;}
 	void 				ResizeBitMap(SOL_Rect newRect,Bool scale = True);
 	int				StringWidth(MemID theString);
 	void 				SetBM(MemID theBM) {BM =theBM;}

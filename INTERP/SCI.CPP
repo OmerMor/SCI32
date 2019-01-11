@@ -75,7 +75,7 @@ SCI::Init(int argc, char* argv[])
 void
 SCI::InitPlane()
 {
-	Plane* defaultPlane = New Plane(SOL_Rect(0,0,319,199));
+	Plane* defaultPlane = New Plane(SOL_Rect(0,0,SCIRESX-1,SCIRESY-1));
 	defaultPlane->SetPriority(0);
 	assert(graphMgr);
 	graphMgr->AddPlane(defaultPlane);
@@ -138,4 +138,5 @@ SCI::~SCI()
 	delete heapLeakChecker;
 #endif
 }
+
 

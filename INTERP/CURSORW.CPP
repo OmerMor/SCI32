@@ -294,8 +294,8 @@ POINT	myPoint;
 	}
 
 	// scale to client coords
-	myPoint.x = (((int)myPoint.x * gameWidth)  / LOWRESX) + gameBorder;
-	myPoint.y = (((int)myPoint.y * gameHeight) / LOWRESY) + gameBorder;
+	myPoint.x = (((int)myPoint.x * gameWidth)  / SCIRESX) + gameBorder;
+	myPoint.y = (((int)myPoint.y * gameHeight) / SCIRESY) + gameBorder;
 
 	ClientToScreen (hMyWnd, (LPPOINT)&myPoint);
 	ShowCursor (0);
@@ -344,7 +344,7 @@ SOL_Rect		screen;
 
 	restrictFlag = True;
 	restrict = r;
-	screen.Set(0,0,LOWRESX,LOWRESY);
+	screen.Set(0,0,SCIRESX,SCIRESY);
 	restrict.Clip(screen);
 	mouse->SetRestrictRect(restrict);
 	mouse->GlobalPos(&p);

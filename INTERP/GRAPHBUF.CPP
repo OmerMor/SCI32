@@ -44,8 +44,8 @@ GraphicsMgrBuffered::IsOnMe(const ScreenItemDef& sid, const SOL_Point& p, Bool c
 	if (j == -1)
 		return False;
 
-	Ratio scaleX(graphMgr->Xdim(), LOWRESX);
-	Ratio scaleY(graphMgr->Ydim(), LOWRESY);
+	Ratio scaleX(graphMgr->Xdim(), SCIRESX);
+	Ratio scaleY(graphMgr->Ydim(), SCIRESY);
 
 	SOL_Point pScreen;
 	pScreen.x = (p.x * scaleX) + last.Planes()[i].DefRect().x1;

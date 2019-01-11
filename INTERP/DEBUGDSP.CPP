@@ -71,9 +71,9 @@ ShowDebugInfo()
 	buf.AddF("SCI %s / for menu\n", version);
 
 	if (!debugWindow) {
-		const width = 135;
+		const width = 135 * XSCALE;
 		debugWindow =
-			DebugWindow(*buf, 0, width, SOL_Point(319 - width + 1, 14));
+			DebugWindow(*buf, 0, width, SOL_Point(SCIRESX - width , 14*YSCALE));
 	} else
 		debugWindow->SetText(*buf);
 
@@ -186,7 +186,7 @@ ShowMemID(MemID id, size_t offset, EventWindow*& window, MemAttrs attrs)
 	buf.Add(lineBuf);
 
 	delete window;
-	window = CenterXWindow(*buf, *title, 320, 25);
+	window = CenterXWindow(*buf, *title, SCIRESX, 25*YSCALE);
 
 	title.Free();
 	buf.Free();
@@ -213,7 +213,7 @@ ShowObject(ObjectID obj, EventWindow*& window, int level)
 		delete window;
 	
 	int y = (level * 10 + 25) % 100;
-	window = CenterXWindow(*buf, *title, 310, y);
+	window = CenterXWindow(*buf, *title, SCIRESX - (10*XSCALE), y*YSCALE);
 
 	buf.Free();
 	title.Free();
@@ -457,7 +457,7 @@ void
 ShowResources()
 {
 	TextID buf = resMgr->MakeDebugDisplayStr();
-	CenterXWindow(*buf, "Resources", 300, 25, True);
+	CenterXWindow(*buf, "Resources", SCIRESX - (20 *XSCALE), 25*YSCALE, True);
 	buf.Free();
 }
 
@@ -509,7 +509,7 @@ ShowMemoryStats()
 	buf.Add(listBuf);
 	listBuf.Free();
 
-	CenterXWindow(*buf, "Memory Statistics", 300, 25, True);
+	CenterXWindow(*buf, "Memory Statistics", SCIRESX - (20*XSCALE), 25*YSCALE, True);
 	buf.Free();
 }
 
@@ -544,7 +544,7 @@ ShowObjects(Bool showIDs)
 	TextID title;
 	title.AddF("Objects : %d", nObjects);
 	
-	CenterXWindow(*buf, *title, 300, 25, True);
+	CenterXWindow(*buf, *title, SCIRESX - (20*XSCALE), 25*YSCALE, True);
 
 	buf.Free();
 	title.Free();
@@ -573,7 +573,7 @@ ShowKernelCalls()
 	else
 		buf.Add("(none)");
 
-	CenterXWindow(*buf, "Kernel Call History", 120, 0, True);
+	CenterXWindow(*buf, "Kernel Call History", SCIRESX - (200*XSCALE), 0, True);
 
 	buf.Free();
 }
@@ -601,7 +601,7 @@ ShowMemoryList()
 		}
 		sprintf(title, "MemIDs %u - %u", start, end);
 		Bool esc;
-		DebugWindow(*buf, title, 200, SOL_Point(0, 0), True, &esc);
+		DebugWindow(*buf, title, SCIRESX- (120*XSCALE), SOL_Point(0, 0), True, &esc);
 		buf.Free();
 		if (esc)
 			break;
@@ -678,7 +678,7 @@ ShowSourceLine()
 	}
 
 	if (!sourceWindow)
-		sourceWindow = DebugWindow(line, 0, 320, SOL_Point(0, 0));
+		sourceWindow = DebugWindow(line, 0, SCIRESX, SOL_Point(0, 0));
 	else
 		sourceWindow->SetText(line);
 	sourceWindow->Show();

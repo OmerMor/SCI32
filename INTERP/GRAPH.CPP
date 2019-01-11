@@ -1163,7 +1163,7 @@ KCelHigh(argList)
    // Input is view,loop,cel
 	//  Report height in game resolution
    CelObjView celObj(arg(1),arg(2),arg(3));
-   pm.acc = celObj.Height() * Ratio(LOWRESY, celObj.ResY());
+   pm.acc = celObj.Height() * Ratio(SCIRESY, celObj.ResY());
 }
 
 void
@@ -1172,7 +1172,7 @@ KCelWide(argList)
    // Input is view,loop,cel
    // Output is the given cels width
    CelObjView celObj(arg(1),arg(2),arg(3));
-   pm.acc = celObj.Width() * Ratio(LOWRESX, celObj.ResX());
+   pm.acc = celObj.Width() * Ratio(SCIRESX, celObj.ResX());
 }
 
 void
@@ -1615,13 +1615,13 @@ KBaseLineSpan(argList)
 	//	Store the info in the data which can be read back from SCI
 
 	// left
-	data[0] = (ptemp.A.x - vlc.XOrg()) * Ratio(LOWRESX, vlc.ResX()) + xOff;
+	data[0] = (ptemp.A.x - vlc.XOrg()) * Ratio(SCIRESX, vlc.ResX()) + xOff;
 	// right
-	data[2] = (ptemp.B.x - vlc.XOrg()) * Ratio(LOWRESX, vlc.ResX()) + xOff;
+	data[2] = (ptemp.B.x - vlc.XOrg()) * Ratio(SCIRESX, vlc.ResX()) + xOff;
 	// top
-	data[1] = (ptemp.A.y - vlc.YOrg()) * Ratio(LOWRESY, vlc.ResY()) + yOff;
+	data[1] = (ptemp.A.y - vlc.YOrg()) * Ratio(SCIRESY, vlc.ResY()) + yOff;
 	// bottom
-	data[3] = (ptemp.B.y - vlc.YOrg()) * Ratio(LOWRESY, vlc.ResY()) + yOff;
+	data[3] = (ptemp.B.y - vlc.YOrg()) * Ratio(SCIRESY, vlc.ResY()) + yOff;
 
 }
 

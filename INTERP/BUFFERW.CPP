@@ -29,8 +29,8 @@ BufferWin::AddrSimRes(int x, int y) const
 BufferWin::BufferWin(int xdim, int ydim, uchar* addr) : Buffer(xdim, ydim)
 {
 	start = addr;
-	simResX = LOWRESX;
-	simResY = LOWRESY;
+	simResX = SCIRESX;
+	simResY = SCIRESY;
 	realResX = xdim;
 	realResY = ydim;
 }

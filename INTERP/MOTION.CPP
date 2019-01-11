@@ -81,8 +81,8 @@ GetCelRect(int view,int loop,int cel,int x,int y,int z,SOL_Rect& rect)
 
    CelObjView celObj(view,loop,cel);
 
-	Ratio scaleX(LOWRESX,celObj.ResX());
-	Ratio scaleY(LOWRESY,celObj.ResY());
+	Ratio scaleX(SCIRESX,celObj.ResX());
+	Ratio scaleY(SCIRESY,celObj.ResY());
 
    if (celObj.Mirrored()) {
 		rect.A.x = x - (celObj.Width() - celObj.XOrg())*scaleX;

@@ -85,8 +85,8 @@ MouseDOS::GlobalPos(SOL_Point* pt) const
 int
 MouseDOS::GlobalPosSci(SOL_Point* pt) const
 {
-	pt->x = pos.x * Ratio(LOWRESX, graphMgr->Xdim());
-	pt->y = pos.y * Ratio(LOWRESY, graphMgr->Ydim());
+	pt->x = pos.x * Ratio(SCIRESX, graphMgr->Xdim());
+	pt->y = pos.y * Ratio(SCIRESY, graphMgr->Ydim());
 	return buttonState;
 }
 
@@ -189,8 +189,8 @@ MouseDOS::SetMouseDriverPos(const SOL_Point& p)
 void
 MouseDOS::SetRestrictRect(const SOL_Rect& r1)
 {
-	Ratio ratiox(graphMgr->Xdim(), LOWRESX);
-	Ratio ratioy(graphMgr->Ydim(), LOWRESY);
+	Ratio ratiox(graphMgr->Xdim(), SCIRESX);
+	Ratio ratioy(graphMgr->Ydim(), SCIRESY);
 
 	restrict.A.x = r1.A.x * ratiox;
 	restrict.A.y = r1.A.y * ratioy;
@@ -229,8 +229,8 @@ void
 MouseDOS::SetPos(const SOL_Point& p)
 {
 	pos = p;
-	pos.x = pos.x * Ratio(graphMgr->Xdim(), LOWRESX);
-	pos.y = pos.y * Ratio(graphMgr->Ydim(), LOWRESY);
+	pos.x = pos.x * Ratio(graphMgr->Xdim(), SCIRESX);
+	pos.y = pos.y * Ratio(graphMgr->Ydim(), SCIRESY);
 
 	if (useMouse)  {
 		SetMouseDriverPos(pos);

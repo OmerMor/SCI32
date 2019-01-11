@@ -1038,8 +1038,8 @@ CelObjColor::CelObjColor(uchar theColor,int theWidth,int theHeight) : CelObj(the
 	height = theHeight;
 	xorg = 0;
 	yorg = 0;
-	resx = LOWRESX;
-	resy = LOWRESY;
+	resx = SCIRESX;
+	resy = SCIRESY;
 	paletteOffset = 0;
 	mirrored = False;
 	remapState = NoRemapInCel;

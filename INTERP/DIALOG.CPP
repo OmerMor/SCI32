@@ -634,7 +634,7 @@ EditText(SOL_Event& evt,MemID editStructID)
 //			fontMgr->Frame(editStruct->textBox,1,editStruct->borderColor);
 		fontMgr->DrawTextBox();
 		DrawCursor(editStructID);
-		graphMgr->FrameOut();
+//		graphMgr->FrameOut();
 	}
 	else {
 		if (oldCursor == editStruct->cursor) {
@@ -906,11 +906,11 @@ EditClass::EditClass(short id)
 
 	// The textHeight is just the pointSize + 1 for the cursor
 	int textHeight = fntMgr->PointSize(False) * maxHeight + 1;
-	textHeight = (textHeight * LOWRESX + xRes - 1) / xRes;
+	textHeight = (textHeight * SCIRESX + xRes - 1) / xRes;
 
 	// Assume the character 'M' is the widest character
 	int textWidth = maxCharWidth * fntMgr->CharWidth('M',False) + 1;
-	textWidth = (textWidth * LOWRESY + yRes - 1) / yRes;
+	textWidth = (textWidth * SCIRESY + yRes - 1) / yRes;
 
 	// always do this because otherwise cursor has problems when hits edge
 //   if (borderColor != -1) {
@@ -1016,18 +1016,18 @@ EditClass::EditClass(TextID theTextID,TextID theTitleID,int boxWidth,int boxHeig
 	// Calculate height for the title
 	if ((int) title) {    
       titleHeight = fntMgr->PointSize(False) + 1;
-		titleHeight = (titleHeight * LOWRESY + yRes - 1) / yRes;
+		titleHeight = (titleHeight * SCIRESY + yRes - 1) / yRes;
       if (borderColor != -1) titleHeight += 2;
 //		titleWidth = fntMgr->TextWidth(title,0,strlen(*title)); 
 	}
 
 	// The textHeight is just the pointSize + 1 for the cursor
 	int textHeight = fntMgr->PointSize(False) * maxHeight + 1;
-	textHeight = (textHeight * LOWRESX + xRes - 1) / xRes;
+	textHeight = (textHeight * SCIRESX + xRes - 1) / xRes;
 
 	// Assume the character 'M' is the widest character
 	int textWidth = maxCharWidth * fntMgr->CharWidth('M',False) + 1;  
-	textWidth = (textWidth * LOWRESY + yRes - 1) / yRes;
+	textWidth = (textWidth * SCIRESY + yRes - 1) / yRes;
 
 //	if (textWidth < titleWidth) textWidth = titleWidth;
    if (borderColor != -1) {
@@ -1041,8 +1041,8 @@ EditClass::EditClass(TextID theTextID,TextID theTitleID,int boxWidth,int boxHeig
 
 	// This centers the window automatically
 	window = SOL_Rect(0,0,planeWidth-1,planeHeight-1);   
-	int xOff = (LOWRESX -window.Xlen())/2;
-	int yOff = (LOWRESY -window.Ylen())/2;
+	int xOff = (SCIRESX -window.Xlen())/2;
+	int yOff = (SCIRESY -window.Ylen())/2;
 	window.Offset(xOff,yOff);
 
 	SOL_Rect insetRect(2,titleHeight + 2,planeWidth-2,planeHeight-2);
@@ -1127,7 +1127,7 @@ EditClass::Show(int pri)
 	si = New ScreenItem(windowPlane->Id(),(Bitmap) BM,pt,scaleInfo);
 
 	graphMgr->AddScreenItem(si);
-	graphMgr->FrameOut(False);
+//	graphMgr->FrameOut(False);
 }
 
 
@@ -1144,7 +1144,7 @@ EditClass::Hide(Bool frameOut)
 //	}
 	graphMgr->DeletePlane(windowPlane);
 	if (frameOut)
-  		graphMgr->FrameOut(False);
+  		graphMgr->FrameOut();
 }
 
 void
@@ -1451,7 +1451,7 @@ EditClass::EditText(SOL_Event& evt)
 		}
 	}
    graphMgr->UpdateScreenItem(si);
-	graphMgr->FrameOut(False);
+//	graphMgr->FrameOut();
    return changed;
 }
 
@@ -1524,7 +1524,7 @@ EditClass::DrawCursor()
 		SetCursor();
       int tWidth = fntMgr->TextWidth(text,0,cursor); //cursor - cursorX,cursorX);
       int ps=fntMgr->PointSize(False)-1;
-		ps = (ps * LOWRESY + yRes - 1) / yRes;
+		ps = (ps * SCIRESY + yRes - 1) / yRes;
 
 		cursorRect.A.x = left = textBox.A.x+tWidth;
 		if (insertMode) {
@@ -1671,7 +1671,7 @@ EditClass::Highlight(int col)
 
    if (visible) {
 		graphMgr->UpdateScreenItem(si);
-		graphMgr->FrameOut(False);
+//		graphMgr->FrameOut();
 	}
 }
 

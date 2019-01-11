@@ -121,8 +121,8 @@ DebugMenu::Show()
 		for (DebugMenuItem* item = items; *item; item++)
 			item->ShowStr(buf);
 	
-		const height = 14;
-		window = New EventWindow(SOL_Rect(0, 199 - height + 1, 319, 199), *buf, 0,
+		const height = 14*YSCALE;
+		window = New EventWindow(SOL_Rect(0, SCIRESY - height , SCIRESX-1, SCIRESY-1), *buf, 0,
 			255, SYSTEMFONT, TEJUSTLEFT, False);
 	
 		buf.Free();

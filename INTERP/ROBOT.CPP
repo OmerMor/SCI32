@@ -340,10 +340,7 @@ Robot::DoVersion5()
 {
 	int oldSiCount = siCount;
 	ushort videoSize = videoSizeArray[frameNum];
-	uchar* scratch = New uchar[videoSize];
-	Read(fd, scratch, videoSize);
-	siCount = * (short*) scratch;
-	CreateCel5(scratch + 2, siCount, True);	// HOOK  firstFrame);
+	siCount = CreateCel5(fd, True);	// HOOK  firstFrame);
 
 	for (int i = 0; i < siCount; i++)  {
 		if (!robotSi[i])  {
@@ -375,6 +372,7 @@ Robot::DoVersion5()
 	if (hasAudio)  {
 		//  Get audio header
 		//  Audio pad **************************************************
+		char scratch[8];
 		Read(fd, scratch, 8);
 		long audCount = *((long*) &scratch[4]);
 		long audPos = *((long*) scratch);
@@ -382,7 +380,6 @@ Robot::DoVersion5()
 		audioList.AddBlock(audPos, audCount);
 		Read(fd, audioList.LastBlockAddr(), audCount);
 	}
-	delete[] scratch;
 }
 
 
@@ -695,25 +692,27 @@ Robot::Create1Cel4(uchar* video, int index, Bool usePalette)
 	}
 }
 
-void
-Robot::CreateCel5(uchar* video, int celCount, Bool usePalette)
+int
+Robot::CreateCel5(int fd, Bool usePalette)
 {
-	for (int i = 0; i < celCount; i++)  {
-//		msgMgr->Mono("Cel #%d\n", i);
-		Create1Cel5(video, i, usePalette);
-		VideoHeader4* vh = (VideoHeader4*) video;
-		int size = vh->size;
-		video += sizeof(VideoHeader4);
-		video += size;
-	}
+	short siCount;
+	Read(fd, &siCount, 2);
+	uchar* scratch = New uchar[audioSize + videoSizeArray[frameNum]];
+
+	for (int i = 0; i < siCount; i++)
+		Create1Cel5(fd, i, scratch, usePalette);
+
+	delete[] scratch;
+	return siCount;
 }
 
 
 void
-Robot::Create1Cel5(uchar* video, int index, Bool usePalette)
+Robot::Create1Cel5(int fd, int index, uchar* scratch, Bool usePalette)
 {
-	VideoHeader4* vh = (VideoHeader4*) video;
-	video += sizeof(VideoHeader4);
+	Read(fd, scratch, sizeof(VideoHeader4));
+	VideoHeader4* vh = (VideoHeader4*) scratch;
+	scratch += sizeof(VideoHeader4);
 	vertScaleFactor = vh->vertScaleFactor;
 
 	xsize = vh->xsize;
@@ -751,18 +750,20 @@ Robot::Create1Cel5(uchar* video, int index, Bool usePalette)
 	//  Loop through proper number of sub-blocks
 	uchar* ptr = destBuff;
 	for (int i = 0; i < vh->checksum; i++)  {
-		long	cmpSize = * (long*) &video[0];
-		long	destSize = * (long*) &video[4];
-		short compType = * (short*) &video[8];
-		video += 10;
+		Read(fd, scratch, 10);
+		long	cmpSize = * (long*) &scratch[0];
+		long	destSize = * (long*) &scratch[4];
+		short compType = * (short*) &scratch[8];
+		Read(fd, scratch, cmpSize);
 
 		switch (compType)  {
 			case LZ_COMP:
-				LZDecode(destBuff, video, cmpSize);
+//				msgMgr->Mono("cmp: %d  dest: %d\n", cmpSize, destSize);
+				LZDecode(destBuff, scratch, cmpSize, destSize);
 				break;
 
 			case UNCOMP:
-				memcpy(destBuff, video, destSize);
+				memcpy(destBuff, scratch, destSize);
 				break;
 				
 			default:
@@ -770,7 +771,6 @@ Robot::Create1Cel5(uchar* video, int index, Bool usePalette)
 				break;
 		}
 		
-		video += cmpSize;
 		destBuff += destSize;
 	}
 
@@ -1017,6 +1017,26 @@ Robot::LZDecode(uchar* dest, uchar* src, ulong srcCount)
 	if (destCount > 1)
 		msgMgr->Fatal(Msg_CompressDestination);
 }
+
+
+
+
+
+void
+Robot::LZDecode(uchar* dest, uchar* src, ulong srcCount, ulong destCount)
+{
+	int xdim = xsize;
+	int ydim = (ysize * vertScaleFactor) / 100;
+	Initcompress(lzScratch);
+	int result = Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
+	srcCount = 0;
+	result = Decompress((char**) &src, (char**) &dest, &srcCount, &destCount, lzScratch);
+	if (destCount > 1)
+		msgMgr->Fatal(Msg_CompressDestination);
+}
+
+
+
 
 
 void

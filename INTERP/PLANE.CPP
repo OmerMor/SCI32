@@ -46,13 +46,13 @@ Plane::Plane(ObjectID ID):
 #ifdef NETWORK
 	gameRect.A.x = ID.GetProperty(s_left);
 	gameRect.A.y = ID.GetProperty(s_top);
-	gameRect.B.x = ID.GetProperty(s_right); // + 1) * xdim) / LOWRESX) - 1;
-	gameRect.B.y = ID.GetProperty(s_bottom); // + 1) * ydim) / LOWRESY) - 1;
+	gameRect.B.x = ID.GetProperty(s_right); // + 1) * xdim) / SCIRESX) - 1;
+	gameRect.B.y = ID.GetProperty(s_bottom); // + 1) * ydim) / SCIRESY) - 1;
 #else
 	gameRect.A.x = ID.GetProperty(s_insetRectL);
 	gameRect.A.y = ID.GetProperty(s_insetRectT);
-	gameRect.B.x = ID.GetProperty(s_insetRectR); // + 1) * xdim) / LOWRESX) - 1;
-	gameRect.B.y = ID.GetProperty(s_insetRectB); // + 1) * ydim) / LOWRESY) - 1;
+	gameRect.B.x = ID.GetProperty(s_insetRectR); // + 1) * xdim) / SCIRESX) - 1;
+	gameRect.B.y = ID.GetProperty(s_insetRectB); // + 1) * ydim) / SCIRESY) - 1;
 #endif
 
 	ConvGameRectToPlaneRect();
@@ -447,8 +447,8 @@ Plane::ScrollScreenItems(int xStep,int yStep,Bool movePic)
 void
 Plane::GetPicResolution()
 {
-	picResX = LOWRESX;
-	picResY = LOWRESY;
+	picResX = SCIRESX;
+	picResY = SCIRESY;
 }
 
 void
@@ -479,8 +479,8 @@ Plane::MoveDelta(int deltaX, int deltaY)
 void
 Plane::MoveTo(SOL_Point ul)
 {
-	Ratio scaleX(graphMgr->Xdim(), LOWRESX);
-	Ratio scaleY(graphMgr->Ydim(), LOWRESY);
+	Ratio scaleX(graphMgr->Xdim(), SCIRESX);
+	Ratio scaleY(graphMgr->Ydim(), SCIRESY);
 	ul.x = ul.x * scaleX;
 	ul.y = ul.y * scaleY;
 	gameRect.MoveTo(ul.x,ul.y);
@@ -495,8 +495,8 @@ void
 Plane::ConvGameRectToPlaneRect()
 {
 	plane = gameRect;
-	Ratio scaleX(graphMgr->Xdim(), LOWRESX);
-	Ratio scaleY(graphMgr->Ydim(), LOWRESY);
+	Ratio scaleX(graphMgr->Xdim(), SCIRESX);
+	Ratio scaleY(graphMgr->Ydim(), SCIRESY);
 	plane.A.x = plane.A.x * scaleX;
 	plane.A.y = plane.A.y * scaleY;
 	plane.B.x = ((plane.B.x + 1) * scaleX) - 1;
