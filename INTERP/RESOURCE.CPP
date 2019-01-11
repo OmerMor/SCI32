@@ -155,7 +155,8 @@ struct ResourceList {
 	ResourceList(New ResAudio36, Audio36ResListHandle),
 	ResourceList(New ResSync36, Sync36ResListHandle),
 	ResourceList(New ResMsgTranslation, MsgTranslationResListHandle),
-	ResourceList(New ResRobot, RobotResListHandle)
+	ResourceList(New ResRobot, RobotResListHandle),
+	ResourceList(New ResVMD, VMDResListHandle)
 };
 
 const nResourceTypes = sizeof(resources) / sizeof(*resources);
@@ -881,7 +882,10 @@ ResourceMgr::BuildPatchTables()
 						if (t == entry) {
 							// wasn't found so it's a new resource!
 							entry->patchDir = dirNum;
-							entry->resType = type;
+							if (type == MemResWAVE)
+								entry->resType = MemResAudio;
+							else
+								entry->resType = type;
 							entry->resId = id;
 							entry++;
 							npatches++;
@@ -1248,6 +1252,7 @@ KResCheck(argList)
 	type = (MemType)arg(1);
 	SCI16ToSCI32ResType(type);
 	switch (type) {
+/*
 		case MemResSound:
 			for (count = 2; count <= argCount; ++count) {
 				type = GetSoundResType((ResNum) arg(count));
@@ -1256,6 +1261,7 @@ KResCheck(argList)
 					return;
 			}
 			break;
+*/
 		case MemResSync36:
 			MakeName36(MemResSync, pathName, (ResNum)arg(2),
 				(uchar)arg(3), (uchar)arg(4), (uchar)arg(5), (uchar)arg(6));

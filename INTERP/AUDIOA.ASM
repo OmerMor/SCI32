@@ -626,27 +626,6 @@ ddecompOut:
 
 Decomp8To16 endp
 
-Conv16To8 proc public uses es edi esi,\
-	outb:near ptr, inb:near ptr, count:dword
-
-	push	ds
-	pop	es
-	mov	edi, outb
-	mov	esi, inb
-	mov	ecx, count
-	cmp	ecx, 0
-	jle	conv16Out
-conv16to8:
-	lodsw
-	mov	al, 80h
-	sub	al, ah
-	stosb
-	loop	conv16to8
-conv16Out:
-	ret
-
-Conv16To8 endp
-
 Conv8To16 proc public uses es edi esi,\
 	buff:near ptr, count:dword
 
@@ -680,6 +659,27 @@ conv8Out:
 	ret
 
 Conv8To16 endp
+
+Conv16To8 proc public uses es edi esi,\
+	outb:near ptr, inb:near ptr, count:dword
+
+	push	ds
+	pop	es
+	mov	edi, outb
+	mov	esi, inb
+	mov	ecx, count
+	cmp	ecx, 0
+	jle	conv16Out
+conv16to8:
+	lodsw
+	mov	al, 80h
+	sub	al, ah
+	stosb
+	loop	conv16to8
+conv16Out:
+	ret
+
+Conv16To8 endp
 
 Conv11KTo22K proc public uses es edi esi,\
 	buff:near ptr, count:dword, bits:byte
@@ -718,6 +718,36 @@ conv11Out:
 	ret
 
 Conv11KTo22K endp
+
+Conv22KTo11K proc public uses es edi esi,\
+	outb:near ptr, inb:near ptr, count:dword, bits:byte
+
+	push	ds
+	pop	es
+	mov	edi, outb
+	mov	esi, inb
+	mov	ecx, count
+	cmp	ecx, 0
+	jle	conv22Out
+	cmp	bits, 8
+	je	conv22to11_8
+	shr	ecx, 1
+conv22to11_16:
+	lodsw
+	stosw
+	inc	esi
+	inc	esi
+	loop	conv22to11_16
+	ret
+conv22to11_8:
+	lodsb
+	stosb
+	inc	esi
+	loop	conv22to11_8
+conv22Out:
+	ret
+
+Conv22KTo11K endp
 
 CopyEOS proc public uses es edi esi\
 	outb:near ptr, inb:near ptr, count:dword, bits:byte

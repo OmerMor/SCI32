@@ -23,6 +23,7 @@ class Robot
 	int	FrameCount() const		{return frameCount;}
 	int	FramesSkipped() const	{return framesSkipped;}
 	int	MaxFramesSeqSkipped() const {return maxFramesSeqSkipped;}
+	long	TickCount() const;
 
 	long	GetCue();
 	void	Init();
@@ -36,18 +37,16 @@ class Robot
 
 	protected:
 	void		KillRobot();
-	void		StopAudio();
-	void		StopAudioNow();
 	void		SeekFrame(int frame);
 	void		OffsetData(uchar*, char offset);
 	void		CreateCel(uchar*, Bool usePalette = False);
 	void		CreateCel4(uchar*, int celCount, Bool usePalette = False);
 	void		Create1Cel4(uchar* video, int index, Bool usePalette);
-	int		CreateCel5(int fd, Bool usePalette);
-	void		Create1Cel5(int fd, int index, uchar* scratch, Bool usePalette);
-	void		RLEDecode(uchar* dest, uchar* src);
+	void		CreateCel5(uchar* video, int celCount, Bool usePalette);
+	void		Create1Cel5(uchar* video, int index, Bool usePalette);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount);
 	void		LZDecode(uchar* dest, uchar* src, ulong srcCount, ulong destCount);
+	void		RLEDecode(uchar* dest, uchar* src);
 	void		ExpandData(uchar* dest, const uchar* src, int starty);
 	int		ToTicks(int frame);
 	int		ToFrame(int ticks);
@@ -90,6 +89,7 @@ class Robot
 	short				version;
 	int				framesSkipped;
 	int				maxFramesSeqSkipped;
+	int				cueForceShowFrame;
 	
 	short				audPadSize;
 	short				canSkip;
@@ -107,10 +107,13 @@ class Robot
 		public:
 		AudioList();
 		~AudioList();
-		Bool				IsEmpty() const;
-		void				AddBlock(int pos, int size);
-		uchar*			LastBlockAddr();
-		void				SubmitDriverMax();
+		Bool		IsEmpty() const;
+		Bool		Assert() const;
+		void		AddBlock(int pos, int size);
+		uchar*	LastBlockAddr();
+		void		SubmitDriverMax();
+		void		StopAudio();
+		void		StopAudioNow();
 
 		protected:
 		class AudioBlock  {
@@ -131,6 +134,7 @@ class Robot
 		int			oldestBlockIndex;
 		int			newestBlockIndex;
 		int			blockCount;
+		Bool			suppressAudio;
 	};
 
 	AudioList	audioList;
@@ -140,9 +144,11 @@ class Robot
 	class DelayTime  {
 		public:
 		DelayTime();
+		Bool	TimingInProgress() const;
 		void	StartTiming();
 		void	EndTiming();
 		ulong	PredictedTicks();
+		void	Dump() const;
 
 		protected:
 		void	SortList();

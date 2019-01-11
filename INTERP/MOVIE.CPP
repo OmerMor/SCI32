@@ -94,13 +94,15 @@ KSetVideoMode(kArgs args)
 void
 KShowMovie(kArgs args)
 {
-	char * fileName;
-	fileName = *(TextID)arg(1);
-	if(argCount == 4)
-		graphMgr->PlayMovie(fileName,arg(2),arg(3),arg(4));
-	else
-		graphMgr->PlayMovie(fileName,arg(2));
-
+	// Disabled!!!!
+	if(argCount == 10000) {
+		char * fileName;
+		fileName = *(TextID)arg(1);
+		if(argCount == 4)
+			graphMgr->PlayMovie(fileName,arg(2),arg(3),arg(4));
+		else
+			graphMgr->PlayMovie(fileName,arg(2));
+	}
 }
 
 #ifdef DEBUG

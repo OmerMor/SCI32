@@ -48,8 +48,16 @@ enum {
 inline TextID
 StrGetData(MemID id)
 {
-	ObjectID obj(id);
- 	return (TextID) (obj.IsObject() ? obj.GetProperty(s_data) : obj);
+//	following code fails to compile with CodeWarrior 1.1.1.2.
+//	ObjectID obj(id);
+//	return (TextID) (obj.IsObject() ? obj.GetProperty(s_data) : obj);
+//	replaced code with the following...
+
+	ObjectID	obj = (ObjectID) (id);
+	if (obj.IsObject())
+		return obj.GetProperty(s_data);
+	else
+		return (TextID) id;
 }
 
 char*		StrTrim(char* str, int trimFlags = L_TRIM | R_TRIM, char showChar = '\0');

@@ -25,6 +25,7 @@ objects = &
 	audio.obj &
 	audioa.obj &
 	audiod.obj &
+	blob.obj &
 	breakpt.obj &
 	bufferd.obj &
 	celasm.obj &
@@ -90,23 +91,21 @@ objects = &
 	palette.obj &
 	palmgrd.obj &
 	palmgri.obj &
-	palmgrt.obj &
 	picture.obj &
 	plane.obj &
 	platfrmd.obj &
 	playvmd.obj &
 	plist.obj &
-	polygon.obj &
 	pmachine.obj &
 	pmip.obj &
 	pmstack.obj &
+	polygon.obj &
 	ratio.obj &
 	rect.obj &
 	rectlist.obj &
 	remap.obj &
-	restart.obj &
-	restype.obj &
 	resource.obj &
+	restype.obj &
 	savegame.obj &
 	sci.obj &
 	scid.obj &
@@ -129,8 +128,19 @@ objects = &
 	timed.obj &
 	vga.obj &
 	video.obj &
-	window.obj &
-	vocab.obj
+	vocab.obj &
+	vmd.obj	&
+	vmdbase.obj &
+	vmdcache.obj &
+	vmddecmp.obj &
+	vmdmore.obj &
+	vmdimd.obj	&
+	vmdloop.obj &
+	vmdsound.obj &
+	vmdtrack.obj &
+	vmdvesa.obj &
+	vmdview.obj &
+	window.obj
 
 $(target) : $(debugObjs) $(objects) 
 	*wlink name $(targetub) system dos4g option map option stack=16k &

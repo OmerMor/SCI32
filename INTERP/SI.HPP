@@ -101,7 +101,6 @@ class ScreenItem
 	void			SetFloatPriority()		{fixedPriFlag = False;}
 	void			SetUserMirror(Bool f)	{userMirror = f;}
 	void			SubmitPalette()			{GetCelObj(); cel->SubmitPalette();}
-	void			SubmitPalette();
 	int			UpdateCount() const		{return updateCount;}
 
 	protected:
@@ -132,3 +131,4 @@ class ScreenItem
 };
 
 #endif
+

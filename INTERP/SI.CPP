@@ -1,10 +1,11 @@
+#include "sol.hpp"
+
 #ifndef MACINTOSH
 #include <malloc.h>
 #endif
 
 #include <stdio.h>
 
-#include "sol.hpp"
 #include "si.hpp"
 #include "plane.hpp"
 #include "celobj.hpp"
@@ -725,3 +726,4 @@ ScreenItem::GetCelObj()
 	}
 }
 
+

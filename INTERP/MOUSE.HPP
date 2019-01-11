@@ -14,13 +14,12 @@ class SOL_Rect;
 class SOL_Mouse : public PointerDevice
 {
  protected:
-	SCI_Rect * hotRectangles;
-	int hotRectangleCount;
-	int inRect;
-	int hotOn;
+	static SCI_Rect * hotRectangles;
+	static int hotRectangleCount;
+	static int inRect;
+	static int hotOn;
 
  public:
- 	SOL_Mouse();
 	virtual ~SOL_Mouse() {}
 
 	virtual	Bool	Exists() const = 0;
@@ -37,6 +36,7 @@ class SOL_Mouse : public PointerDevice
 	virtual void	SetHotRectangleStatus(int status);
 	virtual void	SetupHotRectangles(int count,MemID handle);
 	virtual void	CheckHotRectangles(SOL_Point & pos);
+			Bool	HotOn()	{return hotOn;}
 };
 
 extern SOL_Mouse* mouse;

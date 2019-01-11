@@ -182,6 +182,48 @@ GraphicsMgrDOS::PlayMovie(char* fileName, int tickCount, int xOff, int yOff)
 }	
 
 void
+GraphicsMgrDOS::MovieFrameOut(uchar*	bmp,
+										int		bitmapWidth,
+										int 		bitmapX1,
+										int 		bitmapY1,
+										int 		bitmapX2,
+										int 		bitmapY2,
+										int 		screenX1,
+										int 		screenY1)
+{
+	// Draw from bitmap into frame buffer
+	SOL_Rect rect(bitmapX1,bitmapY1,bitmapX2,bitmapY2);
+	SOL_Point point(screenX1,screenY1);
+	SOL_Rect showRect(bitmapX1,bitmapY1,bitmapX2,bitmapY2);
+	showRect.Offset(point.x,point.y);
+	PutMovieRect(buffer.start,bmp,bitmapWidth,&rect,&point);
+	// Put to hardware
+	next.ShowList().Add(showRect);
+	ShowBits();
+}
+
+void
+GraphicsMgrDOS::MovieFrameOutDbl(uchar*	bmp,
+											int		bitmapWidth,
+											int 		bitmapX1,
+											int 		bitmapY1,
+											int 		bitmapX2,
+											int 		bitmapY2,
+											int 		screenX1,
+											int 		screenY1)
+{
+	// Draw from bitmap into frame buffer
+	SOL_Rect rect(bitmapX1,bitmapY1,bitmapX2,bitmapY2);
+	SOL_Point point(screenX1,screenY1);
+	SOL_Rect showRect(bitmapX1<<1,bitmapY1<<1,bitmapX2<<1,bitmapY2<<1);
+	showRect.Offset(point.x,point.y);
+	PutMovieRectDbl(buffer.start,bmp,bitmapWidth,&rect,&point);
+	// Put to hardware
+	next.ShowList().Add(showRect);
+	ShowBits();
+}
+
+void
 GraphicsMgrDOS::SetVideoForMovies()
 {
 	if (!vesa && !modeX)  {

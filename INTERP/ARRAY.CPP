@@ -38,9 +38,9 @@ KArray(kArgs args)
 			// arg(2) = array datablock
 			// arg(3) = position in array
 			ArrayVerify(arg(2), ARRAYAT);
-			if (arg(3) > ((ArrayID) arg(2))->size - 1) {
+			if (arg(3) >= ((ArrayID) arg(2))->size) {
 #ifdef DEBUG
-				msgMgr->Alert("Attemping to read element %d in array of size %d", arg(3) + 1, ((ArrayID) arg(2))->size - 1);
+				msgMgr->Alert("Attemping to read element %d in array of size %d", arg(3), ((ArrayID) arg(2))->size);
 #else
 				msgMgr->Alert(SrcLoc,Msg_InvalidArrayElement);
 #endif

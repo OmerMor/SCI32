@@ -45,7 +45,11 @@ struct FlagEntry {
 	FlagEntry('P', "   Play digital audio test (examples: -P100.WAV -PA0010203.045)"),
 	FlagEntry('r', "   room-by-room min memory requirements printed to C:\\DUMP"),
 	FlagEntry('t', "   translation messages shown on mono monitor"),
-	FlagEntry('v', "   vesa mode (obsolete; use videoDrv=vesa.drv in CFG file)"),
+	FlagEntry('V', "   -VMDRGB xx where xx% will be the RGB increase\n"
+						"        -VMDBLACKLINES\n"
+						"        -VMDNOASYNC\n"
+						"        -VMDSKIPON\n"
+						"        -VMDREPORT"),
 	FlagEntry('W', "   WVIDEO compatibility")
 #endif
 };
@@ -79,6 +83,7 @@ struct ConfigEntry {
 	ConfigEntry("heap",			MemResHeap),
 	ConfigEntry("map",			MemResMap),
 	ConfigEntry("message",		MemResMsg),
+	ConfigEntry("movie",			MemResVMD),
 	ConfigEntry("palette",		MemResPalette),
 	ConfigEntry("patch",			MemResPatch),
 	ConfigEntry("pic",			MemResPic),
@@ -124,8 +129,6 @@ struct ConfigEntry {
 		"turns on thrash detection (needs count)"),  
 #endif
 	ConfigEntry("tracking",		MemResNone),
-	ConfigEntry("videoDrv",		MemResNone,
-		"VESA.DRV or VGA.DRV(default)")
 };
 
 const nEntries = sizeof(entries) / sizeof(*entries);
@@ -187,6 +190,38 @@ ConfigMgr::ReadCommandLine(int argc,char** argv)
 						break;
 				}
 				break;
+			case VMD: {
+				char* thisArg = &argv[i][1];
+
+				if (!stricmp("VMDRGB",thisArg)) {
+					// Get the percent change
+					if (isdigit(argv[i+1][0])) {
+						++i;
+						vmdRGB = 100 + atoi(argv[i]);
+					}
+				}
+				else {
+					if (!stricmp("VMDBLACKLINES",thisArg)) {
+						vmdBlackLines = True;
+					}
+					else {
+						if (!stricmp("VMDNOASYNC",thisArg)) {
+							vmdNoAsync = True;
+						}
+						else {
+							if (!stricmp("VMDSKIPON",thisArg)) {
+								vmdSkipOn = True;
+							}
+							else {
+								if (!stricmp("VMDREPORT",thisArg)) {
+									vmdReport = True;
+								}
+							}
+						}
+					}
+				}
+				break;
+			}
 		}
 #endif
 
@@ -510,4 +545,3 @@ ConfigEntry::Get(int n)
 
 	return cp;
 }
-

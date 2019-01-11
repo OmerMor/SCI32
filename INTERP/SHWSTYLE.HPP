@@ -35,26 +35,20 @@ public:
 class PlaneShowStyle
 {
 public:
-	PlaneShowStyle() {percent = 0;si = NULL;}
+	PlaneShowStyle() {percent = 0;}
 	int					planeID;		// the plane that has the show style
 	int					style;		// the show style
 	Bool					entry;		// entry or exit style
 	int					form;			// physical form type for the show style
-	MemID					BM;			// the screen items bitmap
-	int					BMWidth;		// the bitmap's width
-	int					BMHeight;  	// the bitmap's height
 	int					speed;		// ticks between each process of the BM
 	Bool					animate;		// if true do processing on SCI frameouts
 	ulong					clock;	 	// next time to process the BM
 	uint					percent;		// percent of processing done
 	uint					divisions;	// the number of divisions for this show style
-	ScreenItem**		si;			// The array of screen item def pointers
+	int					XRangeSize;
+	SCIWord*	 			XRangeArray;
 	int					tilesPerFrame;	// Tiles changed on each frameout
-	int					pDMask;     // Pixel dissolve mask (based on plane size)
-	ulong					pixel;		// The pixel for pixel dissolve
-	ulong					firstPixel;	// The start pixel for pixel dissolve
 	uchar					color;		// The color for the style
-	ScreenItem*			siPlane;		// screen item for the plane
 	PlaneShowStyle*	next;			// another plane with a show style
 	Bool					deleteMe;	// style no longer needed
 };
@@ -72,22 +66,23 @@ enum planeShowStyles	{
 	WIPEDOWN,			
 	IRISOUT,			
 	IRISIN,			
-	DISSOLVE,			
+	DISSOLVENOMORPH,			
 	PIXELDISSOLVE,	
 	FADEOUT,		
 	FADEIN,
-	PALETTEMORPH,		
-	LASTSTYLE = PALETTEMORPH
-};
+	PALETTEMORPH,
+	LASTSTYLE = PALETTEMORPH};
 
 // show pic forms
 enum planeShowForms	{
+	NULLFORM,
 	PLAIN,
 	HSHUTTER,			
 	VSHUTTER,			
 	HWIPE,			
 	VWIPE,		
-	IRIS			
+	IRIS,
+	FADEFORM			
 };
 
 void		DissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect);
@@ -104,15 +99,8 @@ Bool 		ProcessScroll(PlaneScroll* scroll);
 void		ProcessScrolls();
 Bool 		ProcessShowStyle(PlaneShowStyle*,uint time);
 void 		ProcessShowStyles();
-void		HShutterSetUp(PlaneShowStyle* style,int priority) ;
-void		HWipeSetUp(PlaneShowStyle* style,int priority);
-void		IrisSetUp(PlaneShowStyle* style,int priority);
 void		KillStyle(PlaneShowStyle* style);
-void 		PixelDissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect);
-Bool 		PixelDissolve(PlaneShowStyle* style);
 PlaneShowStyle* ShutDownStyle(PlaneShowStyle* style);
-void		VShutterSetUp(PlaneShowStyle* style,int priority);
-void		VWipeSetUp(PlaneShowStyle* style,int priority);
 Bool		PalMorph(PlaneShowStyle* style);
 void     ProcessEffects(PlaneShowStyle* style=0);
 void		PixelDissolveEffect(PlaneShowStyle* style=0);

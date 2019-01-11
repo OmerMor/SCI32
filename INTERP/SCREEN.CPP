@@ -146,7 +146,7 @@ Screen::NowSeen(int id,int planeID,SOL_Rect& nowSeen)
 }
 
 void
-Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[])
+Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[],SOL_Rect& dirtyRect)
 {
 	/*
 	If a plane moves, then nextPlane must be intersected with the
@@ -185,6 +185,12 @@ Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[])
 	SOL_Rect rects[4];
 	RectList eraseRects;
 	int nDeletedPlanes = 0;
+	int passEraseRects = 0;
+
+	if (!dirtyRect.IsEmpty()) {
+		eraseRects.Add(dirtyRect);
+		passEraseRects = 1;
+	}
 
 	int nPlanes = planes.Length();
 	PlaneList& lastPlanesList = last.Planes();
@@ -194,7 +200,6 @@ Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[])
 	// Also count the number of transparent planes
  	int transparentPlanesCount = 0;
 	for (int i = 0; i < nPlanes;++i) {
-		int passEraseRects = 0;
 		int lastI = lastPlanesList.Search(planes[i].Id());
 		if (planes[i].IsTransparent())
  			++transparentPlanesCount;
@@ -279,7 +284,9 @@ Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[])
 			// overlap
 
 			// The planesList is sorted in low to high priority
-			int rectsLastPri = lastPlanesList[lastI].Priority();
+// HOOK
+// lastI could = -1
+//			int rectsLastPri = lastPlanesList[lastI].Priority();
 
 			for (int j = 0;j < eraseRects.Length();++j) {
 				for (int k = nPlanes - 1;k >= 0;--k) {
@@ -291,15 +298,20 @@ Screen::CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[])
 
 					if (!planes[k].DeleteCount() && !planes[k].IsTransparent()) {
 						if (planes[k].OnScreen().Intersect(eraseRects[j],rects)) {
-							// Add the overlap to the k plane if the k plane had
-							// higher or equal priority than the i plane on the last frame out.
+							// Add the overlap to the k plane if the k plane
+							// had higher or equal priority than the i plane
+							// on the last frame out.
+
 							if 
 								(
 								(!planes[k].RedrawAllCount())
-								&&
-								(rectsLastPri >= lastPlanesList[lastPlanesList.Search(planes[k].Id())].Priority())
-								)
+// HOOK
+// Why do we need the following line?
+//								&&
+//								(rectsLastPri >= lastPlanesList[lastPlanesList.Search(planes[k].Id())].Priority())
+								) {
 								eraseLists[k]->Add(rects[0]);
+							}
 							int newRects = eraseRects[j].Split
 								(
 								planes[k].OnScreen(),

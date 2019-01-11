@@ -1,9 +1,8 @@
+#include "sol.hpp"
 
 #ifndef MACINTOSH
 #include <mem.h>
 #endif
-
-#include "sol.hpp"
 
 #include "array.hpp"
 #include "celobj.hpp"
@@ -39,6 +38,24 @@ FontMgr::BuildFBM
 	Bool        dimIt
 	)
 {
+#ifdef MACINTOSH
+	if (theFore == 255)
+		theFore = 0;
+	else if (theFore == 0)
+		theFore = 236;
+
+	if (theBack == 255)
+		theBack = 0;
+	else if (theBack == 0)
+		theBack = 236;
+
+	if (theBorderColor == 255)
+		theBorderColor = 0;
+	else if (theBorderColor == 0)
+		theBorderColor = 236;
+
+#endif	//MACINTOSH
+
 	int frameSize = 1;
 
 	// No title
@@ -168,17 +185,17 @@ FontMgr::BuildFBM
 	if	(theFore == 255)						// MAC 4/28
 		theFore = 0;
 	else if	(theFore == 0)
-		theFore = 255;
+		theFore = 236;							//255;
 
 	if	(theBack == 255)
 		theBack = 0;
 	else if	(theBack == 0)
-		theBack = 255;
+		theBack = 236;							//255;
 
 	if	(theBorderColor == 255)
 		theBorderColor = 0;
 	else if	(theBorderColor == 0)
-		theBorderColor = 255;
+		theBorderColor = 236;				//255;
 
 
 #endif
@@ -1299,7 +1316,7 @@ KText(argList)
 		fTextSize,
 		fTextWidth,
 		fTextColors,
-		fTextFonts,
+		fTextFonts
 	};
 
 	switch ( arg(1) ) {
@@ -1361,7 +1378,7 @@ KFont(argList)
 {
 	enum {
 		fPointSize,
-		fSetFontRes,
+		fSetFontRes
 	};
 
 	switch ( arg(1) ) {
@@ -1385,3 +1402,4 @@ KFont(argList)
 
 // The font manager
 FontMgr*        fontMgr;
+

@@ -55,7 +55,7 @@ KMorphOn(argList)
 
 
 void
-KFrameOut(kArgs)
+KFrameOut(argList)
 {
 #ifdef NOT_SHIPPING_VERSION
 	if (doThrashReport)
@@ -74,7 +74,10 @@ KFrameOut(kArgs)
 	else {
 		if (planeScrolls)
 			ProcessScrolls();
-		graphMgr->FrameOut();
+		if ( argCount )
+			graphMgr->FrameOut ( arg(1) );
+		else
+			graphMgr->FrameOut();
 	}
 }
 
@@ -274,7 +277,7 @@ KBitmap(argList)
 			int BMresY = (argCount > 6) ? arg(7) : fontMgr->GetYRes();
 
 			BM.Get(MemBitmap,BMWidth*BMHeight+CELHEADERSIZE);
-
+		   size_t sz = BM.Size();
 			// Fill the bitmap with background color
 			memset((uchar*) memMgr->GetAddr(BM)+CELHEADERSIZE,arg(5),BMWidth*BMHeight);
 
@@ -741,7 +744,7 @@ RemapBitmap(MemID BM, ObjectID clutData)
 
 	// setup pointers to BM and data block
 	uchar* startColor = (uchar*) (memMgr->GetAddr(BM)) +CELHEADERSIZE;
-	uchar* data = (uchar*) ((ArrayID) clutData).Data();
+	uchar* data = (uchar*) ArrayID(clutData).Data();
 
 	// Go through each pixel and remap the color to CLUT 
 	for(int i=0;i<BMWidth*BMHeight;i++)
@@ -1840,3 +1843,4 @@ KCelLink(argList)
 	}
 }
 
+

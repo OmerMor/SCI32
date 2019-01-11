@@ -185,4 +185,9 @@ struct ResRobot : SOL_ResType {
 	MemType GetType() const 			{ return MemResRobot; }
 };
 
+struct ResVMD : SOL_ResType {
+	ResVMD() : SOL_ResType(".vmd", "ResVMD")  {}
+	MemType GetType() const 			{ return MemResVMD; }
+};
+
 #endif  //RESTYPE_HPP

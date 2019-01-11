@@ -21,7 +21,7 @@ typedef unsigned long	ulong;
 typedef Int16		SCIWord;
 typedef UInt16		SCIUWord;
 
-#ifndef _TV_VERSION
+#if !defined(_TV_VERSION) && !defined(__TCOLLECT_H)
 const Bool	True = 1;
 const Bool	False = 0;
 #endif
@@ -49,7 +49,12 @@ void*				operator new(size_t size, char*, int);
 //	Normally, it will simply call the msgMgr, but we give it its own function
 //	so anyone can use assert() without having to drag MSG.HPP around.
 int AssertFail(char* file, int line, char* expression);
+
+#ifdef DEBUG
 #define assert(expr)  (expr) || AssertFail(__FILE__, __LINE__, #expr)
+#else
+#define assert(expr)
+#endif
 
 #endif
 

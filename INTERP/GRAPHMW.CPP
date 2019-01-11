@@ -9,6 +9,7 @@
 #include "wingfunc.hpp"
 #endif
 #include "graphmw.hpp"
+#include "mousew.hpp"
 #include "msg.hpp"
 #include "time.hpp"
 #include "pmachine.hpp"
@@ -51,10 +52,13 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 		else
 			palmgr = New PaletteMgrIWin();
 
+		clrCursor = (CursorWin *)New CursorWinClr(buffer);
+		winCursor = New CursorWin();
+
 		if (COLORCURSOR)
-			cursor = (CursorWin *)New CursorWinClr(buffer);
+			cursor = clrCursor;
 		else
-			cursor = New CursorWin();
+			cursor = winCursor;
 
 		// Set up the DIB header
 		bi.bmih.biSize =				(DWORD)sizeof(BITMAPINFOHEADER);
@@ -84,10 +88,13 @@ GraphicsMgrWin::GraphicsMgrWin(int xdim, int ydim) : GraphicsMgr(xdim, ydim),
 			palmgr = New PaletteMgrIWin();
 
 
+		clrCursor = (CursorWin *)New CursorWinClr(buffer);
+		winCursor = New CursorWin();
+
 		if (COLORCURSOR)
-			cursor = (CursorWin *)New CursorWinClr(buffer);
+			cursor = clrCursor;
 		else
-			cursor = New CursorWin();
+			cursor = winCursor;
 	}
 #endif
 }
@@ -197,7 +204,7 @@ int	i;
 	if (!showListSize)
 		return;
 
-	if (COLORCURSOR) {
+	if (cursor == clrCursor) {
 		for (i = 0;i < showListSize; i++)  {
 			SOL_Rect rect = next.ShowList()[i];
 			rect.A.x &= 0x7FFE;
@@ -401,6 +408,44 @@ KIsHiRes(kArgs)
 {
 	pm.acc = HIRES;
 }
-
-
+
+void
+GraphicsMgrWin::SCursorClr()
+{
+int	v, l, c;
+
+	if (cursor != clrCursor) {
+		v = GCursor().Get().View();
+		l = GCursor().Get().Loop();
+		c = GCursor().Get().Cel();
+	 	ShowCursor (0);
+	 	hCurCur = hNullCur;
+	 	SetCursor(hCurCur);
+	 	ShowCursor (1);
+		mouse = clrMouse;
+		cursor = clrCursor;
+		GCursor().Set(v, l, c);
+		GCursor().Show();
+	}
+}
+
+void
+GraphicsMgrWin::SCursorWin()
+{
+int	v, l, c;
+
+	if (cursor != winCursor) {
+		v = GCursor().Get().View();
+		l = GCursor().Get().Loop();
+		c = GCursor().Get().Cel();
+		GCursor().Hide();
+		mouse = winMouse;
+		cursor = winCursor;
+		GCursor().Set(v, l, c);
+//		ShowCursor (0);
+//	 	hCurCur = hMyCur;
+//	 	SetCursor(hCurCur);
+//		ShowCursor (1);
+	}
+}
 

@@ -3,6 +3,10 @@
 #ifndef DOS_HPP
 #define DOS_HPP
 
+#ifndef SOL_HPP
+#include "sol.hpp"
+#endif
+
 //	the following system files are included here to give access to
 //	the defines that functions like Creat() and LSeek() use
 #ifndef _DOS_H_INCLUDED

@@ -20,17 +20,17 @@ static int			devID;
 static int			numberOfDACs;
 extern SOL_List	sounds;
 
-#define NUMSOUNDNODES	10
-DWORD	smallMidiSize = 5000;
-DWORD	largeMidiSize = 50000;
+char	far	*midiCachePtr;
+
+#ifndef WIN32S
 DWORD	numSoundNodes = NUMSOUNDNODES;
-char far *midiCachePtr;
-char far *smallBuffPtr;
-char far *largeBuffPtr;
-BOOL				smallBuffInUse = FALSE;
-BOOL				largeBuffInUse = FALSE;
 BOOL				nodeInUse[NUMSOUNDNODES];
 SNodeData far *nodeBuffPtr[NUMSOUNDNODES];
+
+char	far	*midiBuffPtr[NUMMIDIBUFFS];
+BOOL			midiBuffInUse[NUMMIDIBUFFS];
+
+#endif
 
 void
 InitSoundDriver()
@@ -39,6 +39,8 @@ InitSoundDriver()
 	MemID		patchID;
 	/*	Load sound driver
 	 */
+	char	far	*workCachePtr;
+	int	i;
 
 
 	InitWinSound();
@@ -57,14 +59,22 @@ InitSoundDriver()
 	soundInstalled = True;
 	DoSound(SProcess,True);
 
-	largeBuffPtr = midiCachePtr;
-	smallBuffPtr = midiCachePtr + largeMidiSize + 10;
-	for (int i = 0; i < NUMSOUNDNODES; i++) {
+#ifndef WIN32S
+
+	for (i = 0; i < NUMSOUNDNODES; i++) {
 		nodeInUse[i] = FALSE;
-		nodeBuffPtr[i] = (SNodeData far *)
-								(smallBuffPtr + smallMidiSize + 10 +
-								(i * sizeof(SNodeData)));
+		nodeBuffPtr[i] = (SNodeData far *)(midiCachePtr + (i * sizeof(SNodeData)));
 	}
+
+	workCachePtr = (char far *)((SNodeData far *)(midiCachePtr + (NUMSOUNDNODES * sizeof(SNodeData))));
+
+	for (i = 0; i < NUMMIDIBUFFS; i++) {
+		midiBuffInUse[i] = FALSE;
+		midiBuffPtr[i] = (char far *)workCachePtr;
+		workCachePtr += midiBuffSize[i];
+	}
+#endif
+	
 }
 
 
@@ -81,25 +91,26 @@ void AllocSNodeData(Sound *sn)
 			return;
 		}
 
+#ifdef DEBUG
+	sprintf(mbuff,"midi node overflow:%d",NUMSOUNDNODES);
+	SciDisplay(mbuff);
+#endif
+
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
 
 	// Set pointer in the node and copy data to data area
 	sn->sDataPtr = (SNodeData far *)AllocWinMem(sizeof(SNodeData), PAGELOCK);
 	_fmemcpy(sn->sDataPtr, (void __far *)&(sn->sData), sizeof(SNodeData));
 
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 #else
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
 
 	// Set pointer in the node and copy data to data area
 	sn->sDataPtr = (SNodeData *)AllocWinMem(sizeof(SNodeData), PAGELOCK);
 	memcpy((SNodeData *)(sn->sDataPtr), &(sn->sData), sizeof(SNodeData));
 
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 #endif
 }
@@ -127,21 +138,13 @@ void  FreeSNodeData(Sound *sn)
 		}
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	FreeWinMem((void far *)(sn->sDataPtr), PAGELOCK);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 
 #else
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	FreeWinMem((void *)(sn->sDataPtr), PAGELOCK);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 #endif
 }
@@ -151,40 +154,31 @@ void	AllocMidiData(Sound *sn, int size)
 #ifndef WIN32S
 char far *lpMem;
 
-	if ((size < smallMidiSize) && (!smallBuffInUse)) {
-		smallBuffInUse = TRUE;
-		(sn->sDataPtr)->sMidiPtr32 = smallBuffPtr;
-		_fmemcpy(smallBuffPtr, (void __far *)(sn->sPointer), size);
-		return;
+	for (int i = 0; i < NUMMIDIBUFFS; i++) {
+		if ((size < midiBuffSize[i]) && (!midiBuffInUse[i])) {
+			midiBuffInUse[i] = TRUE;
+			(sn->sDataPtr)->sMidiPtr32 = midiBuffPtr[i];
+			_fmemcpy(midiBuffPtr[i], (void __far *)(sn->sPointer), size);
+			return;
+		}
 	}
 
-	if ((size < largeMidiSize) && (!largeBuffInUse)) {
-		largeBuffInUse = TRUE;
-		(sn->sDataPtr)->sMidiPtr32 = largeBuffPtr;
-		_fmemcpy(largeBuffPtr, (void __far *)(sn->sPointer), size);
-		return;
-	}
+#ifdef DEBUG
+	sprintf(mbuff,"midi cache overflow:%d",size);
+	SciDisplay(mbuff);
+#endif
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	lpMem = (char far *)AllocWinMem(size, PAGELOCK);
-
 	(sn->sDataPtr)->sMidiPtr32 = (char far *)lpMem;
 	_fmemcpy((char far *)lpMem, (void __far *)(sn->sPointer), size);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 
 #else
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	(sn->sDataPtr)->sMidiPtr32 = (char *)AllocWinMem(size, PAGELOCK);
 	memcpy((sn->sDataPtr)->sMidiPtr32, sn->sPointer, size);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 #endif
 }
@@ -196,32 +190,21 @@ char far *lpMem;
 
 	lpMem = (sn->sDataPtr)->sMidiPtr32;
 
-	if (lpMem == largeBuffPtr) {	
-		largeBuffInUse = FALSE;
-		return;
-	}
-
-	if (lpMem == smallBuffPtr) {	
-		smallBuffInUse = FALSE;
-		return;
+	for (int i = 0; i < NUMMIDIBUFFS; i++) {
+		if (lpMem == midiBuffPtr[i]) {	
+			midiBuffInUse[i] = FALSE;
+			return;
+		}
 	}
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	FreeWinMem((void far *)lpMem, PAGELOCK);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 
 #else
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
-
 	FreeWinMem((void *)(sn->sDataPtr)->sMidiPtr32, PAGELOCK);
-
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 #endif
 }

@@ -50,7 +50,6 @@
 // to the first byte past the header.  All allocations are on mod 4
 // bounderies.
 
-
 // Local cache for news occuring before we can allocate memory
 static	void	*localNext;
 static	void	*localEnd;
@@ -58,29 +57,35 @@ static	char	localCache[LOCALSIZE];
 
 // Reserve cache for news occuring before pmachine starts
 			void	*newCacheAddr;
+int reserveSize;
 static	void	*reserveNext;
 static	void	*reserveEnd;
 
 // Cache 1
-static	Bool	inUse1[CACHESIZE1];
-static	void	*cache1Addr[CACHESIZE1];
+int cacheSize1;
+int entrySize1;
+static	Bool	*inUse1;
+static	void	**cache1Addr;
 
 // Cache 2
-static	Bool	inUse2[CACHESIZE2];
-static	void	*cache2Addr[CACHESIZE2];
+int cacheSize2;
+int entrySize2;
+static	Bool	*inUse2;
+static	void	**cache2Addr;
 
 // Cache 3
-static	Bool	inUse3[CACHESIZE3];
-static	void	*cache3Addr[CACHESIZE3];
+int cacheSize3;
+int entrySize3;
+static	Bool	*inUse3;
+static	void	**cache3Addr;
 
 int	newState = NEW_FIRST_CALL;
 
 // Statistics
 static	int	localHigh = 0;
 static	int	reserveHigh = 0;
-static	int	cnt[4] = {0, 0, 0, 0};
-static	int	high[4] = {0, 0, 0, 0};
-
+static	int	cnt[5] = {0, 0, 0, 0, 0};
+static	int	high[5] = {0, 0, 0, 0, 0};
 
 HeapLeakChecker* heapLeakChecker;
 
@@ -166,6 +171,7 @@ operator delete(void* p)
 {
 int	cacheNum, entryNum;
 
+
 	if (!p)
 		return;
 
@@ -210,7 +216,8 @@ int	cacheNum, entryNum;
 
 		default:
 #ifdef DEBUG
-			MBox("unknown cache ID","");
+			sprintf(mbuff,"unknown cache ID cache:%d entry:%d addr:%p",cacheNum,entryNum,p);
+			MBox(mbuff,"");
 #endif
 			// probably a "new" instead of a "New"
 			free(p);
@@ -255,30 +262,39 @@ char	*cache1;
 char	*cache2;
 char	*cache3;
 
-	reserveNext = (char *)newCacheAddr + HEADERSIZE;
-	reserveEnd = (void *)((char *)newCacheAddr + RESERVESIZE);
+	inUse1 = (Bool *)newCacheAddr;
+	cache1Addr = (void **)((char *)inUse1 + (cacheSize1 * sizeof(Bool)));
+
+	inUse2 = (Bool *)((char *)cache1Addr  + (cacheSize1 * sizeof(void *)));
+	cache2Addr = (void **)((char *)inUse2 + (cacheSize2 * sizeof(Bool)));
+
+	inUse3 = (Bool *)((char *)cache2Addr  + (cacheSize2 * sizeof(void *)));
+	cache3Addr = (void **)((char *)inUse3 + (cacheSize3 * sizeof(Bool)));
+
+	reserveNext = (char *)((char *)cache3Addr  + (cacheSize3 * sizeof(void *))) + HEADERSIZE;
+	reserveEnd = (void *)((char *)reserveNext + reserveSize - HEADERSIZE);
 
 	cache1 = (char *)reserveEnd;
-	cache2 = cache1 + CACHESIZE1 * (ENTRYSIZE1 + HEADERSIZE);
-	cache3 = cache2 + CACHESIZE2 * (ENTRYSIZE2 + HEADERSIZE);
+	cache2 = cache1 + cacheSize1 * (entrySize1 + HEADERSIZE);
+	cache3 = cache2 + cacheSize2 * (entrySize2 + HEADERSIZE);
 
-	for (i = 0; i < CACHESIZE1; i++) {
+	for (i = 0; i < cacheSize1; i++) {
 		inUse1[i] = False;
-		cache1Addr[i] = (void *)((char *)cache1 + (i * (ENTRYSIZE1 + HEADERSIZE)));
+		cache1Addr[i] = (void *)((char *)cache1 + (i * (entrySize1 + HEADERSIZE)));
 		*((ushort *)cache1Addr[i] - 2) = NEW_CACHE_ONE;
 		*((ushort *)cache1Addr[i] - 1) = i;
 	}
 
-	for (i = 0; i < CACHESIZE2; i++) {
+	for (i = 0; i < cacheSize2; i++) {
 		inUse2[i] = False;
-		cache2Addr[i] = (void *)((char *)cache2 + (i * (ENTRYSIZE2 + HEADERSIZE)));
+		cache2Addr[i] = (void *)((char *)cache2 + (i * (entrySize2 + HEADERSIZE)));
 		*((ushort *)cache2Addr[i] - 2) = NEW_CACHE_TWO;
 		*((ushort *)cache2Addr[i] - 1) = i;
 	}
 
-	for (i = 0; i < CACHESIZE3; i++) {
+	for (i = 0; i < cacheSize3; i++) {
 		inUse3[i] = False;
-		cache3Addr[i] = (void *)((char *)cache3 + (i * (ENTRYSIZE3 + HEADERSIZE)));
+		cache3Addr[i] = (void *)((char *)cache3 + (i * (entrySize3 + HEADERSIZE)));
 		*((ushort *)cache3Addr[i] - 2) = NEW_CACHE_THREE;
 		*((ushort *)cache3Addr[i] - 1) = i;
 	}
@@ -290,8 +306,8 @@ AllocInTables(size_t size,char* file,int line)
 void	*p;
 
 	// Can we use table 1?
-	if (size <= ENTRYSIZE1) {
-		for (int i = 0; i < CACHESIZE1; i++) {
+	if (size <= entrySize1) {
+		for (int i = 0; i < cacheSize1; i++) {
 			if (!inUse1[i]) {
 				inUse1[i] = True;
 				p = (void *)cache1Addr[i];
@@ -301,13 +317,14 @@ void	*p;
 			}
 		}
 #ifdef DEBUG
-		SciDisplay("cache1 overflow");
+		sprintf(mbuff,"cache1 overflow:%d",cacheSize1);
+		SciDisplay(mbuff);
 #endif
 	}
 
 	// Can we use table 2?
-	if (size <= ENTRYSIZE2) {
-		for (int i = 0; i < CACHESIZE2; i++) {
+	if (size <= entrySize2) {
+		for (int i = 0; i < cacheSize2; i++) {
 			if (!inUse2[i]) {
 				inUse2[i] = True;
 				p = (void *)cache2Addr[i];
@@ -317,13 +334,14 @@ void	*p;
 			}
 		}
 #ifdef DEBUG
-		SciDisplay("cache2 overflow");
+		sprintf(mbuff,"cache2 overflow:%d",cacheSize2);
+		SciDisplay(mbuff);
 #endif
 	}
 
 	// Can we use table 3?
-	if (size <= ENTRYSIZE3) {
-		for (int i = 0; i < CACHESIZE3; i++) {
+	if (size <= entrySize3) {
+		for (int i = 0; i < cacheSize3; i++) {
 			if (!inUse3[i]) {
 				inUse3[i] = True;
 				p = (void *)cache3Addr[i];
@@ -333,7 +351,8 @@ void	*p;
 			}
 		}
 #ifdef DEBUG
-		SciDisplay("cache3 overflow");
+		sprintf(mbuff,"cache3 overflow:%d",cacheSize3);
+		SciDisplay(mbuff);
 #endif
 	}
 
@@ -351,7 +370,8 @@ void	*p;
 	  	}
 	  	reserveNext = p;
 #ifdef DEBUG
-		SciDisplay("reserve overflow");
+		sprintf(mbuff,"reserve overflow:%d",reserveSize);
+		SciDisplay(mbuff);
 #endif
 	}
 
@@ -371,7 +391,6 @@ void	*p;
 	*((ushort *)p - 1) = 0;
 	if (SHOWNEWS)
 		DisplayStats(4);
-
 	return p;
 }
 

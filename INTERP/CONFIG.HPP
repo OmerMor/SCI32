@@ -32,7 +32,7 @@ public:
 		PlayAudio,
 		RoomMinK,
 		Translation,
-		VESA,
+		VMD,
 		WVIDEO
 #endif
 	};
@@ -64,7 +64,12 @@ protected:
 	char				fileName[MaxPath + 1];
 };
 
+extern int			vmdBlackLines;
+extern int			vmdNoAsync;
+extern int			vmdSkipOn;
+extern int			vmdReport;
+extern int			vmdRGB;
+
 extern ConfigMgr* configMgr;
 
 #endif
-

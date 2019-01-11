@@ -508,7 +508,8 @@ unsigned int AviWaitEvent(int,int flags)
 	while (1) {
 		
 		AsyncEventCheck();
-		if(flags & AVI_COMPLETED && PeekMessage(&msg, hMyWnd, MM_MCINOTIFY, MM_MCINOTIFY, PM_NOREMOVE)) {
+		if(flags & AVI_COMPLETED && (aviStatus[currentlyPlayingMovie] == statusDone || 
+			PeekMessage(&msg, hMyWnd, MM_MCINOTIFY, MM_MCINOTIFY, PM_NOREMOVE))) {
 			retValue = AVI_COMPLETED;
 			break;
 		}

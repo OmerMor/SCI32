@@ -97,35 +97,20 @@ SCIDOS::MakeEventMgr()
 GraphicsMgr*
 SCIDOS::MakeGraphicsMgr()
 {
-	char* argName;
-
 	Bool usePri = False;
 
 #ifdef DEBUG
 	usePri = configMgr->Get(configMgr->PriScreen);
 #endif
+	if (!VesaSupport())
+		msgMgr->Alert("No VESA support detected!");
+	if (*configMgr->Get("hires", 0))  {
+		int xres = atoi(configMgr->Get("hires", 0));
+		int yres = atoi(configMgr->Get("hires", 1));
 
-	if (VesaSupport() &&
-#ifdef DEBUG
-		 (configMgr->Get(configMgr->VESA) ||
-#endif		
-			  (*(argName = configMgr->Get("videoDrv",0))
-				  && !stricmp(&argName[strlen(argName)-8],"VESA.DRV")
-				 )
-#ifdef DEBUG
-			)
-#endif
-		)
-		if (*configMgr->Get("hires", 0))  {
-			int xres = atoi(configMgr->Get("hires", 0));
-			int yres = atoi(configMgr->Get("hires", 1));
-
-			return New GraphicsMgrDOS(xres, yres, True, usePri);
-		}
-		else
-			return New GraphicsMgrDOS(640, 480, True, usePri);
-
-	return New GraphicsMgrDOS(SCIRESX, SCIRESY, False, usePri);
+		return New GraphicsMgrDOS(xres, yres, True, usePri);
+	}
+	return New GraphicsMgrDOS(640, 480, True, usePri);
 }
 
 MemoryMgr*

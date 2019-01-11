@@ -269,9 +269,17 @@ KernelCall kernelCalls[] = {
 	Kernel(Priority),								// 144
 	Kernel(MorphOn),								// 145
 	Kernel(PlayVMD),								// 146
-	Kernel(SetHotRectangles)						// 147
+	Kernel(SetHotRectangles),					// 147
+	Kernel(MulDiv),								// 148
+	
+#ifdef WINDOWS
+	Kernel(GetSierraProfileInt),				// 149
+	Kernel(GetSierraProfileString)			// 150
+#else
+	Dummy,											// 149
+	Dummy												// 150
+#endif
 };
 
 int	kernelMax = sizeof(kernelCalls) / sizeof(*kernelCalls);
-
 

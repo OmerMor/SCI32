@@ -3,6 +3,7 @@
 #include "kbdmgrw.hpp"
 #include "kbd.hpp"
 #include "event.hpp"
+#include "mbox.hpp"
 
 
 Bool
@@ -57,10 +58,16 @@ Bool	charUsed;
 			break;
 
 		case WM_SYSKEYDOWN:				/* ALT key combinations */
+			ReleaseCapture();	 			//allow task switching
 			if (wParam == VK_F10)
 				KeyEvent((HIWORD (lParam) & 0xff) << 8);		/* scan code */
 			else
 				charUsed = False;
+			break;
+
+		case WM_SYSKEYUP:
+			SetCapture(hMyWnd);
+			charUsed = False;
 			break;
 
 		case WM_SYSCHAR:					/* ALT character entered */

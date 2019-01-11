@@ -1,10 +1,10 @@
 //	breakpt.cpp
+#include "sol.hpp"
+
 #ifdef DEBUG
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
-
-#include "sol.hpp"
 
 #include "breakpt.hpp"
 #include "debug.hpp"
@@ -691,3 +691,4 @@ Breakpoints::Test()
 }
 #endif
 
+

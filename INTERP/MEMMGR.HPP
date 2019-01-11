@@ -151,6 +151,7 @@ enum ReservedHandle {
 	Sync36ResListHandle,
 	MsgTranslationResListHandle,
 	RobotResListHandle,
+	VMDResListHandle,
    ResMapHandle,
 	AltResMapHandle,
    PatchTableHandle,
@@ -629,4 +630,3 @@ extern int  		thrashDetectCount;
 #endif
 
 #endif  //MEMMGR_HPP
-

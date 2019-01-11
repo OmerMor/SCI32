@@ -1,10 +1,13 @@
 //	platfrmw.cpp
 
+#include <windows.h>
+
 #include "sol.hpp"
 
 #include "config.hpp"
 #include	"kernel.hpp"
 #include	"pmachine.hpp"
+#include	"textid.hpp"
 
 enum PlatformType {
 	Macintosh,
@@ -39,3 +42,28 @@ KPlatform(argList)
 			break;
 	}
 }
+
+void
+KGetSierraProfileInt(argList)
+{
+	pm.acc = GetPrivateProfileInt(
+		*(TextID) arg(1),		//	section
+		*(TextID) arg(2),		//	entry
+		arg(3),					// default
+		"SIERRA.INI"
+	);
+}
+
+void
+KGetSierraProfileString(argList)
+{
+	pm.acc = GetPrivateProfileString(
+		*(TextID) arg(1),		//	section
+		*(TextID) arg(2),		//	entry
+		*(TextID) arg(3),		// default
+		*(TextID) arg(4),		//	dest
+		arg(5),					//	dest size
+		"SIERRA.INI"
+	);
+}
+

@@ -48,7 +48,7 @@
 #define NUMDESCRIPTORS 2000
 
 // Descriptors memory allocation attributes
-#define HANDLESATTRIBUTES HANDLEMEMORY+MOVEABLE
+#define HANDLESATTRIBUTES HANDLEMEMORY+MOVEABLE+CRITICAL
 
 #define MAXLOCKCOUNT 255				// the maximum lock allowed on a memory resource
 
@@ -967,13 +967,14 @@ MemoryMgr::Pack(size_t theSize)
 	while (begID = desc[freeID].nextO) {
 
 		char* descAddr = 0;
-		Bool critical = False;
 		size_t sum = 0;
 		for (endID = begID; endID; endID = desc[endID].nextO) {
 			if (desc[endID].memInfo.bits.freeMemory ||
 				!desc[endID].memInfo.bits.moveable)
 				break;
-			critical |= desc[endID].memInfo.bits.critical;
+			if (desc[endID].memInfo.bits.critical !=
+				 desc[begID].memInfo.bits.critical)
+				break;
 			if (endID == descID)
 				// The descriptors table will be moved -- save the new location
 				descAddr = desc[descID].data - desc[freeID].size;
@@ -982,7 +983,7 @@ MemoryMgr::Pack(size_t theSize)
 		if (!sum)
 			break;
 
-		if (critical)
+		if (desc[begID].memInfo.bits.critical)
 			_disable();
 
 		memmove(desc[freeID].data,desc[begID].data,sum);
@@ -995,8 +996,7 @@ MemoryMgr::Pack(size_t theSize)
 		desc[freeID].data += sum;
 		MoveOrderedLink(freeID,Before,endID);
 
-		if (critical)
-			_enable();
+		_enable();
 
 #ifdef DEBUG
 		// initialize free memory to special character
@@ -1730,4 +1730,3 @@ Bool 			doThrashReport = False;
 Bool 			thrashReporting = True;
 int  			thrashDetectCount = 20;
 #endif
-

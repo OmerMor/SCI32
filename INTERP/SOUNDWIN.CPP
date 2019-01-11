@@ -63,7 +63,6 @@ SNodeData	*SNodeDataPtr;
 #endif
 
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
 
 	switch (sndFunc) {
 		case STerminate:
@@ -259,7 +258,6 @@ SNodeData	*SNodeDataPtr;
 			retVal = 0;
 			break;
 	}
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 	return retVal;
 }
@@ -282,13 +280,11 @@ void OpenSnd (void)
 {
 	if (!USEMIDI) return;
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
 #ifndef WIN32S
 	InvokeIndirectFunction(hOpenSnd, DLL_OPEN_SND);
 #else
 	(* pfnUTProc)(NULL, (DWORD)DLL_OPEN_SOUND, NULL);
 #endif
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 }
 
@@ -296,13 +292,11 @@ void CloseSnd (void)
 {
 	if (!USEMIDI) return;
 	_disable();
-	((TimeMgrWin*)timeMgr)->DisableTimer();
 #ifndef WIN32S
 	InvokeIndirectFunction(hCloseSnd, DLL_CLOSE_SND);
 #else
 	(* pfnUTProc)(NULL, (DWORD)DLL_CLOSE_SOUND, NULL);
 #endif
-	((TimeMgrWin*)timeMgr)->EnableTimer();
 	_enable();
 }
 

@@ -19,6 +19,7 @@ int  Decomp8To16(void *, void *, int, int);
 void Conv16To8(void *, void *, int);
 void Conv8To16(void *, int);
 void Conv11KTo22K(void *, int, char);
+void Conv22KTo11K(void *, void *, int, char);
 void CopyEOS(void *, void *, int, char);
 void DupeChannel(void *, int, int, char);
 Bool GetDACBuffer(void);
@@ -33,6 +34,7 @@ Bool GetDACBuffer(void);
 #pragma aux (PushArgs) Conv16To8;
 #pragma aux (PushArgs) Conv8To16;
 #pragma aux (PushArgs) Conv11KTo22K;
+#pragma aux (PushArgs) Conv22KTo11K;
 #pragma aux (PushArgs) CopyEOS;
 #pragma aux (PushArgs) DupeChannel;
 
@@ -127,12 +129,12 @@ _Packed struct ResAud36Entry {
 
 struct RobotAudInfo
 {
-	RobotAudInfo(char* buff, int byteLen, int fileLoc)	:
-		adr(buff), len(byteLen), floc(fileLoc)  {}
+	RobotAudInfo(MemID buffID, int byteLen, int fileLoc)	:
+		adrID(buffID), len(byteLen), floc(fileLoc)  {}
 
 	RobotAudInfo() {}
 
-	char*		adr;			// compressed buffer address
+	MemID		adrID;		// compressed buffer address
 	int		len;			// compressed buffer length
 	int		floc;			// original unc file-rel offset
 	int		ext;			// original unc file-rel extent
@@ -158,5 +160,11 @@ Bool	AudRobot(RobotAudInfo);
 #define	INT_MAXHBSIZE	(31*1024)
 
 const unsigned	SFXMODNUM = 65535U;
+
+#define	ALL_SAMPLES	-1
+#define	NO_SAMPLES	-2
+#define	ROBOTS_ONLY	-3
+#define	NO_DAC		-1
+
 #endif
 

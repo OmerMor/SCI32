@@ -25,12 +25,6 @@ EventMgrWin::Get(SOL_Event* event, SOL_Event::Type mask)
 	AsyncEventCheck();
 	Bool rc = EventMgr::Get(event, mask);
 	
-	//	capture mouse on mouse down and release it on mouse up
-	if (event->type == SOL_Event::MouseDown)
-		SetCapture(hMyWnd);
-	else if (event->type == SOL_Event::MouseUp)
-		ReleaseCapture();
-	
 	return rc;
 }
 
@@ -62,7 +56,8 @@ EventMgrWin::Handle(SOL_Event* event)
 		event->where = SOL_Point(0,0);
 
 	Kbd::Mod mods = GetModifiers();
-	event->modifiers |= mods;
+//	event->modifiers |= mods;
+	event->modifiers = mods;
 
 #ifdef DEBUG
 	if (event->type == SOL_Event::KeyDown && event->message == '`') {

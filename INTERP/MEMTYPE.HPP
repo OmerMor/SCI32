@@ -29,52 +29,53 @@ enum MemType {
 	MemResSync36,						// 0x14
 	MemResMsgTranslation,			// 0x15
 	MemResRobot,						// 0x16
-	MemResLast = MemResRobot,
+	MemResVMD,							// 0x17
+	MemResLast = MemResVMD,
 
 	//	other memory types
-	MemDriver,							// 0x17
-	MemResourceList,					// 0x18
-	MemPatchTable,						// 0x19
-	MemText,								// 0x1a
-	MemObject,							// 0x1b
-	MemArray,							// 0x1c
-	MemMovieBuffer,					// 0x1d
-	MemSample,							// 0x1e
-	MemList,								// 0x1f
-	MemListNode,						// 0x20
-	MemListKNode,						// 0x21
-	MemDictionary,						// 0x22
-	MemClassTbl,						// 0x23
-	MemDispatchTbl,					// 0x24
-	MemScriptEntry,					// 0x25
-	MemVariables,						// 0x26
-	MemScript,							// 0x27
-	MemViewHeader,						// 0x28
-	MemMsgStack,						// 0x29
-	MemMovie,							// 0x2a
-	MemCode,								// 0x2b
-	MemPolygonList,					// 0x2c
-	MemPointList,						// 0x2d
-	MemSound,							// 0x2e
-	MemSync,								// 0x2f
-	MemPMStack,							// 0x30
-	MemEditStruct,						// 0x31
-	MemBitmap,							// 0x32
-	MemSpecialCode,					// 0x33
-	MemDescriptors,					// 0x34
-	MemDecompBuffer,					// 0x35
-	MemAudioBuffer,					// 0x36
-	MemSaveGameDumpBuffer,			// 0x37
-	MemCodeFixups,						// 0x38
-	MemWindow,  						// 0x39
-   MemWindowEntry,               // 0x3a
-   MemFontMgr,                   // 0x3b
-   MemEdit,                   	// 0x3c
+	MemDriver = 0x30,					// 0x30
+	MemResourceList,					// 0x31
+	MemPatchTable,						// 0x32
+	MemText,								// 0x33
+	MemObject,							// 0x34
+	MemArray,							// 0x35
+	MemMovieBuffer,					// 0x36
+	MemSample,							// 0x37
+	MemList,								// 0x38
+	MemListNode,						// 0x39
+	MemListKNode,						// 0x3a
+	MemDictionary,						// 0x3b
+	MemClassTbl,						// 0x3c
+	MemDispatchTbl,					// 0x3d
+	MemScriptEntry,					// 0x3e
+	MemVariables,						// 0x3f
+	MemScript,							// 0x40
+	MemViewHeader,						// 0x41
+	MemMsgStack,						// 0x42
+	MemMovie,							// 0x43
+	MemCode,								// 0x44
+	MemPolygonList,					// 0x45
+	MemPointList,						// 0x46
+	MemSound,							// 0x47
+	MemSync,								// 0x48
+	MemPMStack,							// 0x49
+	MemEditStruct,						// 0x4a
+	MemBitmap,							// 0x4b
+	MemSpecialCode,					// 0x4c
+	MemDescriptors,					// 0x4d
+	MemDecompBuffer,					// 0x4e
+	MemAudioBuffer,					// 0x4f
+	MemSaveGameDumpBuffer,			// 0x50
+	MemCodeFixups,						// 0x51
+	MemWindow,  						// 0x52
+   MemWindowEntry,               // 0x53
+   MemFontMgr,                   // 0x54
+   MemEdit,                   	// 0x55
 	
 	//	special types					
-	MemResNone,							// 0x3d
-	MemFree,								// 0x3e
-	NotFound = 0xff					
+	MemResNone = 70,					// 0x70
+	MemFree,								// 0x71
+	NotFound = 0xff					// 0xff
 };
 
 MemType			GetSCITypeFromStr(const char* str);
@@ -85,4 +86,3 @@ const char* GetMemTypeStr(MemType);
 MemType GetMemTypeFromStr(const char* str);
 
 #endif
-

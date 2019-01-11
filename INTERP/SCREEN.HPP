@@ -42,7 +42,7 @@ class Screen
 	void	AddScreenItem(ScreenItem*);
 	void	AddPlane(Plane*);
 	int	AddPic(long planeID,int thePic,SOL_Point& thePoint,int mirror);
-	void	CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[]);
+	void	CalcLists(Screen& last,DrawList* drawLists[],RectList* eraseLists[],SOL_Rect& dirtyRect);
 	void	Clear();
 #ifdef MACINTOSH
 	void	ClearForRestoreGame();

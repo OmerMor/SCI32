@@ -141,6 +141,7 @@ void	KSinMult(argList);
 void	KCosMult(argList);
 void	KSinDiv(argList);
 void	KCosDiv(argList);
+void	KMulDiv(argList);
 
 // Miscellaneous functions.
 void	KGetTime(argList);
@@ -149,6 +150,8 @@ void	KCD(argList);
 #ifdef WINDOWS
 void	KWinHelp(argList);
 void	KMessageBox(argList);
+void	KGetSierraProfileString(argList);
+void	KGetSierraProfileInt(argList);
 #endif
 
 // Motion functions.

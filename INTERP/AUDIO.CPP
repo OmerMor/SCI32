@@ -2,6 +2,7 @@
 //		digital audio sample playback
 
 #include <stdio.h>
+#include <sys\stat.h>
 
 #include "sol.hpp"
 
@@ -20,10 +21,6 @@
 #include	"kbdmgr.hpp"
 #include	"msg.hpp"
 #endif
-
-#define	ALL_SAMPLES	-1
-#define	NO_SAMPLES	-2
-#define	NO_DAC		-1
 
 union {
 	void *data;
@@ -113,9 +110,11 @@ Bool		lastDAC;
 Bool		mixCheck = True;
 int		pausedLoc = 0;
 int		preLoad = 0;
+int		prioritySample = -1;
 int		rate = 0, bits = 0, channels = 0, volume = MAXVOLUME;
 int		rateMax, bitsMax, channelsMax, volumeMax;
 Bool		rateSet = False, bitsSet = False, channelsSet = False;
+Bool		robotsPaused = False;
 int		sfxVolFD = -1;
 
 void		AudioBits(int);
@@ -203,8 +202,11 @@ KDoAudio(argList)
 					sample[n].loop = False;
 				if (argCount >= 4 && arg(4) >= 0 && arg(4) <= MAXVOLUME)
 					sample[n].volume = arg(4);
-				else
+				else {
 					sample[n].volume = MAXVOLUME;
+					if (argCount >= 4)
+						prioritySample = n;
+				}
 				if (argCount == 5)
 					sample[n].tag = arg(5);
 				else
@@ -222,8 +224,11 @@ KDoAudio(argList)
 					sample[n].loop = False;
 				if (argCount >= 8 && arg(8) >= 0 && arg(8) <= MAXVOLUME)
 					sample[n].volume = arg(8);
-				else
+				else {
 					sample[n].volume = MAXVOLUME;
+					if (argCount >= 4)
+						prioritySample = n;
+				}
 			}
 			sample[n].robot = False;
 			if (pm.acc = sample[n].ticks = AudioSelect(n)) {
@@ -232,7 +237,8 @@ KDoAudio(argList)
 				AudioPlay();
 				if (pause)
 					sample[n].pausedLoc = sample[n].startLoc;					
-			}
+			} else if (prioritySample == n)
+				prioritySample = -1;
 			break;
 		case STOP:
 			pm.acc = activeSamples;
@@ -403,13 +409,15 @@ AudRobot(RobotAudInfo buff)
 
 	if (!audioInstalled)
 		return True;
-	rbot.adr = buff.adr;
+	rbot.adrID = buff.adrID;
 	rbot.len = buff.len;
 	rbot.floc = buff.floc;
 	rbot.ext = rbot.floc + rbot.len*4;
 	rbot.channel = rbot.floc % 4 ? 1 : 0;
 	if (rbot.floc == 0 && rbot.len != 0 && rbot.len != -1) {
-		AudioStop(ALL_SAMPLES);
+		for (n = 0; n < activeSamples; n++)
+			if (sample[n].robot)
+				AudioStop(n);
 		rbot.hwm[0] = 0;
 		rbot.hwm[1] = 2;
 		if ((n=activeSamples) == MAXSAMPLES)
@@ -452,7 +460,7 @@ AudRobot(RobotAudInfo buff)
 			FillRbotBuffer16(n);
 		if (ext > rmax)
 			return False;
-		if (rbot.floc == 2)
+		if (rbot.floc == 2 && !robotsPaused)
 			AudioPlay();
 	}
 	return True;
@@ -464,7 +472,7 @@ FillRbotBuffer8(int n)
 	int	ofs, ext, len;
 
 	rbot.cofs = 0;
-	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
+	Decomp8To16(*convBuff,*rbot.adrID,rbot.len,0);
 	rbot.len *= 2;
 	int loc = Max(rbot.min+rbot.channel,rbot.hwm[rbot.channel]);
 	int mx = rbot.max+rbot.channel;
@@ -532,7 +540,7 @@ FillRbotBuffer16(int n)
 	int	ofs, ext, len;
 
 	rbot.cofs = 0;
-	Decomp8To16(*convBuff,rbot.adr,rbot.len,0);
+	Decomp8To16(*convBuff,*rbot.adrID,rbot.len,0);
 	rbot.len *= 2;
 	int loc = Max(rbot.min+rbot.channel*2,rbot.hwm[rbot.channel]);
 	int mx = rbot.max+rbot.channel*2;
@@ -933,8 +941,11 @@ AudioStop(int n)
 	} else {
 		DropSample(n);
 		--activeSamples;
-		for (t = n; t < activeSamples; t++)
+		for (t = n; t < activeSamples; t++) {
 			sample[t] = sample[t+1];
+			if (t+1 == prioritySample)
+				prioritySample = t;
+		}
 	}
 	if (!activeSamples) {
 		// No samples remain for playback...
@@ -956,6 +967,8 @@ DropSample(int n)
 		sample[n].audFD = -1;
 	}
 	sample[n].buffID.Free();
+	if (n == prioritySample)
+		prioritySample = -1;
 }
 
 Bool
@@ -969,6 +982,13 @@ AudioPause(int n)
 		if (!pausedLoc) {
 			pausedLoc = ticks;
 			return True;
+		}
+	} else if (n == ROBOTS_ONLY) {
+		robotsPaused = True;
+		for (n = 0; n < activeSamples; n++) {
+			if (sample[n].robot) {
+				sample[n].pausedLoc = ticks;
+			}
 		}
 	} else if (!sample[n].pausedLoc) {
 		sample[n].pausedLoc = ticks;
@@ -992,6 +1012,17 @@ AudioResume(int n)
 			globalLoc += ticks - pausedLoc;
 			pausedLoc = 0;
 			return True;
+		}
+	} else if (n == ROBOTS_ONLY) {
+		robotsPaused = False;
+		for (n = 0; n < activeSamples; n++) {
+			if (sample[n].robot) {
+				sample[n].startLoc += ticks - sample[n].pausedLoc;
+				sample[n].pausedLoc = 0;
+				if (activeSamples == 1)
+					AudioPlay();
+				return True;
+			}
 		}
 	} else if (sample[n].pausedLoc) {
 		sample[n].startLoc += ticks - sample[n].pausedLoc;
@@ -1099,7 +1130,7 @@ MergeBuffers()
 	if (cnt)
 		return True;
 	for (n = 0; n < activeSamples; n++)
-		if (sample[n].bytesToRead || sample[n].pausedLoc)
+		if (sample[n].bytesBuffered || sample[n].bytesToRead || sample[n].pausedLoc)
 			return True;
 	lastDAC = True;
 	return False;
@@ -1136,9 +1167,9 @@ MergeBuffer(int n, int cnt)
 
 	DistortBuffer(n,(char far *)buffer);
 	VolumeBuffer(n,(char far *)buffer);
-	if (!cnt)
+	if (n == prioritySample || !cnt)
 		_fmemmove(DACBuffer.ptr,(char far *)buffer,DACHbufferSize);
-	else
+	else if (prioritySample == -1)
 		Merge(DACBuffer.ptr,buffer,DACHbufferSize,bits,mixCheck);
 
 	if (++sample[n].bufferNumber == intHbufferSize / DACHbufferSize * 2)
@@ -1160,7 +1191,8 @@ FillBuffer(int n)
 	int	fillOfs = sample[n].fillToggle * intHbufferSize;
 	int	t = sample[n].bufferSize -
 		loopOfs * (sample[n].do16Conv8? 2:1) * (sample[n].do22KConv11K? 2:1) /
-		((sample[n].do8Conv16? 2:1) * (sample[n].do11KConv22K? 2:1));
+		((sample[n].do8Conv16? 2:1) * (sample[n].do11KConv22K? 2:1) *
+		(sample[n].doDecomp?2:1));
 	if (sample[n].bytesToRead > t)
 		len = t;
 	else
@@ -1176,7 +1208,7 @@ FillBuffer(int n)
 			convBuff.Read(sample[n].fd,len,len);
 			sample[n].offset += len;
 		}
-	} else if (sample[n].do16Conv8 || sample[n].doDecomp) {
+	} else if (sample[n].do16Conv8 || sample[n].doDecomp || sample[n].do22KConv11K) {
 		if (sample[n].id) {
 			memcpy(*convBuff,&sample[n].id[sample[n].bytesRead],len);
 			sample[n].bytesRead += len;
@@ -1201,10 +1233,10 @@ FillBuffer(int n)
 					Decomp8To16(*convBuff,(char *)*convBuff+len,len,sample[n].compVal16);
 			else
 				sample[n].compVal16 =
-					Decomp8To16(&sample[n].buffID[fillOfs+loopOfs*2],*convBuff,len,sample[n].compVal16);
+					Decomp8To16(&sample[n].buffID[fillOfs+loopOfs],*convBuff,len,sample[n].compVal16);
 		} else {
 			sample[n].compVal8 =
-				Decomp4To8(&sample[n].buffID[fillOfs+loopOfs*2],*convBuff,len,sample[n].compVal8);
+				Decomp4To8(&sample[n].buffID[fillOfs+loopOfs],*convBuff,len,sample[n].compVal8);
 		}
 		len *= 2;
 	}
@@ -1217,6 +1249,11 @@ FillBuffer(int n)
 	if (sample[n].do8Conv16) {
 		Conv8To16(&sample[n].buffID[fillOfs+loopOfs],len);
 		len *= 2;
+	}
+
+	if (sample[n].do22KConv11K) {
+		len /= 2;
+		Conv22KTo11K(&sample[n].buffID[fillOfs+loopOfs],*convBuff,len,bits);
 	}
 
 	if (sample[n].do11KConv22K) {
@@ -1528,8 +1565,8 @@ InitAudioDriver()
 	audioInstalled = True;
 	
 #ifdef DEBUG
-//	if (configMgr->Get(configMgr->PlayAudio))
-//		DACPlay();
+	if (configMgr->Get(configMgr->PlayAudio))
+		DACPlay();
 #endif
 
 	return True;
@@ -1730,4 +1767,3 @@ AudioCheck()
 				if (!CallDAC(DAC_LOC,0))
 					AudioStop(n);
 }
-

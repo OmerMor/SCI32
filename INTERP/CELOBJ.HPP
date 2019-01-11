@@ -43,6 +43,8 @@ _Packed struct CelHeader : public CelBase
 {
 	UInt16   xRes;
 	UInt16	yRes;
+	Int32    linkTableOffset;
+	UInt16   linkNumber;
 };
 
 _Packed struct ViewHeader
@@ -113,7 +115,7 @@ class Bitmap
 
 	Bitmap(const int v, const int l, const int c)	{view = v; loop = l; cel = c; type = tView;}
 	Bitmap(const int p, const int c)						{view = p; loop = 0; cel = c; type = tPic;}
-	Bitmap(const MemID id)									{view = loop = cel = 0; type = tMem; memid = id; id.Lock();}
+	Bitmap(const MemID id)									{view = loop = cel = 0; type = tMem; memid = id;}
 	Bitmap(const uchar c)									{view = loop = cel = 0; type = tColor; color = c;}
 	Bitmap() 													{view = loop = cel = 0; type = tMem;}
 
@@ -135,9 +137,9 @@ class Bitmap
 	void	SetLoop(int l)			{loop = l;}
 	void	SetView(int v)			{view = v; type = tView;}
 	void	SetPic(int p)			{view = p; loop = 0; type = tPic;}
-	void	SetHandle(MemID id)	{type = tMem; memid = id; id.Lock();}
+	void	SetHandle(MemID id)	{type = tMem; memid = id;}
 	void	SetType(int theType)	{type = theType;}
-	void	SetMemID(const MemID& id)	{memid = id; id.Lock(); }
+	void	SetMemID(const MemID& id)	{memid = id;}
 
 	private:
 	int	type;

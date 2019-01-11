@@ -21,6 +21,7 @@
 #include "savegame.hpp"
 #ifdef WIN32S
 #include "shiftpal.hpp"
+#include "wingfunc.hpp"
 #endif
 #include "mbox.hpp"
 
@@ -323,8 +324,8 @@ CursorWin::UnHide()
 		if (!hideCount)
 			ShowCursor (1);
 	}
-	else
-		msgMgr->Fatal(SrcLoc, Msg_CursorUnHide);
+//	else
+//		msgMgr->Fatal(SrcLoc, Msg_CursorUnHide);
 }
 
 void
@@ -376,14 +377,16 @@ CursorWinClr::CursorWinClr(const BufferWin& buffer):bitmap(-1,-1,-1),
 	cursorData(False),
 	cursorBack(False),
 	saveVmap(False),
-#ifndef WIN32S
 	vmapData(True),
-#else
-	vmapData(False),
-#endif
 	drawBuff1(False),
 	drawBuff2(False)
 {
+
+#ifdef WIN32S
+	if (!bDIBInverted)
+		vmapData.invertedFlag = False;
+#endif	
+
 	putCursorInVMAP = False;
 	gonnaPaint = False;
 	hideCount = 0;
@@ -437,7 +440,7 @@ CursorWinClr::CursorWinClr(const BufferWin& buffer):bitmap(-1,-1,-1),
 		bic.colorix [i] = i;
 	bic.colorix[255] = 7;						/* defined as white - this is close */
 
-	while (ShowCursor (0) > -1);
+//	while (ShowCursor (0) > -1);
 
 	Set(-1, -1, -1);
 }
@@ -551,8 +554,18 @@ CursorWinClr::SetDevice(PointerDevice& dev)
 void
 CursorWinClr::ForcePos(SOL_Point p)
 {
-	SetCursorPos(p.x, p.y);
-//	posDevice->SetPos(p);
+POINT	myPoint;
+
+	myPoint.x = p.x;
+	myPoint.y = p.y;
+
+	// scale to client coords
+	myPoint.x = (((int)myPoint.x * gameWidth)  / SCIRESX) + gameBorder;
+	myPoint.y = (((int)myPoint.y * gameHeight) / SCIRESY) + gameBorder;
+
+	ClientToScreen (hMyWnd, (LPPOINT)&myPoint);
+
+	SetCursorPos (myPoint.x, myPoint.y);
 }
 
 
@@ -669,8 +682,8 @@ CursorWinClr::UnHide()
 			RevealCursor();
 		}
 	}
-	else
-		msgMgr->Fatal(SrcLoc, Msg_CursorUnHide);
+//	else
+//		msgMgr->Fatal(SrcLoc, Msg_CursorUnHide);
 
 //	PopInterrupts();
 }
@@ -1081,4 +1094,5 @@ CursorWinClr::SaveRestoreAfter(SaveGame*, Bool save)
 	}
 }
 
+
 

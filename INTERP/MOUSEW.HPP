@@ -32,11 +32,6 @@ class MouseWin : public SOL_Mouse
  protected:
 	static	SOL_Cursor*	cursor;
 	static	Bool			restrictFlag;
-	static	SOL_Rect		restrict;
-	static	SOL_Point	pos;
-	static	int			buttonState;
-	static	SOL_Event	event;
-	static	int			exists;
 	static	Bool			inCage;
 };
 
@@ -70,19 +65,18 @@ class MouseWinClr : public SOL_Mouse
 	friend	void __loadds __far HndlMouse(int, int, int, int, int, int);
 
 	static	SOL_Cursor*	cursor;
-	static	SOL_Rect		restrict;
 	static	Bool			useMouse;
 	static	Bool			isSwift;
-	static	SOL_Point	pos, posScale;
+	static	SOL_Point	posScale;
 	static	short			zaxis;
 	static	short			pitch;
 	static	short			roll;
 	static	short			yaw;
-	static	int			buttonState;
-	static	SOL_Event	event;
-	static	int			exists;
 	static	uchar*		stackBuff;
 };
+
+extern SOL_Mouse* clrMouse;
+extern SOL_Mouse* winMouse;
 
 typedef struct {
 	short	x;

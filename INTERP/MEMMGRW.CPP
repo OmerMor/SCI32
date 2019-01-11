@@ -35,10 +35,6 @@ int 	ExtendedMem(void);
 extern	uchar *wAudioBuffAddr;
 extern	uchar *cursorBuffAddr;
 extern	int	maxCursorSize;
-// Midi page locking variables
-extern	DWORD		smallMidiSize;
-extern	DWORD		largeMidiSize;
-extern	DWORD		numSoundNodes;
 extern	char far *midiCachePtr;
 
 int	sysMemAvail;
@@ -152,11 +148,19 @@ char		errbuff[300];
 	reserveMem16	= reserveK16 * 1024;
 	sciMin			= sciMinK * 1024;
 	sciMax			= sciMaxK * 1024;
-	newCacheSize	= NEWCACHESIZE;
+	newCacheSize	=	cacheSize1 * (sizeof(Bool) + sizeof(void *)) +
+						 	cacheSize2 * (sizeof(Bool) + sizeof(void *)) +
+						 	cacheSize3 * (sizeof(Bool) + sizeof(void *)) +
+							reserveSize +
+							cacheSize1 * (entrySize1 + HEADERSIZE) +
+							cacheSize2 * (entrySize2 + HEADERSIZE) +
+							cacheSize3 * (entrySize3 + HEADERSIZE) + 100;
 	cursorBuffSize = 12 * maxCursorSize;
 #ifndef WIN32S
-	midiCacheSize = smallMidiSize + largeMidiSize + 
-							(numSoundNodes * sizeof(SNodeData)) + 30;
+	midiCacheSize = (NUMSOUNDNODES * sizeof(SNodeData) + 100);
+	for (int i = 0; i < NUMMIDIBUFFS; i++)
+		midiCacheSize += midiBuffSize[i];
+						
 	wingMin	= 0;
 	wingSize	= 0;
 #else

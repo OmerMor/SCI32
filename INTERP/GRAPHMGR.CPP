@@ -129,11 +129,6 @@ GraphicsMgr::DeletePlane(Plane* plane)
 	if (plane != GetPlaneNext(plane->Id()))
 		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,plane->Id());
 		
-//	Plane* currentPlane = GetPlaneCurrent(plane->Id());
-
-//	if (currentPlane == NULL)
-//		msgMgr->Fatal(SrcLoc,Msg_PlaneNotFound,plane->Id());
-
 	if (plane->AddCount())  {
 		next.AbortPlane(plane);
 	}
@@ -180,7 +175,8 @@ GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 	if (Remap::remapCount && lastRemapFlag)
 		RemapMarkRedraw();
 
-	CalcLists(drawLists,eraseLists);
+	SOL_Rect dirtyRect(0,0,-1,-1);
+	CalcLists(drawLists,eraseLists,dirtyRect);
 
 	// The number of planes may have been reduced by CalcLists
 	nplanes = next.Planes().Length();
@@ -261,7 +257,7 @@ GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 	if (Remap::remapCount && lastRemapFlag)
 		RemapMarkRedraw();
 
-	CalcLists(drawLists,eraseLists);
+	CalcLists(drawLists,eraseLists,dirtyRect);
 
 	// The number of planes may have been reduced by CalcLists
 	nplanes = next.Planes().Length();
@@ -302,13 +298,21 @@ GraphicsMgr::PalMorphFrameOut(char* palArray,PlaneShowStyle* style)
 }
 
 void
-GraphicsMgr::FrameOut(Bool showBits)
+GraphicsMgr::FrameOut(Bool showBits, SOL_Rect dirtyRect)
 {
+	#ifdef DEBUG
+	static int reenter = 0;		//  BUGBUG - DF - Won't work if mult graphmgrs
+	
+	reenter++;
+	if (reenter == 2)
+		msgMgr->Alert("Frameout reentered!");
+
+	#endif
+
 	if (robot)
 		robot->DoRobot();
 
 	int nplanes = next.Planes().Length();
-	if (nplanes > 100) msgMgr->Mono("\ptoo many planes.");
 
 	for (int i = 0;i < nplanes;i++)  {
 		drawLists[i] = New DrawList;
@@ -318,7 +322,7 @@ GraphicsMgr::FrameOut(Bool showBits)
 	if (Remap::remapCount && lastRemapFlag)
 		RemapMarkRedraw();
 
-	CalcLists(drawLists,eraseLists);
+	CalcLists(drawLists,eraseLists,dirtyRect);
 
 	// The number of planes may have been reduced by CalcLists
 	nplanes = next.Planes().Length();
@@ -364,6 +368,10 @@ GraphicsMgr::FrameOut(Bool showBits)
 		delete eraseLists[i];
 		delete drawLists[i];
 	}
+
+	#ifdef DEBUG
+	reenter--;
+	#endif
 }
 
 void
@@ -461,8 +469,6 @@ GraphicsMgr::IsOnMe(ScreenItem& si,Plane& plane,const SOL_Point& p,Bool checkSki
 		return True;
 
 	//  pCel = "Un User Scaled" offset 
-// HOOK
-//	si.DoUpdate(plane);
 	si.GetCelObj();
 
 	SOL_Point pCel;
@@ -567,3 +573,4 @@ GraphicsMgr::MergeToShowList(const SOL_Rect& r,RectList& rectList,int callOverhe
 	rectList.Add(rect1);
 }
 
+

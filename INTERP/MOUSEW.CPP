@@ -16,17 +16,24 @@
 #include "savegame.hpp"
 #include "mbox.hpp"
 
+SOL_Mouse* winMouse = NULL;
+SOL_Mouse* clrMouse = NULL;
+
 SOL_Cursor*	MouseWin::cursor = NULL;
 Bool			MouseWin::restrictFlag = False;
-Bool			MouseWin::exists = False;
-SOL_Rect		MouseWin::restrict;
-SOL_Point	MouseWin::pos;
-int			MouseWin::buttonState = 0;
-SOL_Event	MouseWin::event;		//  Watcom 9.5 insisted that the interrupt
-											//  routine couldn't create one locally on
-											//  the stack.  DF
 Bool			MouseWin::inCage = False;
 
+// Made these global so they are common to both mouse types.
+// There's probably a better way to do this such as an intermediate
+// common class.  TM 5/8/95
+static	Bool			exists = False;
+static	SOL_Rect		restrict;
+static	SOL_Point	pos;
+static	int			buttonState = 0;
+static	SOL_Event	event;		//  Watcom 9.5 insisted that the interrupt
+											//  routine couldn't create one locally on
+											//  the stack.  DF
+static	Bool			outOfGame = False;
 
 MouseWin::MouseWin()
 {
@@ -85,12 +92,66 @@ MouseWin::SetPos(const SOL_Point& p)
 {
 SOL_Point	tmp;
 Bool			prevInCage;
+Bool	outSide;
+
+	outSide = False;
+	if (p.x < 0)
+		outSide = True;
+	if (p.y < 0)
+		outSide = True;
 
 	tmp = p;
 
+	// allow for the black border
+	if (tmp.x > gameBorder)
+		tmp.x -= gameBorder;
+	else
+		tmp.x = 0;
+	if (tmp.y > gameBorder)
+		tmp.y -= gameBorder;
+	else
+		tmp.y = 0;
+
+	// restrict the coordinates to the game window and set a flag 
+	// if we are outside.
+	if (tmp.x < 0) {
+		outSide = True;
+		tmp.x = 0;
+	}
+	if (tmp.x > gameWidth-1) {
+		outSide = True;
+		tmp.x = gameWidth-1;
+	}
+	if (tmp.y < 0) {
+		outSide = True;
+		tmp.y = 0;
+	}
+	if (tmp.y > gameHeight-1) {
+		outSide = True;
+		tmp.y = gameHeight-1;
+	}
+
+	// if we just left the game window, then hide the color cursor and
+	// do a ReleaseCapture so we don't get mouse move messages.
+
+	if (outSide && !outOfGame) {
+		outOfGame = True;
+		if (!buttonState)
+			ReleaseCapture();
+	}
+
+	// if we just entered the game window, then show the color cursor and
+	// capture the the mouse so that the user can't sneak out without us
+	// knowing about it.
+
+	if (!outSide && outOfGame) {
+		outOfGame = False;
+		SetCapture(hMyWnd);
+	}
+
 	// scale to sci dimensions
-	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
-	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
+//	tmp.x = (tmp.x < gameBorder)? 0: tmp.x - gameBorder; 
+//	tmp.y = (tmp.y < gameBorder)? 0: tmp.y - gameBorder; 
 	tmp.x = (tmp.x * SCIRESX) / gameWidth;
 	tmp.y = (tmp.y * SCIRESY) / gameHeight;
 	tmp.x = (tmp.x > SCIRESX-1)? SCIRESX-1: tmp.x;
@@ -184,6 +245,8 @@ SOL_Point	tmp;
 		event.type = SOL_Event::MouseDown;
 		buttonState = 1;
 	} else {
+		if (outOfGame)
+			ReleaseCapture();
 		event.type = SOL_Event::MouseUp;
 		buttonState = 0;
 	}
@@ -222,18 +285,18 @@ const short swiftInstalled = 0x53C1;
 const short mouseMoved	= 0x01;
 
 SOL_Cursor*	MouseWinClr::cursor = NULL;
-SOL_Rect		MouseWinClr::restrict;
+//SOL_Rect		MouseWinClr::restrict;
 Bool			MouseWinClr::useMouse = True;
 Bool			MouseWinClr::isSwift = False;
-Bool			MouseWinClr::exists = False;
+//Bool			MouseWinClr::exists = False;
 uchar*		MouseWinClr::stackBuff = NULL;
-SOL_Point	MouseWinClr::pos;
+//SOL_Point	MouseWinClr::pos;
 short			MouseWinClr::zaxis = 0;
 short			MouseWinClr::pitch = 0;
 short			MouseWinClr::roll = 0;
 short			MouseWinClr::yaw = 0;
-int			MouseWinClr::buttonState = 0;
-SOL_Event	MouseWinClr::event;		//  Watcom 9.5 insisted that the interrupt
+//int			MouseWinClr::buttonState = 0;
+//SOL_Event	MouseWinClr::event;		//  Watcom 9.5 insisted that the interrupt
 											//  routine couldn't create one locally on
 											//  the stack.  DF
 
@@ -316,7 +379,8 @@ MouseWinClr::SetRestrictRect(const SOL_Rect& r1)
 	restrict.B.x = r1.B.x * ratiox;
 	restrict.B.y = r1.B.y * ratioy;
 
-	SOL_Point p = MouseWinClr::pos;
+//	SOL_Point p = MouseWinClr::pos;
+	SOL_Point p = pos;
 	if (p.x < restrict.A.x)
 		p.x = restrict.A.x;
 	if (p.x > restrict.B.x)
@@ -343,7 +407,6 @@ MouseWinClr::Setup(SOL_Cursor& cur)
 	cursor = &cur;
 }
 
-Bool	outOfGame = False;
 
 void
 MouseWinClr::SetPos(const SOL_Point& p)
@@ -351,14 +414,27 @@ MouseWinClr::SetPos(const SOL_Point& p)
 SOL_Point	tmp;
 Bool	outSide;
 
+	// Must do a SetCursor on every move even if it hasn't changed so that
+	// Windows will change it when entering client area.
+	SetCursor(hCurCur);
+
+	outSide = False;
+	if (p.x < 0)
+		outSide = True;
+	if (p.y < 0)
+		outSide = True;
 
 	tmp = p;
 
 	// allow for the black border
-	tmp.x -= gameBorder;
-	tmp.y -= gameBorder;
-
-	outSide = False;
+	if (tmp.x > gameBorder)
+		tmp.x -= gameBorder;
+	else
+		tmp.x = 0;
+	if (tmp.y > gameBorder)
+		tmp.y -= gameBorder;
+	else
+		tmp.y = 0;
 
 	// restrict the coordinates to the game window and set a flag 
 	// if we are outside.
@@ -379,27 +455,27 @@ Bool	outSide;
 		tmp.y = gameHeight-1;
 	}
 
-	// if we just left the game window, then show the Windows cursor and
+	// if we just left the game window, then hide the color cursor and
 	// do a ReleaseCapture so we don't get mouse move messages.
 
 	if (outSide && !outOfGame) {
-		ReleaseCapture();
-		while (ShowCursor (1) < 0);
 		outOfGame = True;
+		graphMgr->GCursor().Hide();
+		if (!buttonState)
+			ReleaseCapture();
 	}
 
-	// if we just entered the game window, then hide the Windows cursor and
+	// if we just entered the game window, then show the color cursor and
 	// capture the the mouse so that the user can't sneak out without us
 	// knowing about it.
 
 	if (!outSide && outOfGame) {
-		SetCapture(hMyWnd);
-		while (ShowCursor (0) > -1);
 		outOfGame = False;
+		graphMgr->GCursor().UnHide();
+		SetCapture(hMyWnd);
 	}
 
 	pos = tmp;
-
 
 	if (useMouse)  {
 		if (cursor)
@@ -431,6 +507,8 @@ MouseWinClr::WinMouseButton(unsigned iMessage, const SOL_Point& p)
 		event.type = SOL_Event::MouseDown;
 		buttonState = 1;
 	} else {
+		if (outOfGame)
+			ReleaseCapture();
 		event.type = SOL_Event::MouseUp;
 		buttonState = 0;
 	}

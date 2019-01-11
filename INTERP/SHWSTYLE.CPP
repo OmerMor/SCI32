@@ -1,7 +1,8 @@
+
 // shwstyle.cpp
 
 #include "sol.hpp"
-
+#include "array.hpp"
 #include "shwstyle.hpp"
 #include "event.hpp"
 #include "buffer.hpp"
@@ -42,7 +43,10 @@ void ProcessEffects(PlaneShowStyle* style)
 {
 
 	switch(style->style) {
-		case PIXELDISSOLVE:
+			case DISSOLVENOMORPH:
+				PixelDissolveEffect(style);
+				break;
+			case PIXELDISSOLVE:
 				PixelDissolveEffect(style);
 				break;
 			case IRISOUT:
@@ -53,8 +57,10 @@ void ProcessEffects(PlaneShowStyle* style)
 				break;
  			case WIPERIGHT:
 				WipeRightEffect(style);
+				break;
 			case WIPELEFT:
 				WipeLeftEffect(style);
+				break;
 			case WIPEDOWN:
 				WipeDownEffect(style);	
 				break;
@@ -73,19 +79,22 @@ void ProcessEffects(PlaneShowStyle* style)
 			case VSHUTTEROUT:
 				VShutterOutEffect(style);
 				break;
-
 	}
 }
 
 void
 IrisOutEffect(PlaneShowStyle* style)
 {
+// This starts spiraling out from the center dissolving between two images
+
 	int x,y,l,m,width,height,modx,mody;
 	int x_l,x_r,y_t,y_b;
-	x = 20;
+	x = style->divisions;
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
- 	SOL_Rect	B(0,0,x,x);
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
+
 
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
@@ -97,27 +106,43 @@ IrisOutEffect(PlaneShowStyle* style)
 
 	modx = width%x;
 
-	x_l 	= width/(2*x)-1;
+	x_l 	= width/(2*x);
 
 	x_r	= width/(2*x);
 
-	y_t	= height/(2*y)-1 ;
+	y_t	= height/(2*y) ;
 
 	y_b	= height/(2*y);
 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
+
+	// First start with a center block
+
+		B.Set(x_r*x+r.A.x,y_t*y+r.A.y,x_r*x+x-1+r.A.x,y_t*y+y-1+r.A.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+		x_l -= 1;
+		x_r += 1;
+		y_t -= 1;
+		y_b += 1;
+
+
+
 		while((x_l>=0 )&&(y_t>=0)) {
-			for(l=x_l;l<=x_r;l++) {  //draw top	
+			for(l=x_l+1;l<=x_r;l++) {  //draw top	
 				m = y_t;
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
 			}
-			l--;
 
-			for(m=y_t;m<=y_b+1;m++) {  //draw right	
-				
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+			for(m=y_t;m<=y_b;m++) {  //draw right	
+
+ 				l = x_r;
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
@@ -125,7 +150,7 @@ IrisOutEffect(PlaneShowStyle* style)
 			m--;
 
 			for(l=x_r;l>=x_l;l--) {  //draw bottom	
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
@@ -133,7 +158,7 @@ IrisOutEffect(PlaneShowStyle* style)
 			l++;
 
 			for(m=y_b;m>=y_t;m--) {  //draw left	
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
@@ -159,14 +184,19 @@ IrisOutEffect(PlaneShowStyle* style)
 void
 IrisInEffect(PlaneShowStyle* style)
 {
+// This starts spiraling in from the outside between two images
+
 	int x,y,l,m,width,height,modx,mody,modyy;
-	x = 20;
+	int x_l,y_t;
+
+	x = style->divisions;
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 	y = (x * height)/width;
- 	SOL_Rect	B(0,0,x,x);
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
 
 	mody = height%y;
 
@@ -177,44 +207,71 @@ IrisInEffect(PlaneShowStyle* style)
 	else
 		modyy = 0;
 
-		while((r.A.x < width/x) || (r.A.y < height/y)) {
-			for(l=r.A.x;l<=width/x;l++) {  //draw top	
-				m = r.A.y;
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+	x_l = 0;
+	y_t = 0;
+
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
+
+		if (width%x) {
+		// width is not an even multiple of x so adjust the first rightside draw
+		
+			for(m=0;m<height/y;m++) {  //draw right	
+				l = width/x  ;
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+-1+(width%x)+r.A.x,m*y+y-1+r.A.y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+		}
+
+		if (height%y) {
+		// height is not an even multiple of y so adjust the first bottom draw
+
+			m = height/y;
+			for(l=width/x-1;l>=0;l--) {  //draw bottom	
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+-1+(height%y)+r.A.y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+		}
+
+		while((x_l < width/x) || (y_t < height/y)) {
+			for(m=height/y-1;m>=y_t;m--) {  //draw left	
+				l = x_l;
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
 			}
 
-			for(m=r.A.y;m<=height/y;m++) {  //draw right	
-				l = r.B.x/x ;
-				B.Set(l*x,m*y,l*x+x-1,m*y+y);
+			for(l=x_l;l<width/x;l++) {  //draw top	
+				m = y_t;
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
 			}
 
-			for(l=width/x-1;l>=r.A.x;l--) {  //draw bottom	
-				m = r.B.y/y ;
-				B.Set(l*x,m*y,l*x+x,m*y+y);
+			l--;
+			for(m=y_t;m<height/y;m++) {  //draw right	
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.y);
+				graphMgr->NextScreen()->ShowList().Clear();
+				graphMgr->NextScreen()->ShowList().Add(B);
+				graphMgr->ShowBits();
+			}
+			m--;
+			for(l=width/x-1;l>=x_l;l--) {  //draw bottom	
+				B.Set(l*x+r.A.x,m*y+r.A.y,l*x+x-1+r.A.x,m*y+y-1+r.A.x);
 				graphMgr->NextScreen()->ShowList().Clear();
 				graphMgr->NextScreen()->ShowList().Add(B);
 				graphMgr->ShowBits();
 			}
 
-			for(m=height/y-1;m>=r.A.y;m--) {  //draw left	
-				l = r.A.y;
-				B.Set(l*x,m*y,l*x+x,m*y+y);
-				graphMgr->NextScreen()->ShowList().Clear();
-				graphMgr->NextScreen()->ShowList().Add(B);
-				graphMgr->ShowBits();
-			}
-			r.A.x  += 1;
+			x_l  += 1;
 			width	 -= x;
-			r.A.y	 += 1;
+			y_t	 += 1;
 			height -= y;
-			r.B.x  -= x;
-			r.B.y	 -= y;
 		}
 		// Clear entire screen 
 
@@ -228,8 +285,10 @@ IrisInEffect(PlaneShowStyle* style)
 void
 VShutterInEffect(PlaneShowStyle* style)
 {
-	int x,l,m,n,width,height,mody,modx;
-	x = 20;
+// This wipes vertically from the edges to the middle between two images
+
+	int x,l,m,n,width,height,mody;
+	x = style->divisions;
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
@@ -242,32 +301,70 @@ VShutterInEffect(PlaneShowStyle* style)
  	else
  		mody = 0;
 
-	if (width%x)
-		modx = 1;
-	else
-		modx = 0;
 
-	if (height%(2*x))
-		n = height/x;
-	else
-		n = height/x-1;
+	n = height/x-1;
 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
 
-	for(m=r.A.y;m<height/(2*x)+r.A.y+mody;m++) {
-		for(l=r.A.x;l<width/x+r.A.x+modx;l++) 	
+	if (height%x) {
+	// if height is not an even multiple of x adjust for the first draw
+
+		for(l=0;l<width/x;l++) // Drawing Up	
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set(l*x+r.A.x,n*x+r.A.y,l*x+x-1+r.A.x,n*x+x-1+(height%x)+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
-		for( l=r.A.x;l<width/x+r.A.x+modx;l++) 	
-		{
-			B.Set(l*x,(n-m)*x,l*x+x,(n-m)*x+x);
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,n*x+r.A.y,l*x+-1+(width%x)+r.A.x,n*x+x-1+(height%x)+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
+	}
+
+	for(m=0;m<height/(2*x)+mody;m++) {
+	// Since we draw from the top and bottom the outer loop is height/(2*x)
+	// mody is a check to see if height is an even multiple of (2*x)
+ 
+		for(l=0;l<width/x;l++)// Drawing Down 	
+		{
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		for(l=0;l<width/x;l++) // Drawing Up	
+		{
+			B.Set(l*x+r.A.x,(n-m)*x+r.A.y,l*x+x-1+r.A.x,(n-m)*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,(n-m)*x+r.A.y,l*x+-1+(width%x)+r.A.x,(n-m)*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
 	}
 		// Clear entire screen 
 
@@ -281,10 +378,14 @@ VShutterInEffect(PlaneShowStyle* style)
 void
 VShutterOutEffect(PlaneShowStyle* style)
 {
-	int x,l,m,n,height,width,mody,modx;
-	x = 20;
+// This wipes vertically from the middle to the edges between two images
+
+	int x,l,m,n,height,width,mody;
+	x = style->divisions;
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
-	SOL_Rect& r = p->OnScreen();		
+	SOL_Rect& r = p->OnScreen();	
+
+	
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 
@@ -295,27 +396,62 @@ VShutterOutEffect(PlaneShowStyle* style)
 	else
 		mody = 0;
 
-	if (width%x)
-		modx = 1;
-	else
-		modx = 0;
 
-	if (height%(2*x))
-		n = height/x;
-	else
-		n = height/x-1;
+	n = height/x-1;
 
-	for(m=height/(2*x)-1+mody;m>=0;m--) {	
-		for(l=0;l<width/x+modx;l++) 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
+
+	for(m=height/(2*x);m>=0;m--) {	
+		for(l=0;l<width/x;l++) 	// Draw up from middle
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
-	  	for( l=0;l<width/x+modx;l++) 	
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+	  	for( l=0;l<width/x;l++)  // Draw down from middle	
 		{
-			B.Set(l*x,(n-m)*x,l*x+x,(n-m)*x+x);
+			B.Set(l*x+r.A.x,(n-m)*x+r.A.y,l*x+x-1+r.A.x,(n-m)*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,(n-m)*x+r.A.y,l*x+-1+(width%x)+r.A.x,(n-m)*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+	}
+
+	if (height%x) {
+	// if heigth is not an even muliple of x adjust for last line
+	  	for( l=0;l<width/x;l++) 	
+		{
+			B.Set(l*x+r.A.x,n*x+r.A.y,l*x+x-1+r.A.x,n*x+x+-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if ((l==width/x) && (width%x)) {
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,n*x+r.A.y,l*x+-1+(width%x)+r.A.x,n*x+x-1+(height%x)+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
@@ -333,9 +469,13 @@ VShutterOutEffect(PlaneShowStyle* style)
 void
 HShutterOutEffect(PlaneShowStyle* style)
 {
+// This wipes horizontally from the middle to the edges between two images
+
 	int x,l,m,n,height,width,mody;
-	x = 20;
- 	SOL_Rect	B(0,0,x,x);
+	x = style->divisions;
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
+
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
@@ -347,28 +487,65 @@ HShutterOutEffect(PlaneShowStyle* style)
 		mody = 0;
 
 
-	if (width%(2*x))
-		n = width/x;
-	else
 		n = width/x-1;
 
-	for(l=width/(2*x)-1+mody;l>=0;l--) {
-		for(m=0;m<=height/x;m++) 	
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
+
+	for(l=width/(2*x);l>=0;l--) {
+		for(m=0;m<height/x;m++)// Draw from middle to left 	
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
- 		for( m=0;m<=height/x;m++) 	
+		if (height%x) {
+		// if height is not an even multiple of x adjust for last draw
+
+ 			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+ 		for( m=0;m<height/x;m++) // Draw from middle to right	
 		{
-			B.Set((n-l)*x,m*x,(n-l)*x+x,m*x+x);
+			B.Set((n-l)*x+r.A.x,m*x+r.A.y,(n-l)*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if (height%x) {
+ 		// if height is not an even multiple of x adjust for last draw
+
+			B.Set((n-l)*x+r.A.x,m*x+r.A.y,(n-l)*x+x-1+r.A.x,m*x+-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+
+		}
+	}
+
+	if (width%x) {
+	// if width is not an even multiple of x adjust for the last draw
+
+ 		for( m=0;m<height/x;m++) // Draw from middle to right	
+		{
+			B.Set(n*x+r.A.x,m*x+r.A.y,n*x+x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if (height%x) {
+ 		// if height is not an even multiple of x adjust for last draw
+			B.Set(n*x+r.A.x,m*x+r.A.y,n*x+x-1+(width%x)+r.A.x,m*x+-1+(height%x)+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
 	}
-		// Clear entire screen 
+		// Clear entire screen just to be sure
 
 		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
 		graphMgr->NextScreen()->ShowList().Clear();
@@ -380,17 +557,18 @@ HShutterOutEffect(PlaneShowStyle* style)
 void
 HShutterInEffect(PlaneShowStyle* style)
 {
+// This wipes horizontally from the edges to the middle between two images
+
 	int x,l,m,n,height,width,mody;
-	x = 20;
+	x = style->divisions;
  	SOL_Rect	B(0,0,x,x);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
+
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 
-	if (width%(2*x))
-		n = width/x;
-	else
 		n = width/x-1;
 
 	if (width%(2*x))
@@ -398,27 +576,67 @@ HShutterInEffect(PlaneShowStyle* style)
 	else
 		mody = 0;
 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
 
+	if (width%x) {
+	// if width is not an even multiple of x adjust for the first draw
 
-
-	for(l=0;l<width/(2*x)+mody;l++) {
-		for(m=0;m<=height/x;m++) 	
+		for( m=0;m<height/x;m++) // Draw from right to left	
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set((n+1)*x+r.A.x,m*x+r.A.y,(n+1)*x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
-		for( m=0;m<=height/x;m++) 	
-		{
-			B.Set((n-l)*x,m*x,(n-l)*x+x,m*x+x);
+		if (height%x) {
+ 		// if height is not an even multiple of x adjust for last draw
+
+			B.Set((n+1)*x+r.A.x,m*x+r.A.y,(n+1)*x+-1+(width%x)+r.A.x,m*x+-1+(height%x)+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
 	}
 
-		// Clear entire screen 
+	for(l=0;l<width/(2*x);l++) {
+		for(m=0;m<height/x;m++) // Draw from left to right	
+		{
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		if (height%x) {
+		// if height is not an even multiple of x adjust for last draw
+
+ 			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
+		for( m=0;m<height/x;m++) // Draw from right to left	
+		{
+			B.Set((n-l)*x+r.A.x,m*x+r.A.y,(n-l)*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		if (height%x) {
+ 		// if height is not an even multiple of x adjust for last draw
+
+			B.Set((n-l)*x+r.A.x,m*x+r.A.y,(n-l)*x+x-1+r.A.x,m*x+-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+
+		}
+
+	}
+
+
+		// Clear entire screen just to be sure
 
 		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
 		graphMgr->NextScreen()->ShowList().Clear();
@@ -431,27 +649,60 @@ HShutterInEffect(PlaneShowStyle* style)
 void
 WipeLeftEffect(PlaneShowStyle* style)
 {
-	int x,height,width;
-	x = 10;
+// This function wipes from right to left between two images
 
- 	SOL_Rect	B(0,0,x,x);
+	int x,height,width,l,m;
+	x = style->divisions;
+
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
 
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
 
-	for(int l=width/x-1;l>=0;l--) {
-		for(int m=height/x;m>=0;m--) 	
+	if (width%x) {
+	// if width is not an even multiple of x adjust for first draw
+		l = width/x ;
+		for(m=0;m<height/x;m++) 	
 		{
-			B.Set(l*x,m*x,l*x+x-1,m*x+x);
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
+		if ((m == height/x) && (height % x)) {	
+		// if height is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,(m-1)*x+r.A.y,l*x-1+(width%x)+r.A.x,(m-1)*x+x+(height%x)-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}		
 	}
-		// Clear entire screen 
+
+
+	for(l=width/x-1;l>=0;l--) {
+		for(m=0;m<height/x;m++) 	
+		{
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		if ((m == height/x) && (height % x)) {	
+		// if height is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,(m-1)*x+r.A.y,l*x+x-1+r.A.x,(m-1)*x+x+(height%x)-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}		
+	}
+		// Clear entire screen to be sure
 
 		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
 		graphMgr->NextScreen()->ShowList().Clear();
@@ -463,89 +714,188 @@ WipeLeftEffect(PlaneShowStyle* style)
 void
 WipeRightEffect(PlaneShowStyle* style)
 {
-	int x,height,width;
-	x = 10;
+// This function wipes from left to right between two images
 
- 	SOL_Rect	B(0,0,x,x);
+	int x,height,width,l,m;
+	x = style->divisions;
+
+ 	SOL_Rect	B(0,0,x-1,x-1); 
+	// Since SOL_Rect includes all points specified, this is an x by x rect
 
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
 
-	for(int l=0;l<=width/x;l++) {
-		for(int m=0;m<=height/x;m++) 	
+	for(l=0;l<width/x;l++) {
+		for(m=0;m<height/x;m++) 	
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
+		if ((m == height/x) && (height % x)) {	
+		// if height is not an even multiple of x adjust for last draw
+
+			B.Set(l*x+r.A.x,(m-1)*x+r.A.y,l*x+x-1+r.A.x,(m-1)*x+x+(height%x)-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}		
 	}
-		// Clear entire screen 
 
-		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
-		graphMgr->NextScreen()->ShowList().Clear();
-		graphMgr->NextScreen()->ShowList().Add(B);
-		graphMgr->ShowBits();
-
-}
-
-
-void
-WipeUpEffect(PlaneShowStyle* style)
-{
-	int x,height,width;
-	x = 10;
-
- 	SOL_Rect	B(0,0,x,x);
-	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
-	SOL_Rect& r = p->OnScreen();		
-	height 	= r.B.y - r.A.y + 1;
-	width		= r.B.x - r.A.x + 1;
-
-
-	for(int m=height/x;m>=0;m--) {	
-		for(int l=width/x;l>=0;l--) 
+	if (width%x) {
+	// if width is not an even multiple of x adjust for last draw
+		for(m=0;m<height/x;m++) 	
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set((l-1)*x+r.A.x,m*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
-	}
-		// Clear entire screen 
+		if ((m == height/x) && (height % x)) {	
+		// if height is not an even multiple of x adjust for last draw
 
-		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
-		graphMgr->NextScreen()->ShowList().Clear();
-		graphMgr->NextScreen()->ShowList().Add(B);
-		graphMgr->ShowBits();
+			B.Set((l-1)*x+r.A.x,(m-1)*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,(m-1)*x+x+(height%x)-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}		
+	}
+		// Clear entire screen just to be sure
+
+	B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+	graphMgr->NextScreen()->ShowList().Clear();
+	graphMgr->NextScreen()->ShowList().Add(B);
+	graphMgr->ShowBits();
 
 }
-
 
 void
 WipeDownEffect(PlaneShowStyle* style)
 {
-	int x,height,width;
-	x = 10;
+// This function wipes from top to bottom between two images
 
- 	SOL_Rect	B(0,0,x,x);
+	int x,height,width;
+	x = style->divisions;
+
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
+
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 	height 	= r.B.y - r.A.y + 1;
 	width		= r.B.x - r.A.x + 1;
 
+	
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
 
 	for(int m=0;m<height/x;m++) {	
 		for(int l=0;l<width/x;l++) 
 		{
-			B.Set(l*x,m*x,l*x+x,m*x+x);
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
 			graphMgr->NextScreen()->ShowList().Clear();
 			graphMgr->NextScreen()->ShowList().Add(B);
 			graphMgr->ShowBits();
 		}
+		if ((l == width/x) && (width%x)){
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set((l-1)*x+r.A.x,m*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+	
+	if (height%x) {
+	// if height is not an even multiple of x adjust for last draw
+
+		for(int l=0;l<width/x;l++) 
+		{
+			B.Set(l*x+r.A.x,(m-1)*x+r.A.y,l*x+x-1+r.A.x,(m-1)*x+x-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		if ((l == width/x) && (width%x)){
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set((l-1)*x+r.A.x,(m-1)*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,(m-1)*x+x-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+	}
+
+
+		// Clear entire screen just to be sure
+
+		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+		graphMgr->ShowBits();
+
+}
+
+void
+WipeUpEffect(PlaneShowStyle* style)
+{
+// This function wipes from bottom to top between two images
+
+	int x,height,width,m;
+	x = style->divisions;
+
+ 	SOL_Rect	B(0,0,x-1,x-1);
+	// Since SOL_Rect includes all points specified, this is an x by x rect
+
+	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
+	SOL_Rect& r = p->OnScreen();		
+	height 	= r.B.y - r.A.y + 1;
+	width		= r.B.x - r.A.x + 1;
+
+// r.A.x and r.A.y are added to all rectangles to adjust for planes not at 0,0
+
+	if (height%x) {
+	// if height is not an even multiple of x adjust for the first draw
+		m = height/x;
+		for(int l=0;l<width/x;l++) 
+		{
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		if ((l == width/x) && (width%x)){
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set((l-1)*x+r.A.x,m*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,m*x-1+(height%x)+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+   }
+
+	for(m=height/x-1;m>=0;m--) {	
+		for(int l=0;l<width/x;l++) 
+		{
+			B.Set(l*x+r.A.x,m*x+r.A.y,l*x+x-1+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+		if ((l == width/x) && (width%x)){
+		// if width is not an even multiple of x adjust for last draw
+
+			B.Set((l-1)*x+r.A.x,m*x+r.A.y,(l-1)*x+x-1+(width%x)+r.A.x,m*x+x-1+r.A.y);
+			graphMgr->NextScreen()->ShowList().Clear();
+			graphMgr->NextScreen()->ShowList().Add(B);
+			graphMgr->ShowBits();
+		}
+
 	}
 		// Clear entire screen 
 
@@ -555,6 +905,8 @@ WipeDownEffect(PlaneShowStyle* style)
 		graphMgr->ShowBits();
 
 }
+
+
 
 int
 Bitwidth(int number)
@@ -575,24 +927,24 @@ Bitwidth(int number)
 void
 PixelDissolveEffect(PlaneShowStyle* style)
 {
-	int x = 10;
-	int width,height;
+	int x = style->divisions;
+	int width,height,org_width,org_height;
 	int row,col;
 	Plane*  p =	graphMgr->GetPlaneCurrent(style->planeID);
 	SOL_Rect& r = p->OnScreen();		
 
-	width  = (r.B.x - r.A.x + 1);
-	height = (r.B.y - r.A.y + 1);
+	org_width  = (r.B.x - r.A.x + 1);
+	org_height = (r.B.y - r.A.y + 1);
 
 	if (width%x)
-		width 	= width/x + 1;
+		width 	= org_width/x + 1;
 	else
-		width 	= width/x;
+		width 	= org_width/x;
 
 	if (height%x)
-		height	= height/x + 1;
+		height	= org_height/x + 1;
 	else
-		height	= height/x;	
+		height	= org_height/x;	
 
 	long mask ;
 	int seq;
@@ -608,10 +960,37 @@ PixelDissolveEffect(PlaneShowStyle* style)
 			col = seq%width;
 			
  			if (row < height) {
-				B.Set(col*x,row*x,col*x+x,row*x+x);
-				graphMgr->NextScreen()->ShowList().Clear();
-				graphMgr->NextScreen()->ShowList().Add(B);
-				graphMgr->ShowBits();
+				if ((row==(height-1))&&(org_height%x)) { 
+				// if height is not an even multiple of x adjust for last row
+					if ((col==(width-1))&&(org_width%x)) {
+				// if width is not an even multiple of x ajust for last column
+						B.Set(col*x,row*x,col*x+(org_width%x)-1,row*x+(org_height%x)-1);
+						graphMgr->NextScreen()->ShowList().Clear();
+						graphMgr->NextScreen()->ShowList().Add(B);
+				 		graphMgr->ShowBits();
+					}
+					else {
+						B.Set(col*x,row*x,col*x+x-1,row*x+(org_height%x)-1);
+						graphMgr->NextScreen()->ShowList().Clear();
+						graphMgr->NextScreen()->ShowList().Add(B);
+				 		graphMgr->ShowBits();
+					}
+				}
+				else {
+					if ((col==(width-1))&&(org_width%x)) {
+				// if width is not an even multiple of x ajust for last column
+						B.Set(col*x,row*x,col*x+(org_width%x)-1,row*x+x-1);
+						graphMgr->NextScreen()->ShowList().Clear();
+						graphMgr->NextScreen()->ShowList().Add(B);
+			  	 		graphMgr->ShowBits();
+					}
+					else {
+						B.Set(col*x,row*x,col*x+x,row*x+x);
+						graphMgr->NextScreen()->ShowList().Clear();
+						graphMgr->NextScreen()->ShowList().Add(B);
+			  	 		graphMgr->ShowBits();
+					}
+				}
 			}
 
 			if (seq & 1) {
@@ -620,6 +999,14 @@ PixelDissolveEffect(PlaneShowStyle* style)
 			else
 				seq = (seq >> 1);
 		} while(seq != 1);
+		
+		// be sure and do the first draw at 0,0
+		B.Set(r.A.x,r.A.y,x-1,x-1);
+		graphMgr->NextScreen()->ShowList().Clear();
+		graphMgr->NextScreen()->ShowList().Add(B);
+ 		graphMgr->ShowBits();
+
+
 		// Clear entire screen 
 
 		B.Set(r.A.x,r.A.y,r.B.x,r.B.y);
@@ -826,7 +1213,8 @@ KSetShowStyle(argList)
 	//		arg6-----True with animate
 	//					False without animate
 	//		arg7-----Reference frame (may be needed to remove a screen item)
-	//		arg8-----Number of divisions for a show style (optional)
+	//    arg8-----Fade Array for use with FADE styles
+	//		arg9-----Number of divisions for a show style (optional)
 
 	// Planes not allowed to move or be overlaped by a
 	// higher priority plane while show style in progress.
@@ -865,13 +1253,9 @@ KSetShowStyle(argList)
 	while (style) {
 		if (style->planeID == planeID) {
 			if (
-				(style->BMWidth == planeRect.Xlen())
-				&&
-				(style->BMHeight == planeRect.Ylen())
-				&&
 				(
-				((argCount > 7) && (style->divisions == arg(8))) ||
-				((argCount <= 7) && (style->divisions == showStyleDivisions[thisStyle]))
+				((argCount > 8) && (style->divisions == arg(9))) ||
+				((argCount <= 8) && (style->divisions == showStyleDivisions[thisStyle]))
 				)
 				&&
 				(style->form == showStyleForms[thisStyle])
@@ -899,18 +1283,25 @@ KSetShowStyle(argList)
 
 	if (newStyle) {
 		style = New PlaneShowStyle();
-		style->si = NULL;
-		style->si = NULL;
+		style->XRangeArray = NULL;
 		style->form = showStyleForms[thisStyle];
-		style->BM = NULL;
-		style->BMWidth = planeRect.Xlen();
-		style->BMHeight = planeRect.Ylen();
 		style->deleteMe = False;
-		if (argCount > 7)
-			style->divisions = arg(8);
+		if (argCount > 8)
+			style->divisions = arg(9);
 		else
 			style->divisions = showStyleDivisions[thisStyle];
 		style->planeID = planeID;
+		if (argCount > 7)	{
+			style->XRangeSize   = ((ArrayID) arg(8))->size;
+
+			style->XRangeArray  = New SCIWord [style->XRangeSize];
+			for(int i=0;i<style->XRangeSize;i++)
+				style->XRangeArray[i] =	((SCIWord*) ((ArrayID) arg(8)).Data()) [i];	
+ 
+		}
+		else  {
+			style->XRangeSize   = 0;
+		 }
 	}
 	style->entry = entry;
 	style->color = color;
@@ -921,6 +1312,8 @@ KSetShowStyle(argList)
 	// calculate the ticks per processing
 	style->speed = (60*arg(3)+style->divisions-1)/style->divisions;
 	if (style->speed == 0) {
+		if (style->XRangeArray != NULL)
+			delete style->XRangeArray;
 		delete style;
 		msgMgr->Alert(SrcLoc,Msg_ShowStyleSpeed);
 		return;
@@ -935,33 +1328,25 @@ KSetShowStyle(argList)
 		// Switch on show style
 		switch (style->style) {
 			case PLAINFORM:
-//				PlainSetUp();
+				break;
+			case DISSOLVENOMORPH:
 				break;
 			case PIXELDISSOLVE:
-//				PixelDissolveSetUp(style,priority,planeRect);
-				break;
-			case DISSOLVE:
-				DissolveSetUp(style,priority,planeRect);
 				break;
 			case IRISOUT:
 			case IRISIN:
-//				IrisSetUp(style,priority); 
 				break;
 			case WIPERIGHT:
 			case WIPELEFT:
-//				HWipeSetUp(style,priority);
 				break;
 			case WIPEDOWN:
 			case WIPEUP:
-//				VWipeSetUp(style,priority);
 				break;
 			case HSHUTTEROUT:
 			case HSHUTTERIN:
-//				HShutterSetUp(style,priority); 
 				break;
 			case VSHUTTEROUT:
 			case VSHUTTERIN:
-//				VShutterSetUp(style,priority); 
 				break;
 			case FADEOUT:
 				break;
@@ -1003,6 +1388,7 @@ ProcessShowStyles()
 			graphMgr->FrameOut();
 		}
 	} while (notDone && withOutAnimate);
+
 }
 
 Bool 
@@ -1018,12 +1404,10 @@ ProcessShowStyle(PlaneShowStyle* style,uint time)
 		case PLAINFORM:
 			done = Plain(style);
 			break;
-		case PIXELDISSOLVE:
-//			done = PixelDissolve(style);
+		case DISSOLVENOMORPH:
 			done = PalMorph(style);
 			break;
-		case DISSOLVE:
-//			done = Dissolve(style);
+		case PIXELDISSOLVE:
 			done = PalMorph(style);
 			break;
 		case FADEOUT:
@@ -1045,14 +1429,12 @@ ProcessShowStyle(PlaneShowStyle* style,uint time)
 		case WIPELEFT:
 		case WIPEUP:
 			done = PalMorph(style);
-//			done = GenericProcess(-1,style);
 			break;
 		case HSHUTTERIN:
 		case IRISIN:
 		case VSHUTTERIN:
 		case WIPERIGHT:
 		case WIPEDOWN:
-//			done = GenericProcess(1,style);
 			done = PalMorph(style);
 			break;
 	}
@@ -1067,50 +1449,15 @@ PalMorph(PlaneShowStyle* style)
 			return True;
 }
 
-Bool
-GenericProcess(int direction,PlaneShowStyle* style)
-{
-	Bool noChange = True;
-	uint percent;
-
-	if (style->percent < style->divisions) {
-		// calculate the starting percent
-		if (direction > 0)
-			percent = style->percent;
-		else
-			percent = style->divisions - style->percent - 1;
-
-		int i = style->tilesPerFrame*percent;
-		for (int j = 0;j < style->tilesPerFrame;++j) {
-			if (style->entry)	{
-				graphMgr->DeleteScreenItem(style->si[i]);
-				style->si[i++] = NULL;
-			}
-			else {
-				graphMgr->AddScreenItem(style->si[i++]);
-			}
-		}
-
-		style->clock += style->speed;
-		style->percent++;
-		noChange	= False;
-	}
-	if ((style->percent >= style->divisions) && noChange)	{
-		if (style->entry) style->deleteMe = True;
-			return True;
-	}
-	else
-		return False;
-}
 
 PlaneShowStyle*
 ShutDownStyle(PlaneShowStyle* style)
 {
 	// Switch on show style
 	switch (style->style) {
-		case DISSOLVE:
+		case DISSOLVENOMORPH:
+			break;
 		case PIXELDISSOLVE:
-//			DissolveShutDown(style);
 			break;
 		case HSHUTTEROUT:
 		case HSHUTTERIN:
@@ -1122,7 +1469,6 @@ ShutDownStyle(PlaneShowStyle* style)
 		case WIPELEFT:
 		case WIPEDOWN:
 		case WIPEUP:
-//			GenericShutDown(style);
 			break;
 		case PLAINFORM:
 		case FADEOUT:
@@ -1140,36 +1486,29 @@ ShutDownStyle(PlaneShowStyle* style)
 
 	if (lastStyle) {
 		lastStyle->next = style->next;
+		if (style->XRangeArray != NULL)
+			delete style->XRangeArray;
 		delete style;
 		style = lastStyle->next;
 	}
 	else {
 		showStyles = style->next;
+		if (style->XRangeArray != NULL)
+			delete style->XRangeArray;
 		delete style;
 		style = showStyles;
 	}
 	return style;
 }
 
-void
-GenericShutDown(PlaneShowStyle* style) 
-{
-	// Remove all the screen item defs
-	for (int i = 0;i < style->tilesPerFrame*style->divisions;++i) {
-		if (style->si[i]) delete style->si[i];
-	}
-	if (style->si) delete style->si;
-}
 
 void
 KillStyle(PlaneShowStyle* style)
 {
 	// Switch on show style
 	switch (style->style) {
-		case DISSOLVE:
+		case DISSOLVENOMORPH:
 		case PIXELDISSOLVE:
-			DissolveShutDown(style);
-			break;
 		case HSHUTTEROUT:
 		case HSHUTTERIN:
 		case IRISOUT:
@@ -1180,8 +1519,6 @@ KillStyle(PlaneShowStyle* style)
 		case WIPELEFT:
 		case WIPEDOWN:
 		case WIPEUP:
-			GenericKill(style);
-			break;
 		case PLAINFORM:
 		case FADEOUT:
 		case FADEIN:
@@ -1198,26 +1535,18 @@ KillStyle(PlaneShowStyle* style)
 
 	if (lastStyle) {
 		lastStyle->next = style->next;
+		if (style->XRangeArray != NULL)
+			delete style->XRangeArray;
 		delete style;
 		style = lastStyle->next;
 	}
 	else {
 		showStyles = style->next;
+		if (style->XRangeArray != NULL)
+			delete style->XRangeArray;
 		delete style;
 		style = showStyles;
 	}
-}
-
-void
-GenericKill(PlaneShowStyle* style) 
-{
-	// Remove all the screen item defs
-	for (int i = 0;i < style->tilesPerFrame*style->divisions;++i) {
-		if (style->si[i]) {
-			graphMgr->DeleteScreenItem(style->si[i]);
-		}
-	}
-	if (style->si) delete style->si;
 }
 
 Bool
@@ -1246,7 +1575,14 @@ Fade(int direction,PlaneShowStyle* style)
 		else
 			percent = style->divisions - style->percent - 1;
 
-		graphMgr->GPalette().SetFade(percent*100/(style->divisions-1));
+		if (style->XRangeSize == 0)
+			graphMgr->GPalette().SetFade(percent*100/(style->divisions-1));
+
+		else {
+			for(int i=0;i<style->XRangeSize;i+=2) {
+				graphMgr->GPalette().SetFade(percent*100/(style->divisions-1),style->XRangeArray[i],style->XRangeArray[i+1]);
+			}
+		}
 
 		style->clock += style->speed;
 		style->percent++;
@@ -1260,472 +1596,7 @@ Fade(int direction,PlaneShowStyle* style)
 		return False;
 }
 
-void
-HShutterSetUp(PlaneShowStyle* style,int priority) 
-{
-	// Create the screen item defs needed.
-	style->tilesPerFrame = 2;
-	style->si = New ScreenItem* [style->tilesPerFrame*style->divisions];
 
-	Bitmap bitmap(style->color);
-	int i=0;
-	int j=0;
-	for (;i < style->tilesPerFrame*style->divisions;++i,++j) {
-		SOL_Rect lftBand((style->BMWidth*j)/(2*style->divisions),
-							  0,
-							  (style->BMWidth+1)*(j+1)/(2*style->divisions) - 1,
-							  style->BMHeight - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,lftBand);
-		style->si[i++]->SetPriority(priority);
-		SOL_Rect rgtBand(style->BMWidth - lftBand.B.x - 1,
-							  0,
-							  style->BMWidth - lftBand.A.x - 1,
-							  style->BMHeight - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,rgtBand);
-		style->si[i]->SetPriority(priority);
-	}
-	if (style->entry) {
-		// must add all the tiles to the plane because
-		// ProcessShowStyle will be removing the tiles.
-		for (i = 0;i < style->tilesPerFrame*style->divisions;++i) {
-			graphMgr->AddScreenItem(style->si[i]);
-		}
-	}
-}
-
-void
-VShutterSetUp(PlaneShowStyle* style,int priority) 
-{
-	// Create the screen item defs needed.
-	style->tilesPerFrame = 2;
-	style->si = New ScreenItem* [style->tilesPerFrame*style->divisions];
-	Bitmap bitmap(style->color);
-	int i=0;
-	int j=0;
-	for (;i < style->tilesPerFrame*style->divisions;++i,++j) {
-		SOL_Rect topBand(0,
-							  (style->BMHeight*j)/(2*style->divisions),
-							  style->BMWidth - 1,
-							  (style->BMHeight+1)*(j+1)/(2*style->divisions) - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,topBand);
-		style->si[i++]->SetPriority(priority);
-		SOL_Rect botBand(0,
-							  style->BMHeight - topBand.B.y - 1,
-							  style->BMWidth - 1,
-							  style->BMHeight - topBand.A.y - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,botBand);
-		style->si[i]->SetPriority(priority);
-	}
-	if (style->entry) {
-		// must add all the tiles to the plane because
-		// ProcessShowStyle will be removing the tiles.
-		for (i = 0;i < style->tilesPerFrame*style->divisions;++i) {
-			graphMgr->AddScreenItem(style->si[i]);
-		}
-	}
-}
-
-void
-HWipeSetUp(PlaneShowStyle* style,int priority) 
-{
-	// Create the screen item defs needed.
-	style->tilesPerFrame = 1;
-	style->si = New ScreenItem* [style->divisions];
-	Bitmap bitmap(style->color);
-	for (int i = 0;i < style->divisions;++i) {
-		SOL_Rect lftBand(style->BMWidth*i/style->divisions,
-							  0,
-							  style->BMWidth*(i+1)/style->divisions - 1,
-							  style->BMHeight - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,lftBand);
-		style->si[i]->SetPriority(priority);
-	}
-	if (style->entry) {
-		// must add all the tiles to the plane because
-		// ProcessShowStyle will be removing the tiles.
-		for (i = 0;i < style->divisions;++i) {
-			graphMgr->AddScreenItem(style->si[i]);
-		}
-	}
-}
-
-void
-VWipeSetUp(PlaneShowStyle* style,int priority) 
-{
-	// Create the screen item defs needed.
-	style->tilesPerFrame = 1;
-	style->si = New ScreenItem* [style->divisions];
-	Bitmap bitmap(style->color);
-	for (int i = 0;i < style->divisions;++i) {
-		SOL_Rect topBand(0,
-							  style->BMHeight*i/style->divisions,
-							  style->BMWidth - 1,
-							  style->BMHeight*(i+1)/style->divisions - 1);
-		style->si[i] = New ScreenItem(style->planeID,bitmap,topBand);
-		style->si[i]->SetPriority(priority);
-	}
-	if (style->entry) {
-		// must add all the tiles to the plane because
-		// ProcessShowStyle will be removing the tiles.
-		for (i = 0;i < style->divisions;++i) {
-			graphMgr->AddScreenItem(style->si[i]);
-		}
-	}
-}
-
-void
-DissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect)
-{
-#ifdef MACINTOSH
-	style->BM = memMgr->Alloc(MemResBitmap,MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
-#else
-	style->BM = memMgr->Alloc(MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
-#endif
-
-	// build the header for the BM
-	BuildHeader(style->BM,style->BMWidth,style->BMHeight,SOL_SKIP);
-
-	// Transfer the current VMAP bits for the given plane into the BM
-	Buffer* buffer = graphMgr->CurrBuffer();
-	char* target = ((char*) memMgr->GetAddr(style->BM)) + CELHEADERSIZE;
-	int height = planeRect.Ylen();
-	while (height--) {
-		memcpy(target,
-		 		buffer->Addr(planeRect.A.x,planeRect.A.y),
-	 	 		style->BMWidth);
-		target += style->BMWidth;
-		planeRect.A.y++;
-	}
-
-	Bitmap bitmap(style->BM);
-	SOL_Point pt(0,0);
-	ScaleInfo scaleInfo;
-	style->siPlane = New ScreenItem(style->planeID,bitmap,pt,scaleInfo,0);
-	style->siPlane->SetPriority(priority);
-	graphMgr->AddScreenItem(style->siPlane);
-}
-
-void
-DissolveShutDown(PlaneShowStyle* style) 
-{
-	if ((int) style->BM)
-		memMgr->Free(style->BM);
-	if (style->siPlane)	{
-		graphMgr->DeleteScreenItem(style->siPlane);
-		delete style->siPlane;
-	}
-}
-
-Bool 
-Dissolve(PlaneShowStyle* style)
-{
-	Bool noChange = True;
-	ulong index;
-
-	char* celPtr = ((char*) memMgr->GetAddr(style->BM)) + CELHEADERSIZE;
-
-	ulong	pixels = style->divisions*style->divisions;
-
-	// Get the starting index
-	if (style->percent == 0) {
-		int i = 0;
-		index = pixels;
-		while (True) {
-			index >>= 1;
-			if (index == 1) break;
-			i++;
-		}
-		style->pDMask = pixelDissolveTable[i];
-		// Get the seed pixel
-		index = 800;
-		style->firstPixel = index;
-		style->pixel = index;
-	}
-	else {
-		index = style->pixel;
-		while (True) {
-			if (index & 1) {
-				index = index >> 1;
-				index ^= style->pDMask;
-			}
-			else {
-				index = index >> 1;
-			}
-			if (index < pixels) break;
-		} 
-		if (index == style->firstPixel) index = 0;
-	}
-
-	int xWidth = (style->BMWidth + style->divisions - 1)/style->divisions;
-	int yHeight =(style->BMHeight + style->divisions - 1)/style->divisions;
-	
-	if (style->percent <= style->divisions) {
-		SOL_Rect p(0,0,style->BMWidth - 1,style->BMHeight - 1);
-
-		for (int i=0;i<style->divisions;i++) {
-			SOL_Rect r;
-
-			int x = index%style->divisions;
-			int y = index/style->divisions;
-			r.A.x = x*xWidth;
-			r.A.y = y*yHeight;
-			r.B.x = x*xWidth + xWidth - 1;
-			r.B.y = y*yHeight + yHeight - 1;
-			r.Clip(p);
-			FillRect(celPtr,r,style->color,style->BMWidth);
-
-			// Next index
-			while (True) {
-				if (index &1) {
-					index = index >> 1;
-					index ^= style->pDMask;
-				}
-				else {
-					index = index >> 1;
-				}
-				if (index < pixels) break;
-			}
- 
-			if (style->percent == style->divisions) {
-//			if (index == style->firstPixel) {
-				// finish it off
-				r.A.x = 0;
-				r.A.y = 0;
-				r.B.x = style->BMWidth - 1;
-				r.B.y = style->BMHeight - 1;
-				FillRect(celPtr,r,style->color,style->BMWidth);
-				break;
-			}
-		}
-		style->pixel = index;
-		style->clock += style->speed;
-		style->percent++;
-		noChange	= False;
-		if (!style->siPlane->AddCount())
-			style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
-	}
-	if ((style->percent >= style->divisions) && noChange)	{
-		if (style->entry) style->deleteMe = True;
-			return True;
-	}
-	else
-		return False;
-}
-
-void
-PixelDissolveSetUp(PlaneShowStyle* style,int priority,SOL_Rect& planeRect)
-{
-#ifdef MACINTOSH
-	style->BM = memMgr->Alloc(MemResBitmap,MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
-#else
-	style->BM = memMgr->Alloc(MOVEABLE,(style->BMWidth)*(style->BMHeight)+CELHEADERSIZE,0,0);
-#endif
-
-	// build the header for the BM
-	BuildHeader(style->BM,style->BMWidth,style->BMHeight,SOL_SKIP);
-
-	// Transfer the current VMAP bits for the given plane into the BM
-	Buffer* buffer = graphMgr->CurrBuffer();
-	char* target = ((char*) memMgr->GetAddr(style->BM)) + CELHEADERSIZE;
-	int height = planeRect.Ylen();
-	while (height--) {
-		memcpy(target,
-		 		buffer->Addr(planeRect.A.x,planeRect.A.y),
-	 	 		style->BMWidth);
-		target += style->BMWidth;
-		planeRect.A.y++;
-	}
-
-	Bitmap bitmap(style->BM);
-	SOL_Point pt(0,0);
-	ScaleInfo scaleInfo;
-	style->siPlane = New ScreenItem(style->planeID,bitmap,pt,scaleInfo,0);
-	style->siPlane->SetPriority(priority);
-	graphMgr->AddScreenItem(style->siPlane);
-}
-
-Bool 
-PixelDissolve(PlaneShowStyle* style)
-{
-	Bool noChange = True;
-	ulong index;
-
-	char* celPtr = ((char*) memMgr->GetAddr(style->BM)) + CELHEADERSIZE;
-
-	SOL_Rect p(0,0,style->BMWidth - 1,style->BMHeight - 1);
-	ulong	pixels = p.Area();
-
-	ulong PixelsPerPercent	= (pixels + style->divisions)/style->divisions;
-	ulong HorizontalPixels	= p.Xlen();
-
-
-	// Get the starting index
-	if (style->percent == 0) {
-		int i = 0;
-		index = pixels;
-		if (index != 1) {
-			while (True) {
-				index >>= 1;
-				if (index == 1) break;
-				i++;
-			}
-		}
-		style->pDMask = pixelDissolveTable[i];
-		// Get the seed pixel
-		// index = LCGRandom() % pixels;
-		index = 53427;	// fake out to be similar to SCI16 with SP = 0xff00
-		index %= pixels;
-		style->firstPixel = index;
-		style->pixel = index;
-	}
-	else {
-		index = style->pixel;
-		while (True) {
-			if (index & 1) {
-				index = index >> 1;
-				index ^= style->pDMask;
-			}
-			else {
-				index = index >> 1;
-			}
-			if (index < pixels) break;
-		} 
-		if (index == style->firstPixel) index = 0;
-	}
-
-	if (style->percent < style->divisions) {
-		for (int i=0;i<PixelsPerPercent;i++) {
-			SOL_Point pt(index%HorizontalPixels,
-							 index/HorizontalPixels);
-
-			FillPoint(celPtr,pt,style->color,style->BMWidth);
-
-			// Next index
-			while (True) {
-				if (index &1) {
-					index = index >> 1;
-					index ^= style->pDMask;
-				}
-				else {
-					index = index >> 1;
-				}
-				if (index < pixels) break;
-			} 
-			if (index == style->firstPixel) {
-				// finish it off
-				SOL_Rect r(0,
-							  0,
-							  style->BMWidth - 1,
-							  style->BMHeight - 1);
-				FillRect(celPtr,r,style->color,style->BMWidth);
-				break;
-			}
-		}
-		style->pixel = index;
-		style->clock += style->speed;
-		style->percent++;
-		noChange	= False;
-		if (!style->siPlane->AddCount())
-			style->siPlane->SetUpdateCount(graphMgr->ScreenCount());
-	}
-	if ((style->percent >= style->divisions) && noChange)	{
-		if (style->entry) style->deleteMe = True;
-			return True;
-	}
-	else
-		return False;
-}
-
-void
-IrisSetUp(PlaneShowStyle* style,int priority) 
-{
-	// Create the screen item defs needed.
-	style->tilesPerFrame = 4;
-	style->si = New ScreenItem* [style->tilesPerFrame*style->divisions];
-	Bitmap bitmap(style->color);
-	int i=0;
-	int j=0;
-	for (;i < style->tilesPerFrame*style->divisions;++i,++j) {
-		SOL_Rect topBand((style->BMWidth*j)/(2*style->divisions),
-							  (style->BMHeight*j)/(2*style->divisions),
-							  0,
-							  (style->BMHeight+1)*(j+1)/(2*style->divisions) - 1);
-		topBand.B.x = style->BMWidth - topBand.A.x - 1;
-
-		SOL_Rect botBand(topBand.A.x,
-							  style->BMHeight - topBand.B.y - 1,	
-							  topBand.B.x,
-							  style->BMHeight - topBand.A.y - 1);	
-
-		SOL_Rect lftBand(topBand.A.x,
-							  topBand.B.y + 1,
-							  (style->BMWidth+1)*(j+1)/(2*style->divisions) - 1,
-							  botBand.A.y - 1);
-
-		SOL_Rect rgtBand(style->BMWidth - lftBand.B.x - 1,
-							  lftBand.A.y,
-							  style->BMWidth - lftBand.A.x - 1,
-							  lftBand.B.y);
-
-		style->si[i] = New ScreenItem(style->planeID,bitmap,topBand);
-		style->si[i++]->SetPriority(priority);
-
-		style->si[i] = New ScreenItem(style->planeID,bitmap,botBand);
-		style->si[i++]->SetPriority(priority);
-
-		style->si[i] = New ScreenItem(style->planeID,bitmap,lftBand);
-		style->si[i++]->SetPriority(priority);
-
-		style->si[i] = New ScreenItem(style->planeID,bitmap,rgtBand);
-		style->si[i]->SetPriority(priority);
-	}
-	if (style->entry) {
-		// must add all the tiles to the plane because
-		// ProcessShowStyle will be removing the tiles.
-		for (i = 0;i < style->tilesPerFrame*style->divisions;++i) {
-			graphMgr->AddScreenItem(style->si[i]);
-		}
-	}
-}
-
-void 
-FillRect(char* celPtr,SOL_Rect& r,uchar color,int BMWidth)
-{
-	if (r.IsEmpty()) return;
-
-	celPtr += r.A.y*BMWidth + r.A.x;
-	int width = r.Xlen();
-	int height = r.Ylen();
-
-	while (height--) {
-		memset(celPtr,color,width);
-		celPtr += BMWidth;
-	}
-}
-
-void 
-FillPoint(char* celPtr,SOL_Point& pt,uchar color,int BMWidth)
-{
-	celPtr += pt.y*BMWidth + pt.x;
-	*celPtr = color;
-}
-
-int pixelDissolveTable[15] =
-	{0x0003,
-	 0x0006,
-	 0x000c,
-	 0x0014,
-	 0x0030,
-	 0x0060,
-	 0x00b8,
-	 0x0110,
-	 0x0240,
-	 0x0500,
-	 0x0ca0,
-	 0x1b00,
-	 0x3500,
-	 0x6000,
-	 0xb400};
 
 int showStyleDivisions[16] =
 	{1,		// PLAIN,		  -form PLAIN
@@ -1733,18 +1604,18 @@ int showStyleDivisions[16] =
 	 20,		// HSHUTTERIN	  -form HSHUTTER	
 	 20,		// VSHUTTEROUT	  -form VSHUTTER
 	 20,		// VSHUTTERIN	  -form VSHUTTER	
-	 20,		// WIPELEFT		  -form HWIPE
-	 20,		// WIPERIGHT	  -form HWIPE	
-	 20,		// WIPEUP		  -form VWIPE	
-	 20,		// WIPEDOWN		  -form VWIPE
+	 10,		// WIPELEFT		  -form HWIPE
+	 10,		// WIPERIGHT	  -form HWIPE	
+	 10,		// WIPEUP		  -form VWIPE	
+	 10,		// WIPEDOWN		  -form VWIPE
 	 20,		// IRISOUT		  -form IRIS	
 	 20,		// IRISIN		  -form IRIS	
-	 40,		// DISSOLVE		  -form PLAIN
-	 40,		// PIXELDISSOLVE -form PLAIN
+	 6,		// DISSOLVENOMORPH	  -form PLAIN
+	 10,		// PIXELDISSOLVE -form PLAIN
 	 101,		// FADEOUT		  -form PLAIN
 	 101,		// FADEIN		  -form PLAIN
-	  2};		// PALETTEMORPH
-
+	  	2};		// PALETTEMORPH
+	  
 int showStyleForms[16] =
 	{PLAINFORM,	 
 	 HSHUTTER,
@@ -1759,9 +1630,10 @@ int showStyleForms[16] =
 	 IRIS,	 
 	 PLAINFORM,	 
 	 PLAINFORM,	 
-	 PLAINFORM,	 
-	 PLAINFORM,	 
+	 FADEFORM,	 
+	 FADEFORM,	 
 	 PLAINFORM};	 
+
 
 
 // List of planes that have a show style in progress
@@ -1769,3 +1641,4 @@ PlaneShowStyle* showStyles;
 
 // List of scrolling planes
 PlaneScroll* planeScrolls;
+

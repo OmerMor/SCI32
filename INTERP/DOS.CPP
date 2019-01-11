@@ -1,11 +1,5 @@
 //	dos.cpp
 
-#ifdef WIN32S
-#define INCLUDE_MMSYSTEM_H
-#include "sciwin.hpp"
-#include "mbox.hpp"
-#endif
-
 #include <direct.h>
 #include <io.h>
 #include <stdio.h>
@@ -14,6 +8,13 @@
 
 #include "sol.hpp"
 
+#ifdef WIN32S
+#define INCLUDE_MMSYSTEM_H
+#include "sciwin.hpp"
+#include "mbox.hpp"
+#endif
+
+#include "array.hpp"
 #include "audio.hpp"
 #include "criterr.hpp"
 #include "dos.h"
@@ -25,30 +26,37 @@
 #include "string.hpp"
 #include "textid.hpp"
 
-static int		SetDisk(int disk);
+static Bool		CheckValidPath(const char* path);
+static SCIWord	CheckFreeSpace(int func, const char* path);
 static int		GetDisk();
 static void		GetDevice(char* path, char* device);
 static void		GetCurDevice(char* device);
+static int		SetDisk(int disk);
 
 void
 KFileIO(argList)
 {
 	enum {
-		fileOpen,
-		fileClose,
-		fileRead,
-		fileWrite,
-		fileUnlink,
-		fileFGets,
-		fileFPuts,
-		fileSeek,
-		fileFindFirst,
-		fileFindNext,
-		fileExists,
-		fileRename,
-		fileCopy,
-		fileReadWord,
-		fileWriteWord
+		FileOpen,
+		FileClose,
+		FileRead,
+		FileWrite,
+		FileUnlink,
+		FileFGets,
+		FileFPuts,
+		FileSeek,
+		FileFindFirst,
+		FileFindNext,
+		FileExists,
+		FileRename,
+		FileCopy,
+		FileReadByte,
+		FileWriteByte,
+		FileReadWord,
+		FileWriteWord,
+		FileCheckFreeSpace,
+		FileGetCWD,
+		FileValidPath
 	};
 
 	enum {
@@ -59,16 +67,13 @@ KFileIO(argList)
 
 	static FindBuffer	findFileEntry;
 
-	TextID	buf;
-	int		mode;
-	int		fd;
-
 	critErrHandler->SetMethod(CritErrHandler::Retry);
 
 	switch (arg(1)) {
-		case fileOpen:
-			buf = (TextID) arg(2);
-			mode = arg(3);
+		case FileOpen: {
+			int fd;
+			TextID buf(arg(2));
+			int mode = arg(3);
 			if (mode == F_TRUNC)
 				fd = Creat(*buf, 0);
 			else {
@@ -82,36 +87,37 @@ KFileIO(argList)
 			}
 			pm.acc = (Acc) fd;
 			break;
+		}
 
-		case fileClose:
+		case FileClose:
 			pm.acc = !Close(arg(2));
 			break;
 
-		case fileRead:
+		case FileRead:
 #ifdef DEBUG
-			if (((TextID)arg(3)).Size() < arg(4)) {
+			if (((ArrayID)arg(3)).Size() < arg(4)) {
 				msgMgr->Fatal("Buffer overflow reading %d bytes into %d bytes",
-									arg(4), ((TextID)arg(3)).Size());
+									arg(4), ((ArrayID)arg(3)).Size());
 			}
 #endif
-			pm.acc = (Acc) ReadMemID(arg(2), (TextID) arg(3), arg(4));
+			pm.acc = (Acc) ReadMemID(arg(2), ((TextID) arg(3)), arg(4));
 			break;
 
-		case fileWrite:
+		case FileWrite:
 #ifdef DEBUG
-			if (((TextID)arg(3)).Size() < arg(4)) {
+			if (((ArrayID)arg(3)).Size() < arg(4)) {
 				msgMgr->Fatal("Buffer underflow writting %d bytes into %d bytes",
-									arg(4), ((TextID)arg(3)).Size());
+									arg(4), ((ArrayID)arg(3)).Size());
 			}
 #endif
-			pm.acc = (Acc) Write(arg(2), *(TextID) arg(3), arg(4));
+			pm.acc = (Acc) Write(arg(2), *(ArrayID) arg(3), arg(4));
 			break;
 
-		case fileUnlink:
+		case FileUnlink:
 			pm.acc = (Acc) Unlink(*(TextID) arg(2));
 			break;
 
-		case fileFGets:
+		case FileFGets:
 #ifdef DEBUG
 			if (((TextID)arg(2)).Size() < arg(3)) {
 				msgMgr->Fatal("Buffer overflow getting %d bytes into %d bytes",
@@ -121,7 +127,7 @@ KFileIO(argList)
 			pm.acc = Acc(ReadString(*(TextID) arg(2),arg(3), arg(4)) ? arg(2) : 0);
 			break;
 
-		case fileFPuts:
+		case FileFPuts:
 #ifdef DEBUG
 			if (((TextID)arg(3)).Size() < strlen(*(TextID)arg(3))) {
 				msgMgr->Fatal("Buffer underflow putting %d bytes into %d bytes",
@@ -131,38 +137,38 @@ KFileIO(argList)
 			pm.acc = (Acc) Write(arg(2), *(TextID) arg(3),strlen(*(TextID)arg(3)));
 			break;
 
-		case fileSeek:
+		case FileSeek:
 			pm.acc = (Acc) LSeek(arg(2), arg(3), arg(4));
 			break;
 
-		case fileFindFirst:
+		case FileFindFirst:
 			pm.acc = (Acc) FirstFile(*(TextID) arg(2), arg(4), &findFileEntry);
 			if (pm.acc)
 				strcpy(*(TextID) arg(3), findFileEntry.name);
 			break;
 
-		case fileFindNext:
+		case FileFindNext:
 			pm.acc = (Acc) NextFile(&findFileEntry);
 			if (pm.acc)
 				strcpy(*(TextID) arg(2), findFileEntry.name);
 			break;
 
-		case fileExists:
+		case FileExists:
 			pm.acc = (Acc) Exists(*(TextID) arg(2));
 			break;
 
-		case fileRename:
+		case FileRename:
 			pm.acc = (Acc) Rename(*(TextID) arg(2), *(TextID) arg(3));
 			break;
 
-		case fileCopy:
+		case FileCopy:
 			{
 			int	fd2, cnt;
 			const unsigned	CPYBUFLEN =	512;
 			char	cpy[CPYBUFLEN];
 
-			buf = (TextID) arg(2);
-			fd = Open(*buf, O_RDONLY | O_BINARY);
+			TextID buf(arg(2));
+			int fd = Open(*buf, O_RDONLY | O_BINARY);
 			if (critErrHandler->Tripped())
 				break;
 			buf = (TextID) arg(3);
@@ -184,132 +190,39 @@ KFileIO(argList)
 			break;
 			}
 			
-		case fileReadWord:
-			Read(arg(2), &pm.acc, sizeof(Acc));
+      case FileReadByte:
+         Read(arg(2), &pm.acc, 1);
+         break;
+
+      case FileWriteByte:
+         Write(arg(2), &arg(3), 1);
+         break;
+
+      case FileReadWord:
+         Read(arg(2), &pm.acc, sizeof(pm.acc));
+         break;
+
+      case FileWriteWord:
+         Write(arg(2), &arg(3), sizeof(SCIWord));
+         break;
+
+		case FileCheckFreeSpace:
+			pm.acc = CheckFreeSpace(arg(2), arg(3) ? *(TextID) arg(3) : 0);
 			break;
-			
-		case fileWriteWord:
-			pm.acc = Write(arg(2), &arg(3), sizeof(Acc));
+
+		case FileGetCWD: {
+			TextID id(arg(2));
+			id.Realloc(MaxPath + 1);
+			GetCWD(*id);
+			id.Snug();
+			pm.acc = id;
+			break;
+		}
+
+		case FileValidPath:
+			CheckValidPath(*(TextID) arg(2));
 			break;
 	}
-
-	critErrHandler->SetMethod(CritErrHandler::Abort);
-}
-
-void
-KGetCWD(argList)
-{
-	TextID id = arg(1);
-
-	id.Realloc(MaxPath + 1);
-	GetCWD(*id);
-	id.Snug();
-
-	pm.acc = id;
-}
-
-void
-KCheckFreeSpace(argList)
-{
-	//	KCheckFreeSpace functions
-	enum CheckFreeSpaceFuncs {
-		SAVEGAMESIZE,
-		FREESPACE,
-		ENOUGHSPACETOSAVE
-	};
-	
-	/* 
-	   If only path argument {
-			See if there is enough free space on the
-	      disk in 'path' to save a game.
-	   } else {
-	      If Arg2 = SAVEGAMESIZE {
-	         Return the amount of space needed to save
-	         the game in K
-	      }
-	      If Arg2 = FREESPACE {
-	         Return the amount of free space in K up 
-	         to 32Meg
-			}
-	      IF Arg2 = ENOUGHSPACETOSAVE {
-				Return whether there is enough space to save in path
-	   	}
-	   }
-	*/
-	char*	path;
-	ulong	freeSpace;
-
-	// Find out how much space there is.
-	path = *(TextID) arg(1);
-	if (*(path+1) == ':')
-		freeSpace = RGetFreeSpace(ToLower(*path));
-	else
-		freeSpace = RGetFreeSpace(0);
-
-	if (argCount < 2)
-      // Return Boolean, there is enough free space on the disk in 'path' to
-      //	save a game.
-		pm.acc = freeSpace > saveGame->Length();
-
-   else
-	   switch (arg(2))  {
-		   case SAVEGAMESIZE:
-            // Return the amount of space  in K needed to save the game 
-				pm.acc = (Acc) ((saveGame->Length() +1023) / 1024L);
-			   break;
-
-		   case FREESPACE:
-            // Return the amount of free space in K up to 32Meg
-	         freeSpace = freeSpace / 1024L;
-				pm.acc = (Acc) (freeSpace > 32767L ? 32767 : freeSpace);
-			   break;
-
-			case ENOUGHSPACETOSAVE:
-				// Return Boolean, there is enough free space on the disk in 'path'
-				//	to save a game.
-				pm.acc = freeSpace > saveGame->Length();
-				break;
-			
-			default:
-				assert(!"Invalid KCheckFreeSpace function");
-		}
-}
-
-void
-KValidPath(argList)
-{
-	/* Return True if the passed path is valid, False otherwise.
-		Implementation is to do a firstfile() for the directory, specifying
-		directory only. */
-
-	char			path[MaxPath + 1];
-	FindBuffer	dta;
-
-	//	don't mess with original copy
-	strcpy(path, *(TextID) arg(1));
-	RemoveTrailingSlash(path);
-
-	// if critical error occurs -- don't display fail/retry message
-	critErrHandler->SetMethod(CritErrHandler::Fail);
-
-	if (!strlen(path) || strlen(path) == 1 && *path == '.')
-		// Current directory is valid.
-		pm.acc = True;
-
-	else if (path[strlen(path) - 1] == ':') {
-		// Current directory on a specified drive is same as validity of drive.
-		char c = ToLower(path[0]);
-		if (pm.acc = (Acc) ExistDrive(c))
-			RGetFreeSpace(c);
-		if (critErrHandler->Tripped())
-			pm.acc = False;
-
-	} else if (FirstFile(path, FA_HIDDEN | FA_SYSTEM | FA_DIREC, &dta))
-		// Check to see if the path is a subdirectory.
-		pm.acc = Acc(dta.attrib | FA_DIREC);
-	else
-		// Not valid.
-		pm.acc = False;
 
 	critErrHandler->SetMethod(CritErrHandler::Abort);
 }
@@ -452,19 +365,11 @@ int
 Close(int fd)
 {
 	critErrHandler->Clear();
-#ifndef WIN32S
-	return close(fd);
-#else
-	// NOTE: Under WIN32S, in Phantasmagoria, a call was made to Close with
-	// an fd value of -1.  Subsequent calls to Open failed on the second
-	// file which was opened simultaneously.  The failure looked like a null
-	// pointer problem.  The following code is a work-around.
 
 	if (fd > 0)
 		return close(fd);
 	else
 		return -1;
-#endif
 }
 
 int
@@ -754,6 +659,114 @@ RemoveTrailingSlash(char* dir)
 	}
 
 	return dir;
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+static SCIWord
+CheckFreeSpace(int func, const char* path)
+{
+	//	CheckFreeSpace functions
+	enum {
+		NONE,
+		SAVEGAMESIZE,
+		FREESPACE,
+		ENOUGHSPACETOSAVE
+	};
+	
+	/* 
+	   If only path argument {
+			See if there is enough free space on the
+	      disk in 'path' to save a game.
+	   } else {
+	      If func = SAVEGAMESIZE {
+	         Return the amount of space needed to save
+	         the game in K
+	      }
+	      If func = FREESPACE {
+	         Return the amount of free space in K up 
+	         to 32Meg
+			}
+	      IF func = ENOUGHSPACETOSAVE {
+				Return whether there is enough space to save in path
+	   	}
+	   }
+	*/
+	ulong	freeSpace;
+
+	// Find out how much space there is.
+	if (*(path+1) == ':')
+		freeSpace = RGetFreeSpace(ToLower(*path));
+	else
+		freeSpace = RGetFreeSpace(0);
+
+	if (func == NONE)
+      // Return Boolean, there is enough free space on the disk in 'path' to
+      //	save a game.
+		return freeSpace > saveGame->Length();
+
+   else
+	   switch (func)  {
+		   case SAVEGAMESIZE:
+            // Return the amount of space  in K needed to save the game 
+				return (saveGame->Length() +1023) / 1024L;
+
+		   case FREESPACE:
+            // Return the amount of free space in K up to 32Meg
+	         freeSpace = freeSpace / 1024L;
+				return freeSpace > 32767L ? 32767 : freeSpace;
+
+			case ENOUGHSPACETOSAVE:
+				// Return Boolean, there is enough free space on the disk in 'path'
+				//	to save a game.
+				return freeSpace > saveGame->Length();
+			
+			default:
+				assert(!"Invalid CheckFreeSpace function");
+				return 0;
+		}
+}
+
+static Bool
+CheckValidPath(const char* p)
+{
+	/* Return True if the passed path is valid, False otherwise.
+		Implementation is to do a firstfile() for the directory, specifying
+		directory only. */
+
+	char			path[MaxPath + 1];
+	FindBuffer	dta;
+	Bool			rc;
+
+	//	don't mess with original copy
+	strcpy(path, p);
+	RemoveTrailingSlash(path);
+
+	// if critical error occurs -- don't display fail/retry message
+	critErrHandler->SetMethod(CritErrHandler::Fail);
+
+	if (!strlen(path) || strlen(path) == 1 && *path == '.')
+		// Current directory is valid.
+		rc = True;
+
+	else if (path[strlen(path) - 1] == ':') {
+		// Current directory on a specified drive is same as validity of drive.
+		char c = ToLower(path[0]);
+		if (rc = ExistDrive(c))
+			RGetFreeSpace(c);
+		if (critErrHandler->Tripped())
+			rc = False;
+
+	} else if (FirstFile(path, FA_HIDDEN | FA_SYSTEM | FA_DIREC, &dta))
+		// Check to see if the path is a subdirectory.
+		rc = dta.attrib | FA_DIREC;
+	else
+		// Not valid.
+		rc = False;
+
+	critErrHandler->SetMethod(CritErrHandler::Abort);
+	
+	return rc;
 }
 
 static int

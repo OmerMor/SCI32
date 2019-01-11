@@ -125,7 +125,9 @@ struct SCI_Point {
 	SCI_Point(Coord x, Coord y) : x(x), y(y) {}
 	SCI_Point(const SCI_Point& p) : x(p.x), y(p.y) {}
 
-	SCI_Point&	operator=(const SCI_Point&);
+// this function was defined outside of struct, but CodeWarrior 1.1.1.2
+// complains about it being an illegal inline function definition.
+	SCI_Point&	operator=(const SCI_Point& p) {x = p.x; y = p.y; return *this;}
 
 	SCI_Point&	operator+=(const SCI_Point&);
 	SCI_Point&	operator-=(const SCI_Point&);
@@ -148,14 +150,6 @@ struct SCI_Rect {
 	SCI_Point	ul;	// upper left
 	SCI_Point	lr; // lower right
 };
-
-inline SCI_Point&
-SCI_Point::operator=(const SCI_Point& p)
-{
-	x = p.x;
-	y = p.y;
-	return *this;
-}
 
 inline SCI_Point
 SCI_Point::operator+(const SCI_Point& p) const

@@ -14,7 +14,12 @@
 #include "memmgr.hpp"
 
 SOL_Mouse* mouse = NULL;
+static SOL_Event event;	// kk - can't create it on the stack!
 
+int			SOL_Mouse::hotOn = 0;
+int			SOL_Mouse::inRect = -1;
+int			SOL_Mouse::hotRectangleCount = 0;
+SCI_Rect*	SOL_Mouse::hotRectangles = NULL;
 
 void
 KHaveMouse(kArgs)
@@ -104,13 +109,6 @@ KSetHotRectangles(argList)
 
 }
 
-SOL_Mouse::SOL_Mouse() 
-{
-	hotOn = 0;	// not on
-	inRect = -1;
-	hotRectangles = NULL;
-}
-
 void
 SOL_Mouse::SetHotRectangleStatus(int status)
 {
@@ -126,10 +124,10 @@ SOL_Mouse::SetupHotRectangles(int count, MemID handle)
 	inRect = -1;
 }
 
+#pragma off (check_stack)
 void
 SOL_Mouse::CheckHotRectangles(SOL_Point & pos)
 {
-	SOL_Event event;
 	int lastRect = inRect;
 	inRect = -1;
 
@@ -155,9 +153,11 @@ SOL_Mouse::CheckHotRectangles(SOL_Point & pos)
 
 	// it WAS in a rect, but not now - need to send a message too
 	if(lastRect != inRect && lastRect != -1) {	
+		inRect = -1;
 		event.type = SOL_Event::HotRectangle;
 		event.message = -1;
 		eventMgr->Post(&event);
 	}
 }
+#pragma on (check_stack)
 

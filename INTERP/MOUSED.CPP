@@ -232,9 +232,6 @@ MouseDOS::SetPos(const SOL_Point& p)
 	pos.x = pos.x * Ratio(graphMgr->Xdim(), SCIRESX);
 	pos.y = pos.y * Ratio(graphMgr->Ydim(), SCIRESY);
 
-	if(hotOn)
-		CheckHotRectangles(pos);
-
 	if (useMouse)  {
 		SetMouseDriverPos(pos);
 		if (cursor)
@@ -280,6 +277,7 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 
 	if (entered)
 		return;
+
 	entered = True;
 	status = eax;
 	MouseDOS::buttonState = ebx;
@@ -298,12 +296,17 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 	else if (MouseDOS::pos.y < MouseDOS::restrict.A.y)
 		MouseDOS::pos.y = MouseDOS::restrict.A.y;
 
-
 		static SWIFT_3DStatus *swiftData;
 		swiftData = (SWIFT_3DStatus *) ((esi & 0xffff) << 4);    // static to get it off the stack
 
 	short es = SetESToDS();
 	SetStack(MouseDOS::stackBuff + 10000, 0);
+
+	if(mouse->HotOn()) {
+		SOL_Point pnt;
+		mouse->GlobalPosSci(&pnt);
+		mouse->CheckHotRectangles(pnt);
+	}
 
 	if (MouseDOS::isSwift && (status & swiftFunc)) {
 		MouseDOS::zaxis = swiftData->z;
@@ -372,5 +375,4 @@ HndlMouse(int eax, int ebx, int, int, int esi, int edi)
 	entered = False;
 }
 #pragma on (check_stack)
-
 

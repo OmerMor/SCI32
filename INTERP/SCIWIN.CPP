@@ -19,6 +19,7 @@
 #include "memmgrw.hpp"
 #include "mousew.hpp"
 #include "moview.hpp"
+#include "neww.hpp"
 #include "sci.hpp"
 #include "kbdmgrw.hpp"
 #include "pmachine.hpp"
@@ -71,6 +72,7 @@ DWORD           myStyle;
 HINSTANCE		MyInstance;
 HCURSOR			hMyCur = 0;
 HCURSOR			hAltCur, hCurCur;
+HCURSOR			hNullCur;
 HWND            hDisp;
 HWND            hWndList;
 HDC             hPaintDC = (HDC)NULL;
@@ -112,6 +114,7 @@ BOOL	  ALLOWTRUECOLOR = TRUE;
 BOOL	  TRUECOLOR = FALSE;
 BOOL	  TRAPCLOSE = TRUE;
 BOOL	  COLORCURSOR = FALSE;
+BOOL	  haveFocus = TRUE;
 Bool	  WING = FALSE;
 #ifdef WIN32S
 int     wingMinK = 3000;
@@ -149,6 +152,8 @@ int     vmapHeight = 480;
 int	  DACSize;
 int	  cursorViewAdd = 0;
 int	  maxCursorSize = 0;
+DWORD   midiBuffSize[NUMMIDIBUFFS];
+
 Bool    isMaximized = False;
 Bool    minMaxFlag = False;
 extern	int	writeCount;
@@ -212,11 +217,8 @@ RECT            windRect;
 		wndclass.lpszMenuName   = NULL ;
 		wndclass.lpszClassName  = szAppName ;
 
-//#ifndef COLORCUR
-//		hAltCur = LoadCursor(NULL, IDC_WAIT);
-//#else
 		hAltCur = LoadCursor(NULL, IDC_ARROW);
-//#endif
+		hNullCur = LoadCursor(MyInstance,"nullcur");
 		hCurCur = hAltCur;
 		SetCursor(hCurCur);
 
@@ -233,6 +235,11 @@ RECT            windRect;
 	ReadCommandLine (lpszCmdLine);  /* get command line arguments */
 
 	GetProfileInfo();
+
+	if (COLORCURSOR) {
+		hCurCur = hNullCur;
+		SetCursor(hCurCur);
+	}
 
 	GetScreenInfo();
 
@@ -273,6 +280,7 @@ RECT            windRect;
 			return FALSE ;
 #endif
 
+	SetCapture(hMyWnd);
 
 	if (nHORZRES > windWidth) {
 		howShow = SW_SHOWNORMAL;
@@ -424,7 +432,7 @@ unsigned			 aSize, dSize;
 	wingMinK			= GetPrivateProfileInt ((LPSTR)szInfo, "wingmink", 3000, (LPSTR)szIniFile);
 #endif
 	cursorViewAdd	= GetPrivateProfileInt ((LPSTR)szInfo, "cursorviewadd", 0, (LPSTR)szIniFile);
-	maxCursorSize	= GetPrivateProfileInt ((LPSTR)szInfo, "maxCursorSize", 0, (LPSTR)szIniFile);
+	maxCursorSize	= GetPrivateProfileInt ((LPSTR)szInfo, "maxCursorSize", 4, (LPSTR)szIniFile);
 	maxCursorSize = (((maxCursorSize + 3) >> 2) << 2);
 	forcePPC			= GetPrivateProfileInt ((LPSTR)szInfo, "forceppc", 0, (LPSTR)szIniFile);
 	dSize 			= (unsigned)GetIntOption ("DACSize", GetDACDefaultSize());
@@ -434,6 +442,24 @@ unsigned			 aSize, dSize;
 
 	asyncCheckFreq	= GetPrivateProfileInt ((LPSTR)szInfo, "asynccheckfreq", 10, (LPSTR)szIniFile);
 	monoDisp			= GetPrivateProfileInt ((LPSTR)szInfo, "monodisp", 0, (LPSTR)szIniFile);
+	reserveSize		= GetPrivateProfileInt ((LPSTR)szInfo, "reserveSize", 35000, (LPSTR)szIniFile);
+	cacheSize1		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize1", 400, (LPSTR)szIniFile);
+	cacheSize2		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize2", 500, (LPSTR)szIniFile);
+	cacheSize3		= GetPrivateProfileInt ((LPSTR)szInfo, "cacheSize3", 50, (LPSTR)szIniFile);
+	entrySize1		= GetPrivateProfileInt ((LPSTR)szInfo, "entrySize1", 32, (LPSTR)szIniFile);
+	entrySize2		= GetPrivateProfileInt ((LPSTR)szInfo, "entrySize2", 512, (LPSTR)szIniFile);
+	entrySize3		= GetPrivateProfileInt ((LPSTR)szInfo, "entrySize3", 1200, (LPSTR)szIniFile);
+
+	midiBuffSize[0] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize0", 100,		(LPSTR)szIniFile);
+	midiBuffSize[1] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize1", 100,		(LPSTR)szIniFile);
+	midiBuffSize[2] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize2", 1000,	(LPSTR)szIniFile);
+	midiBuffSize[3] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize3", 1000,	(LPSTR)szIniFile);
+	midiBuffSize[4] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize4", 10000,	(LPSTR)szIniFile);
+	midiBuffSize[5] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize5", 65000,	(LPSTR)szIniFile);
+	midiBuffSize[6] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize6", 0,		(LPSTR)szIniFile);
+	midiBuffSize[7] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize7", 0,		(LPSTR)szIniFile);
+	midiBuffSize[8] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize8", 0,		(LPSTR)szIniFile);
+	midiBuffSize[9] = (DWORD)GetPrivateProfileInt ((LPSTR)szInfo, "midiBuffSize9", 0,		(LPSTR)szIniFile);
 
 	CONFIRMDAC		= GetTFOption("confirmdac",TRUE);
 	REQUIREDAC		= GetTFOption("requiredac",FALSE);
@@ -707,11 +733,12 @@ static int nIndex = 0;
 	if (!monoDisp) {
 		if (!hWndList) {
 			hWndList = CreateWindow ("Listbox", NULL,
-							WS_CHILD | WS_VISIBLE | WS_BORDER | WS_VSCROLL
+							WS_OVERLAPPED | WS_VISIBLE | WS_BORDER | WS_VSCROLL
 							 | WS_THICKFRAME | WS_CAPTION | DS_NOIDLEMSG,
-							490, 240, 140, 200,
+							620, 400, 140, 200,
 							hMyWnd, NULL,
 							MyInstance, NULL);
+			SetFocus(hMyWnd);
 		}
 
 		if (nIndex > 49)
@@ -809,34 +836,37 @@ struct {
 		case WM_CHAR:                                   /* standard character entered */
 		case WM_KEYDOWN:                                /* for non-standard characters */
 		case WM_SYSKEYDOWN:                     /* ALT key combinations */
+		case WM_SYSKEYUP:
 		case WM_SYSCHAR:                                /* ALT character entered */
 			if (pm.game)
 				if (!((KbdMgrWin*)kbdMgr)->HandleKey(iMessage, wParam, lParam))
 					return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
 			break;
 
-		case WM_LBUTTONDOWN:                    /* mouse button events */
+		case WM_LBUTTONDOWN:
 		case WM_LBUTTONUP:
 		case WM_MBUTTONDOWN:
 		case WM_MBUTTONUP:
 		case WM_RBUTTONDOWN:
 		case WM_RBUTTONUP:
-			if (pm.game) {
+			if (pm.game && haveFocus) {
 				mPoint.x = LOWORD(lParam);
 				mPoint.y = HIWORD(lParam);
-				if (COLORCURSOR)
+				if (COLORCURSOR) {
 					((MouseWinClr*)mouse)->WinMouseButton(iMessage, mPoint);
-				else
+				} else
 					((MouseWin*)mouse)->WinMouseButton(iMessage, mPoint);
-			}
+			} else
+				return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
 			break;
 
-		case WM_MOUSEMOVE:                      /* mouse movement event */
-			if (pm.game) {
+		case WM_MOUSEMOVE:
+			if (pm.game && haveFocus) {
 				mPoint.x = (short)LOWORD(lParam);
 				mPoint.y = (short)HIWORD(lParam);
 				mouse->SetPos(mPoint);
-			}
+			} else
+				return DefWindowProc (hWnd, iMessage, wParam, lParam) ;
 			break;
 
 #ifdef XWIN32S
@@ -854,6 +884,8 @@ struct {
 #endif
 
 		case WM_SETFOCUS:
+			haveFocus = TRUE;
+			SetCapture(hMyWnd);
 			if (pm.game)
 				{
 				/* Microsoft says to realize the palette in response to
@@ -872,6 +904,8 @@ struct {
 			break;
 
 		case WM_KILLFOCUS:
+			haveFocus = FALSE;
+			ReleaseCapture();
 			if (pm.game) {
 					if (audioInstalled) {
 						audArgs.count = 1;

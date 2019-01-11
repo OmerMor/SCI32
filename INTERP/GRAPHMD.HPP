@@ -40,6 +40,22 @@ class GraphicsMgrDOS : public GraphicsMgr
 	Plane* 		GetPlaneCurrent(int planeId)
 						{return last.GetPlane(planeId);}
 	PaletteMgr&	GPalette()					{return palmgr;}
+	void			MovieFrameOut(uchar* Bmp,
+									  int	bitmapWidth,
+									  int bitmapX1,
+									  int bitmapY1,
+									  int bitmapX2,
+									  int bitmapY2,
+									  int screenX1,
+									  int screenY1);
+	void			MovieFrameOutDbl(uchar* Bmp,
+									  int	bitmapWidth,
+									  int bitmapX1,
+									  int bitmapY1,
+									  int bitmapX2,
+									  int bitmapY2,
+									  int screenX1,
+									  int screenY1);
 	void			NewScreenDim(int xdim,int ydim);
 	void			PlayMovie(char* filename,int tickCount,int x = 0,int y = 0);
 	Buffer& 		PriMap() 					{return pmap;}
@@ -55,11 +71,11 @@ class GraphicsMgrDOS : public GraphicsMgr
 	void			UpdateScreen()			   {last = next;}
 	Screen&		VisibleScreen()   		{return last;}
 
-	void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
+	void     	AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
 
 	protected:
-	void			CalcLists(DrawList** drawLists,RectList** eraseLists)
-						{next.CalcLists(last,drawLists,eraseLists);}
+	void			CalcLists(DrawList** drawLists,RectList** eraseLists,SOL_Rect& dirtyRect)
+						{next.CalcLists(last,drawLists,eraseLists,dirtyRect);}
 	void			CreatePriMap();
 	Buffer*		CurrBuffer()            {return &buffer;}
 	void			DeletePriMap();

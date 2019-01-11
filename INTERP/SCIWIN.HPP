@@ -6,6 +6,9 @@
 #include <windows.h>
 #endif
 
+#define NUMSOUNDNODES	10
+#define NUMMIDIBUFFS		10
+
 extern	HWND		hMyWnd;
 extern	HDC		hMyDC;
 extern	HANDLE	MyInstance;
@@ -13,6 +16,7 @@ extern	HPALETTE	hPal, hOldPal;
 extern	HCURSOR	hMyCur;
 extern	HCURSOR	hAltCur;
 extern	HCURSOR	hCurCur;
+extern	HCURSOR	hNullCur;
 extern	int		gameWidth, gameHeight;
 extern	int		gameBorder;
 extern	int		vmapWidth;
@@ -42,6 +46,7 @@ extern	char		szWinPatchDir[];
 
 #ifndef WIN32S
 extern	HINDIR	hTickCount;
+extern	DWORD		midiBuffSize[];
 #else
 extern	int		wingMinK;
 #endif

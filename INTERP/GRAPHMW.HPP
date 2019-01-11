@@ -45,14 +45,32 @@ class GraphicsMgrWin : public GraphicsMgr
 	void  ClearLastScreen()						{}
 //	PaletteMgr&	GPalette()						{return palmgr;}
 	PaletteMgr&	GPalette()						{return *palmgr;}
+	void			MovieFrameOut(uchar* Bmp,
+									  int	bitmapWidth,
+									  int bitmapX1,
+									  int bitmapY1,
+									  int bitmapX2,
+									  int bitmapY2,
+									  int screenX1,
+									  int screenY1);
+	void			MovieFrameOutDbl(uchar* Bmp,
+									  int	bitmapWidth,
+									  int bitmapX1,
+									  int bitmapY1,
+									  int bitmapX2,
+									  int bitmapY2,
+									  int screenX1,
+									  int screenY1);
 	SOL_Cursor&	GCursor()						{return *cursor;}
+	void		SCursorClr();
+	void		SCursorWin();
 	void		TimingTest();
 	Buffer& 	PriMap() 				{return pmap;}
 	void     AlterVMAP(SOLPalette* myPal,SOLPalette* newPal,int palIndex,char* palArray);
 
 	protected:
-	void			CalcLists(DrawList** drawLists,RectList** eraseLists)
-						{next.CalcLists(last,drawLists,eraseLists);}
+	void			CalcLists(DrawList** drawLists,RectList** eraseLists,SOL_Rect& dirtyRect)
+						{next.CalcLists(last,drawLists,eraseLists,dirtyRect);}
 	void		ResizeVmap(int xdim, int ydim);
 //	void		Repaint(SOL_Rect& theRect);
 	void		ShowBits();
@@ -65,6 +83,8 @@ class GraphicsMgrWin : public GraphicsMgr
 //	PaletteMgrWin	palmgr;
 	PaletteMgr*		palmgr;
 	CursorWin*		cursor;
+	CursorWin*		clrCursor;
+	CursorWin*		winCursor;
 	Bool				modeX;
 	MemID				vmapID;
 	BufferWin		pmap;
@@ -80,6 +100,7 @@ GraphicsMgrWin::UpdateScreen()
 
 
 #endif
+
 
 
 
