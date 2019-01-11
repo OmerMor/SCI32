@@ -77,6 +77,8 @@ class Robot
 	int				vertScaleFactor;
 	int				x1, y1;
 	int				xsize, ysize;
+	int				framesSkipped;
+	int				maxSkips;
 
 
 	class AudioList  {

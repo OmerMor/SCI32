@@ -15,19 +15,6 @@
 #include "timew.hpp"
 #include "mbox.hpp"
 
-struct SoundID : ID<Sound, MemSound> {
-	SoundID() {}
-	SoundID(const MemID& id) : ID<Sound, MemSound>(id) {}
-	SoundID(const SoundID& id) : ID<Sound, MemSound>((MemID&) id) {}
-	SoundID(SOL_Handle h) : ID<Sound, MemSound>(h) {}
-
-	void
-	Get()
-	{
-		ID<Sound, MemSound>::Get(sizeof(Sound), LOCKEDSAVE);
-	}
-};
-
 int	MidiType = 1;					/* default to base-level synth */
 static int			devID;
 static int			numberOfDACs;
@@ -259,4 +246,3 @@ SaveAllSounds()
 		snID = snID->Next();
 	}
 }
-

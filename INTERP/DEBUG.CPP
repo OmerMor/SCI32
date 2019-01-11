@@ -37,7 +37,7 @@ Bool	debuggerWasOn;
 int	kernelCallHistory[MaxKernelCallHistory];
 int	kernelCallOldest;
 int	kernelCallNewest;
-int	kernelCallIntegChecks = 0;
+int	kernelCallIntegChecks;
 Bool	singleStep;
 
 static void		CallKernel();
@@ -119,40 +119,45 @@ static DebugMenu			debugMenu("DEBUG", debugItems);
 
 ///////////////////////////////////////////////////////////////////////////////
 
-template <class T>
-static void
-EditVariable(char* name, T vars, int nVars)
-{
-	static char buf[20];
-	
-	char prompt[20];
-	
-	if (!nVars) {
-		msgMgr->Alert("There are no %ss", name);
-		return;
-	}
-
-	sprintf(prompt, "Edit %s#", name);
-
-	while (1) {
-		int num;
-		if (!InputValue(IV_Number, prompt, buf, num))
-			return;
-
-		if (nVars != -1 && num > nVars) {
-			sprintf(prompt, "Max %s: %d",  name, nVars);
-			continue;
-		}
-
-		char valBuf[20];
-		strcpy(valBuf, FormatNumber(vars[num], False));
-		int val;
-		strcpy(prompt, "Value");
-		if (InputValue(IV_Value, prompt, valBuf, val))
-			vars[num] = val;
-		break;
-	}
+#define MakeEditVariable(n, T)\
+static void \
+n##EditVariable(char* name, T vars, int nVars)\
+{\
+	static char buf[20];\
+	\
+	char prompt[20];\
+	\
+	if (!nVars) {\
+		msgMgr->Alert("There are no %ss", name);\
+		return;\
+	}\
+\
+	sprintf(prompt, "Edit %s#", name);\
+\
+	while (1) {\
+		int num;\
+		if (!InputValue(IV_Number, prompt, buf, num))\
+			return;\
+\
+		if (nVars != -1 && num > nVars) {\
+			sprintf(prompt, "Max %s: %d",  name, nVars);\
+			continue;\
+		}\
+\
+		char valBuf[20];\
+		strcpy(valBuf, FormatNumber(vars[num], False));\
+		int val;\
+		strcpy(prompt, "Value");\
+		if (InputValue(IV_Value, prompt, valBuf, val))\
+			vars[num] = val;\
+		break;\
+	}\
 }
+
+MakeEditVariable(Global, VariableID);
+MakeEditVariable(Local, VariableID);
+MakeEditVariable(Parm, PMStack::Ptr);
+MakeEditVariable(Temp, PMStack::Ptr);
 
 ///////////////////////////////////////////////////////////////////////////////
 	
@@ -314,19 +319,19 @@ if (event.type == SOL_Event::KeyDown && event.message == CtrlKey('D')) {
 				break;
 	
 			case cmEditGlobal:
-				EditVariable("global", pm.globals, -1);
+				GlobalEditVariable("global", pm.globals, -1);
 				break;
 	
 			case cmEditLocal:
-				EditVariable("local", pm.locals, -1);
+				LocalEditVariable("local", pm.locals, -1);
 				break;
 	
 			case cmEditParameter:
-				EditVariable("parameter", pm.stack.parms, (int) pm.stack.parms[0]);
+				ParmEditVariable("parameter", pm.stack.parms, (int) pm.stack.parms[0]);
 				break;
 	
 			case cmEditTemp:
-				EditVariable("temp", pm.stack.temps, -1);
+				TempEditVariable("temp", pm.stack.temps, -1);
 				break;
 	
 			case cmEditMemory:
@@ -1037,4 +1042,3 @@ Debugger::SaveRestoreAfter(SaveGame*, Bool save)
 }
 #endif
 
-

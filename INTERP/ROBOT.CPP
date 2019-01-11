@@ -45,6 +45,8 @@ Robot::Robot(int resNum, long planeId, int priority, int xoff, int yoff) :
 	robotSi = NULL;
 	videoSizeArray = NULL;
 	firstFrame = True;
+	framesSkipped = 0;
+	maxSkips = 0;
 	lastFrameNum = -1;
 	status = ROBOT_UNUSED;
 	lzScratch = New char[SCRATCHRAM_SIZE];
@@ -71,7 +73,7 @@ Robot::~Robot()
 	delete[] cueTimeList;
 	delete[] cueValueList;
 	delete hunkPalette;
-//	bmHandle.Free();
+	bmHandle.Free();
 	if (fd)
 		Close(fd);
 
@@ -80,6 +82,9 @@ Robot::~Robot()
 
 	if (hasAudio)
 		StopAudioNow();
+
+	msgMgr->Alert("%d out of %d frames skipped\n", framesSkipped, frameCount);
+	msgMgr->Alert("max skipped: %d\n", maxSkips);
 }
 
 
@@ -110,10 +115,14 @@ Robot::DoRobot()
 	if (status != ROBOT_PLAYING)
 		return;
 
-	if (firstFrame)
+	if (firstFrame)  {
 		frameNum = 0;
+		framesSkipped = 0;
+		maxSkips = 0;
+	}
 	else  {
 		frameNum = (timeMgr->GetTickCount() + delayTime.PredictedTicks() - robotStartTime) / 6;
+//		frameNum = (timeMgr->GetTickCount() - robotStartTime) / 6;
 	}
 
 	//  If last frame already shown, set final flag and return
@@ -129,8 +138,17 @@ Robot::DoRobot()
 	if (frameNum == lastFrameNum)
 		return;
 
+	if (!firstFrame)  {
+		int skips = frameNum - (lastFrameNum + 1);
+		if (skips)  {
+			framesSkipped += skips;
+			if (maxSkips < skips)
+				maxSkips = skips;
+		}
+	}		
+
 	audioList.SubmitDriverMax();
-//	delayTime.StartTiming();
+	delayTime.StartTiming();
 	SeekFrame(frameNum);
 	if (version == 2)
 		DoVersion2();
@@ -307,7 +325,7 @@ Robot::FrameNowVisible()
 	}
 
 	if (status == ROBOT_PLAYING)  {
-//		delayTime.EndTiming();
+		delayTime.EndTiming();
 
 		audioList.SubmitDriverMax();
 		long ticks = timeMgr->GetTickCount() + 3;

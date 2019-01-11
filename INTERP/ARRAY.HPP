@@ -19,17 +19,18 @@ _Packed struct Array {
 	SCIUWord size;
 	};
 
-struct ArrayID : ID<Array, MemArray> {
+FakeTemplateID(FakeArrayID, Array, MemArray)
+struct ArrayID : FakeArrayID {
 	ArrayID() {}
-	ArrayID(MemID& id) : ID<Array, MemArray>(id) {}
-	ArrayID(SOL_Handle h) : ID<Array, MemArray>(h) {}
+	ArrayID(MemID& id) : FakeArrayID(id) {}
+	ArrayID(SOL_Handle h) : FakeArrayID(h) {}
 
 	void
 	Get(size_t size)
 	{
 		// initialize arrays to 0
 
-		ID<Array, MemArray>::Get(size, MOVEABLE | INITMEMORY);
+		FakeArrayID::Get(size, MOVEABLE | INITMEMORY);
 	}
 
 	void*	Data() { return (int) *this ? **this + 1 : 0; }

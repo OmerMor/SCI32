@@ -26,7 +26,7 @@ ScrollWindowID::Get(SOL_Rect& theWindow,
 						short		theBorder,
 						int		theSize)
 {
-	ID<ScrollWindow, MemWindow>::Get(sizeof(ScrollWindow), LOCKED | LOCKEDNOSAVE);
+	FakeScrollWindowID::Get(sizeof(ScrollWindow), LOCKED | LOCKEDNOSAVE);
 	new(handle) ScrollWindow(theWindow,	thePos, thePlaneID, theFore,
 									theBack,theFont,theMode,theBorder,theSize);
 }
@@ -36,7 +36,7 @@ ScrollWindowID::Free()
 {
 	if(handle)
 		(**this)->~ScrollWindow();
-	ID<ScrollWindow, MemWindow>::Free();
+	FakeScrollWindowID::Free();
 }
 
 // Window with a title

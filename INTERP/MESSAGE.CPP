@@ -54,7 +54,7 @@ private:
 	int		sp;
 };
 
-typedef ID<MsgStack, MemMsgStack>	MsgStackID;
+FakeTemplateID(MsgStackID, MsgStack, MemMsgStack)
 
 static MsgStack stack;
 

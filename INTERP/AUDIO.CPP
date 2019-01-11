@@ -1362,8 +1362,6 @@ Bool
 InitAudioDriver()
 {
 	unsigned	n;
-	char		pathName[MaxPath + 1];
-	char*		cp;
 
 	n = (configMgr->GetNum("DACSize", 0, GetDACDefaultSize()) + 1023) / 1024 * 1024;
 	if (!n)
@@ -1380,25 +1378,7 @@ InitAudioDriver()
 	if (intHbufferSize > INT_MAXHBSIZE)
 		intHbufferSize = INT_MAXHBSIZE;
 
-	/* Open optional Audio sound effects Volume */
-	strcpy(pathName, configMgr->Get("ressfx",0));
-	if (strlen(pathName)) {
-		cp = &pathName[strlen(pathName)-1];
-		if (*cp != ':' && *cp != '\\')
-			strcat(pathName,"\\");
-	}
-	strcat(pathName,SFXVOLNAME);
-	sfxVolFD = Open(pathName, O_RDONLY);
-
-	/* Open optional Base-36 Speech/Sync/Rave Volume */
-	strcpy(pathName, configMgr->Get("resaud",0));
-	if (strlen(pathName)) {
-		cp = &pathName[strlen(pathName)-1];
-		if (*cp != ':' && *cp != '\\')
-			strcat(pathName,"\\");
-	}
-	strcat(pathName,AUDVOLNAME);
-	audVolFD = Open(pathName, O_RDONLY);
+//	InitAudioVols();
 
 	/* If audio is not requested -- vamboose
 	 */
@@ -1442,11 +1422,42 @@ InitAudioDriver()
 	audioInstalled = True;
 	
 #ifdef DEBUG
-	if (configMgr->Get(configMgr->PlayAudio))
-		DACPlay();
+//	if (configMgr->Get(configMgr->PlayAudio))
+//		DACPlay();
 #endif
 
 	return True;
+}
+
+void
+InitAudioVols()
+{
+	char		pathName[MaxPath + 1];
+	char*		cp;
+
+	/* Open optional Audio sound effects Volume */
+	if (sfxVolFD != -1)
+		Close(sfxVolFD);
+	strcpy(pathName, configMgr->Get("ressfx",0));
+	if (strlen(pathName)) {
+		cp = &pathName[strlen(pathName)-1];
+		if (*cp != ':' && *cp != '\\')
+			strcat(pathName,"\\");
+	}
+	strcat(pathName,SFXVOLNAME);
+	sfxVolFD = Open(pathName, O_RDONLY);
+
+	/* Open optional Base-36 Speech/Sync/Rave Volume */
+	if (audVolFD != -1)
+		Close(audVolFD);
+	strcpy(pathName, configMgr->Get("resaud",0));
+	if (strlen(pathName)) {
+		cp = &pathName[strlen(pathName)-1];
+		if (*cp != ':' && *cp != '\\')
+			strcat(pathName,"\\");
+	}
+	strcat(pathName,AUDVOLNAME);
+	audVolFD = Open(pathName, O_RDONLY);
 }
 
 #ifdef DEBUG
@@ -1585,3 +1596,4 @@ AudioCheck()
 				if (!CallDAC(DAC_LOC,0))
 					AudioStop(n);
 }
+

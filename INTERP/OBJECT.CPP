@@ -162,7 +162,7 @@ ObjectID::Get(MemID id, size_t ofs, size_t size)
 {
 	//	get memory to read an .HEP object into
 
-	ID<Object, MemObject>::Get(size);
+	FakeObjectID::Get(size);
 	new(handle) Object(*this, id, ofs, size);
 }
 
@@ -171,7 +171,7 @@ ObjectID::Get(ObjectID clonee)
 {
 	//	clone an Object
 
-	ID<Object, MemObject>::Get(clonee->size * sizeof(Property));
+	FakeObjectID::Get(clonee->size * sizeof(Property));
 	new(handle) Object(*this, clonee);
 }
 
@@ -181,7 +181,7 @@ ObjectID::Free()
 	//	this is necessary because of a bug in WATCOM 9.5 (see MEMID.HPP)
 	if (handle)
 		(**this)->~Object();
-	ID<Object, MemObject>::Free();
+	FakeObjectID::Free();
 }
 
 ObjectID

@@ -27,13 +27,13 @@ protected:
 	SOL_NodeKey	key;
 };
 
-typedef ID<SOL_Node, MemListNode> SOL_NodeID;
+FakeTemplateID(SOL_NodeID, SOL_Node, MemListNode);
 
 struct KNode : SOL_Node {
 	SCIWord		val;
 };
 
-typedef ID<KNode, MemListKNode> KNodeID;
+FakeTemplateID(KNodeID, KNode, MemListKNode);
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +68,7 @@ protected:
 	int			nextPtr;
 };
 
-typedef ID<SOL_List, MemList> SOL_ListID;
+FakeTemplateID(SOL_ListID, SOL_List, MemList)
 
 #endif
 

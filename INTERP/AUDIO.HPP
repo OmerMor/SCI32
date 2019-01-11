@@ -40,6 +40,7 @@ void DupeChannel(void *, int, int, char);
 void		AudioServer();
 int		CallDAC(int,int);
 Bool		InitAudioDriver();
+void		InitAudioVols();
 void		EndAudio();
 void		MakeName36(MemType,char*,ResNum,uchar,uchar,uchar,uchar);
 int		FindAud36Entry(ResNum,uchar,uchar,uchar,uchar);

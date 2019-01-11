@@ -1,3 +1,5 @@
+#if !defined(MOVIEW_HPP)
+#define MOVIEW_HPP
 
 extern "C" {
 unsigned int	AviOpen(int movieNo,char * filename);   
@@ -8,13 +10,13 @@ unsigned int	AviStop(int movieNo);
 unsigned int	AviPause(int movieNo);
 unsigned int	AviResume(int movieNo);
 unsigned int	AviSetPalette(int movieNo);
+unsigned int	AviGetLength(int movieNo);
+unsigned int	AviGetPosition(int movieNo);
+unsigned int	AviGetStatus(int movieNo);
+unsigned int   AviCue(int movieNo,int frameNo);
+unsigned int	AviSeek(int movieNo, int frameNo);
+void			AviNotify(WPARAM,LPARAM);
 
-extern	WORD	AVIDeviceID;
-extern	WORD	avi_cue_who;
-extern	BOOL	avi_playing;
-extern	BOOL	avi_paused;
-extern	BOOL	avi_fullscreen;
-extern   short movieType;
 
 enum avi_error {
 	AVI_NO_ERROR = 0,
@@ -28,7 +30,8 @@ enum avi_error {
 	AVI_PAUSE_FAIL,
 	AVI_RESUME_FAIL,
 	AVI_NOT_PLAYING,
-	AVI_PALETTE_FAIL
+	AVI_PALETTE_FAIL,
+	AVI_CUE_FAIL
 };
 
 enum avi_play_type {
@@ -37,7 +40,14 @@ enum avi_play_type {
 	SCI_WINDOW
 };
 
-
+enum avi_status {
+	statusNotOpen,
+	statusOpen,
+	statusPlaying,
+	statusPaused,
+	statusStopped,
+	statusDone,
+};
 
 enum avi_command_list {
       AVI_OPEN = 0,
@@ -47,8 +57,16 @@ enum avi_command_list {
       AVI_PAUSE,
       AVI_RESUME,
       AVI_CLOSE,
-	   AVI_SETPALETTE
+	   AVI_SETPALETTE,
+	   AVI_GET_LENGTH,
+	   AVI_GET_POSITION,
+	   AVI_GET_STATUS,
+	   AVI_CUE,
+	   AVI_SEEK
 };
+extern short movieType;
 
 }
+#endif
+
 

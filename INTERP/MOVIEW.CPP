@@ -36,20 +36,12 @@
 
 void	InitMovie(void);
 void	closeWaveDev(void);
-	   
-WORD  AVIDeviceID = NULL;
-WORD    avi_cue_who = NULL;
-BOOL    avi_playing = FALSE;
-BOOL  avi_paused = FALSE;
-BOOL    avi_fullscreen;
-BOOL	movieInit = FALSE;
-short movieType;
-HBRUSH hBrush;
-HBRUSH hOldBrush;
-
-char	aviVideo[] = "AVIVideo";
-char movieName[80];
-
+short movieType;	   
+static BOOL	movieInit = FALSE;
+static Plane * moviePlane;
+static char movieName[80];
+static int currentlyPlayingMovie;
+static int aviStatus[10];
 
 void
 KSetVideoMode(kArgs args)
@@ -60,8 +52,6 @@ KSetVideoMode(kArgs args)
 void
 KShowMovie(kArgs args)
 {
-
-
 	if (!movieInit)
 		InitMovie();
 
@@ -69,64 +59,85 @@ KShowMovie(kArgs args)
 
    switch(arg(2)) {
 
-
 		case AVI_OPEN:
-	 pm.acc = AviOpen(movieNo,(*(TextID)arg(3)));
-	 break;
+			 pm.acc = AviOpen(movieNo,(*(TextID)arg(3)));
+	 		break;
 
 		case AVI_PUT:
-	 if(arg(0) > 4) {
-	    pm.acc = AviPut(movieNo,arg(3), arg(4), arg(5), arg(6));
-	 } else {
-	    pm.acc = AviPut(movieNo,arg(3), arg(4), NULL, NULL);
-	 }
-	 break;
+
+	 		if(arg(0) > 4) {
+	    		pm.acc = AviPut(movieNo,arg(3), arg(4), arg(5), arg(6));
+	 		} else {
+	    		pm.acc = AviPut(movieNo,arg(3), arg(4), NULL, NULL);
+	 		}
+	 		break;
 
 		case AVI_PLAY:
 
-	 switch (arg(0)) {
-	    case 6:
-	       pm.acc = AviPlay(movieNo,arg(3), arg(4), arg(5), arg(6));
-	       break;
+	 		switch (arg(0)) {
+	    		case 6:
+	       			pm.acc = AviPlay(movieNo,arg(3), arg(4), arg(5), arg(6));
+	       			break;
 
-	    case 5:
-	       pm.acc = AviPlay(movieNo,arg(3), arg(4), arg(5), NULL);
-	       break;
+	    		case 5:
+	       			pm.acc = AviPlay(movieNo,arg(3), arg(4), arg(5), NULL);
+	       			break;
 
-	    case 4:
-	       pm.acc = AviPlay(movieNo,arg(3), arg(4), SCI_WINDOW, NULL);
-	       break;
+	    		case 4:
+	       			pm.acc = AviPlay(movieNo,arg(3), arg(4), SCI_WINDOW, NULL);
+	       			break;
 
-	    case 3:
-	       pm.acc = AviPlay(movieNo,NULL, NULL, SCI_WINDOW, NULL);	// must have from AND to
-	       break;
+	    		case 3:
+	       			pm.acc = AviPlay(movieNo,NULL, NULL, SCI_WINDOW, NULL);	// must have from AND to
+	       			break;
 
-	    default:
-	       pm.acc = AviPlay(movieNo,NULL, NULL, SCI_WINDOW, NULL);
-	       break;
-	 }
+	    		default:
+	       			pm.acc = AviPlay(movieNo,NULL, NULL, SCI_WINDOW, NULL);
+	       			break;
+	 		}
 
-	 break;
+	 		break;
 
 		case AVI_STOP:
-	 pm.acc = AviStop(movieNo);
-	 break;
+	 		pm.acc = AviStop(movieNo);
+	 		break;
 
 		case AVI_PAUSE:
-	 pm.acc = AviPause(movieNo);
-	 break;
+	 		pm.acc = AviPause(movieNo);
+	 		break;
+
+		case AVI_CUE:
+			pm.acc = AviCue(movieNo,arg(3));
+			break;
+
+		case AVI_SEEK:
+			pm.acc = AviSeek(movieNo,arg(3));
+			break;
 
 		case AVI_RESUME:
-	 pm.acc = AviResume(movieNo);
-	 break;
+	 		pm.acc = AviResume(movieNo);
+	 		break;
 
 		case AVI_CLOSE:
-	 pm.acc = AviClose(movieNo);
+	 		pm.acc = AviClose(movieNo);
 			break;
 
 		case AVI_SETPALETTE:
-		pm.acc = AviSetPalette(movieNo);
-		break;
+			pm.acc = AviSetPalette(movieNo);
+			break;
+
+		case AVI_GET_LENGTH:
+			pm.acc = AviGetLength(movieNo);
+			break;
+
+		case AVI_GET_POSITION:
+			pm.acc = AviGetPosition(movieNo);
+			break;
+
+		case AVI_GET_STATUS:
+			pm.acc = AviGetStatus(movieNo);
+			break;
+
 	}
 }
 
@@ -139,56 +150,60 @@ KPlayBack(kArgs)
 
 unsigned int AviOpen(int movieNo,char * filename)
 {
-  
+	int i;
+	int movieFound = 0;
 
-	char * movieDir = configMgr->Get("MovieDir");
-	if(movieDir && strlen(movieDir)) {
-		strcpy(movieName,movieDir);
-		strcat(movieName,"\\");
-		strcat(movieName,filename);
+	for(i = 0; i < configMgr->GetNTokens("MovieDir"); i++) {
+		char * movieDir = configMgr->Get("MovieDir",i);
+
+		if(movieDir && strlen(movieDir)) {
+			char drive[10];
+			_splitpath(movieDir,drive,0,0,0);
+
+			// The following findfirst is done to ensure that MSCDEX
+			// knows which CD is in the drive
+#ifndef WIN32S
+			find_t buffer;
+			strcat(drive,"\\*.*");
+			int result =_dos_findfirst(drive,_A_VOLID,&buffer);
+#else
+			GetVolumeInformation(drive,NULL,0,NULL,NULL,0,NULL,0);
+#endif
+			sprintf(movieName,"%s\\%s",movieDir,filename);
 		}
-	else
-		strcpy(movieName,filename);
+		else
+			strcpy(movieName,filename);
+		
+		if(!access(movieName,F_OK)) {
+			movieFound = TRUE;
+			break;	// file was found
+		}
+	}
+	
+	if(!movieFound) {
+#ifdef DEBUG
+	   msgMgr->Alert(SrcLoc, "AVI: %s Not Found ", movieName);
+#endif
+		return AVI_OPEN_FAIL;
+	}
 
+	// OK, the AVI was found - try to open it
 	char str[255];
 	char resultStr[255];
 
-	// The following findfirst is done to ensure that MSCDEX
-	// knows which CD is in the drive
-
-	char drive[10];
-	_splitpath(movieName,drive,0,0,0);
-#ifndef WIN32S
-	find_t buffer;
-	strcat(drive,"\\*.*");
-	int result =_dos_findfirst(drive,_A_VOLID,&buffer);
-#else
-	GetVolumeInformation(drive,NULL,0,NULL,NULL,0,NULL,0);
-#endif
-
 	sprintf(str,"open %s alias sciMovie%-1d wait",movieName,movieNo);
-	int retryCount = 0;
-	DWORD errorCode = 1;
-	while(errorCode && retryCount < 5) {
-		errorCode = mciSendString(str,resultStr,80,0L);
-		++retryCount;
-	}
-
+	DWORD errorCode = mciSendString(str,resultStr,80,0L);
 
 	if(errorCode) {
-//#ifdef DEBUG
+#ifdef DEBUG
 		mciGetErrorString(errorCode,str,200);
-//	   msgMgr->Alert(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
-	   msgMgr->Fatal(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
-//#endif
+		msgMgr->Fatal(SrcLoc, "AVI Open Failed.  Return Value: %s", str);
+#endif
 //		msgMgr->Fatal(SrcLoc,Msg_AVIOpen);
 		return AVI_OPEN_FAIL;
-
 	}
-	else
-		return AVI_NO_ERROR;
-
- 
+	aviStatus[movieNo] = statusOpen;
+	return AVI_NO_ERROR;
 }
 
 unsigned int AviSetPalette(int movieNo)
@@ -196,8 +211,8 @@ unsigned int AviSetPalette(int movieNo)
 	char str[80];
 	char resultStr[80];
 	
- graphMgr->GPalette().UpdateForFrame();
- graphMgr->GPalette().UpdateHardware();
+	graphMgr->GPalette().UpdateForFrame();
+	graphMgr->GPalette().UpdateHardware();
   	sprintf(str,"setvideo sciMovie%-1d palette handle to %u wait",movieNo,hPal);
 	DWORD errorCode = mciSendString(str,resultStr,80,0L);
 	if(errorCode) {
@@ -209,31 +224,26 @@ unsigned int AviSetPalette(int movieNo)
 		return AVI_PALETTE_FAIL;
 	}
 
-
-	// set window was here
-
 	return AVI_NO_ERROR;
-
 }
 
    
 unsigned int AviClose(int movieNo)
 {
-
 	char str[30];
+
+	if(aviStatus[movieNo] == statusNotOpen)
+		return 0;
+
 	sprintf(str,"close sciMovie%-1d",movieNo);
 	mciSendString(str,NULL,0,0);
 
 	hOldPal = SelectPalette (hMyDC, hPal, 0);
 	RealizePalette (hMyDC);
-	
-	// hBrush = SelectObject(hMyDC, hOldBrush);
-	//InvalidateRect(hMyWnd,NULL,FALSE);
-	
 
-	avi_playing = FALSE;
-   avi_paused = FALSE;
-	
+	aviStatus[movieNo] = statusNotOpen;	
+	graphMgr->DeletePlane(moviePlane);
+
 	return AVI_NO_ERROR;
 }
 
@@ -293,6 +303,10 @@ unsigned int AviPut(int movieNo,int x, int y, int width, int height)
 		rect.top = y * Ratio(gameHeight, LOWRESY) + gameBorder;
 		//rect.right = mciRect.rc.right; // rect.left + 
 		//rect.bottom = mciRect.rc.bottom; // rect.top + 
+		
+		// setup width and height for the plane creation
+		width = rect.right * Ratio(LOWRESX,gameHeight);
+		height = rect.bottom * Ratio(LOWRESY,gameHeight);
 
 	}
 
@@ -309,6 +323,15 @@ unsigned int AviPut(int movieNo,int x, int y, int width, int height)
 		return AVI_PUT_FAIL;
 	}
 
+	// create a plane for the movie to play in (protect it from SCI)
+	// First, create an SOL_RECT with lo-res coordinates and offset by top/left
+	SOL_Rect sRect;
+	int sRight = x + width - 1;
+	int sBottom = y + height - 1;
+	sRect.Set(x,y,sRight,sBottom);
+	moviePlane = new Plane(sRect);
+	graphMgr->AddPlane(moviePlane);
+	graphMgr->FrameOut(TRUE);
 	return AVI_NO_ERROR;
 }
 
@@ -316,7 +339,6 @@ unsigned int AviPlay(int movieNo,int from, int to, int showStyle, int cue)
 {
 	DWORD dwPlayFlags = 0;
 	DWORD errorCode;
-	MSG msg; 
 	// BOOL mciRet;
 
 	char str[80];
@@ -346,24 +368,17 @@ unsigned int AviPlay(int movieNo,int from, int to, int showStyle, int cue)
 
 	if(cue)	{
 		sprintf(str,"%s notify",retStr);
+		currentlyPlayingMovie = movieNo;
+
 #ifndef WIN32S
 		errorCode = mciSendString(str,retStr,80,hMyWnd);
 #else
 		errorCode = mciSendString(str,retStr,80,(void *)hMyWnd);
 #endif
 #ifdef DEBUG
-	   msgMgr->Alert(SrcLoc, "AVI Play Failed.  Return Value: %d", errorCode);
+		if(errorCode)
+	   		msgMgr->Alert(SrcLoc, "AVI Play Failed.  Return Value: %d", errorCode);
 #endif
-		while (1) {
-			if(PeekMessage(&msg, hMyWnd, MM_MCINOTIFY, MM_MCINOTIFY, PM_NOREMOVE))
-			break;
-
-			if(PeekMessage(&msg,hMyWnd,WM_KEYUP,WM_KEYUP,PM_REMOVE)) {
-				if(msg.wParam == VK_ESCAPE) {
-					break;
-				}
-			}
-		}
 	}
 	else {
 		sprintf(str,"%s wait",retStr);
@@ -379,13 +394,12 @@ unsigned int AviPlay(int movieNo,int from, int to, int showStyle, int cue)
 		return AVI_PLAY_FAIL;
 	}
 
+	aviStatus[movieNo] = statusPlaying;
 	return AVI_NO_ERROR;
 }
 
 unsigned int AviStop(int movieNo)
 {
-
-	
 	char str[30];
 	sprintf(str,"stop sciMovie%-1d",movieNo);
 	DWORD errorCode = mciSendString(str,NULL,0,0);
@@ -395,14 +409,15 @@ unsigned int AviStop(int movieNo)
 		return AVI_STOP_FAIL;
 	}
 
-   avi_paused = FALSE;
-	avi_playing = FALSE;
+	aviStatus[movieNo] = statusStopped;
 	return AVI_NO_ERROR;
 }
 
 unsigned int AviPause(int movieNo)
 {
 
+	if(aviStatus[movieNo] != statusPlaying)
+		return AVI_PAUSE_FAIL;
 
 	char str[30];
 	sprintf(str,"pause sciMovie%-1d",movieNo);
@@ -411,15 +426,61 @@ unsigned int AviPause(int movieNo)
 		return AVI_PAUSE_FAIL;
 	}
 
-	avi_paused = TRUE;
+	aviStatus[movieNo] = statusPaused;
+	return AVI_NO_ERROR;
+
+}
+
+unsigned int AviCue(int movieNo, int frameNo)
+{
+
+	char str[30];
+	sprintf(str,"cue sciMovie%-1d output to %d",movieNo,frameNo);
+	DWORD errorCode = mciSendString(str,NULL,0,0);
+	if(errorCode) {
+		return AVI_CUE_FAIL;
+	}
+
+	aviStatus[movieNo] = statusPaused;
+	return AVI_NO_ERROR;
+
+}
+unsigned int AviSeek(int movieNo, int frameNo)
+{
+	if(aviStatus[movieNo] == statusNotOpen)
+		return AVI_PAUSE_FAIL;
+
+	char str[30];
+	sprintf(str,"seek sciMovie%-1d  to %d",movieNo,frameNo);
+	DWORD errorCode = mciSendString(str,NULL,0,0);
+	if(errorCode) {
+		return AVI_CUE_FAIL;
+	}
+
+	aviStatus[movieNo] = statusPaused;
 	return AVI_NO_ERROR;
 
 }
 
 
 
+void AviNotify(WPARAM ,LPARAM)
+{
+	// Notify is used only for AviPlay with cue, so
+	// the only notify we should be getting is from a play
+	// which has been completed. The only problem is that I
+	// can't get (I think) which movie it was if more than one
+	// is open.  I'm storing the playing movie number in a static variable
+
+	aviStatus[currentlyPlayingMovie] = statusDone;
+
+}
+
+
 unsigned int AviResume(int movieNo)
 {
+	if(aviStatus[movieNo] != statusPaused)
+		return AVI_RESUME_FAIL;
 
 	char str[30];
 	sprintf(str,"resume sciMovie%-1d",movieNo);
@@ -428,7 +489,7 @@ unsigned int AviResume(int movieNo)
 		return AVI_RESUME_FAIL;
 	}
 
-	avi_paused = FALSE;
+	aviStatus[movieNo] = statusPlaying;
 	return AVI_NO_ERROR;
 
 }
@@ -441,5 +502,37 @@ void	InitMovie(void)
 void	TermMovie(void)
 {
 	// No longer necessary, but...
+}
+
+unsigned int AviGetLength(int movieNo)
+{
+	if(aviStatus[movieNo] == statusNotOpen)
+		return 0;
+
+	char str[80];
+	char resultStr[80];
+	sprintf(str,"status sciMovie%-1d length wait",movieNo);
+	DWORD errorCode = mciSendString(str,resultStr,80,0L);
+	if(!errorCode)
+		return atoi(resultStr);
+	else
+		return 0;
+}
+
+unsigned int AviGetPosition(int movieNo)
+{
+
+	char str[80];
+	char resultStr[80];
+	sprintf(str,"status sciMovie%-1d position wait",movieNo);
+	DWORD errorCode = mciSendString(str,resultStr,80,0L);
+	// don't know if return is in string or errorCode, probably string
+	return atoi(resultStr);
+
+}
+
+unsigned int AviGetStatus(int movieNo)
+{
+	return aviStatus[movieNo];
 }
 

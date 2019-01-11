@@ -31,7 +31,7 @@ class EditStruct
 	ushort   maxLength;	// maximum string allowed
 	};
 
-typedef ID<EditStruct, MemEditStruct> EditStructID;
+FakeTemplateID(EditStructID, EditStruct, MemEditStruct)
 
 void 			CenterWindow(SOL_Rect&);
 void 			DrawCursor(MemID editStructID);

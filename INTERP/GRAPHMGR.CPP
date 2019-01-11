@@ -220,7 +220,7 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 
 
 	GPalette().Submit(myPal);
-	GPalette().UpdateForFrame();
+	GPalette().UpdateFFrame();
 	GPalette().UpdateHardware();
 
 // Fourth decimate new image in VMAP and output to screen
@@ -231,10 +231,46 @@ GraphicsMgr::PalMorphFrameOut(char* palArray)
 	ShowBits();
 	vmapValid = True;
 
-// Finally let the graphics engine know everything should be redrawn
+// For palette cycling 
 
 	for (i = 0;i < nplanes;i++)	
 	next.Planes()[i].UpdateRedrawAllCount();
+
+	if (Remap::remapCount && lastRemapFlag)
+		RemapMarkRedraw();
+
+	CalcLists(drawLists,eraseLists);
+
+	// The number of planes may have been reduced by CalcLists
+	nplanes = next.Planes().Length();
+
+	// Sort the draw lists
+	for (i = 0; i < nplanes; i++)
+		drawLists[i]->Sort();
+
+	for (i = 0; i < nplanes; i++)  {
+		int count = drawLists[i]->Length();
+		DrawList& drawlist = *drawLists[i];
+		for (int j = 0; j < count; j++) {
+			drawlist[j].SI().SubmitPalette();
+		}
+	}
+
+	lastRemapFlag = GPalette().UpdateForFrame();
+
+	// draw to vmap
+	for (i = 0; i < nplanes; i++)  {
+		vmapValid = False;
+		DrawEraseList(*eraseLists[i],next.Planes()[i]);
+		DrawScreenItemList(*drawLists[i]);
+	}
+
+	GPalette().Submit(thisPal);
+	GPalette().UpdateFFrame();
+	GPalette().UpdateHardware();
+
+	ShowBits();
+	vmapValid = True;
 
 	//  Clean up and return
 	for (i = 0;i < nplanes;i++)  {

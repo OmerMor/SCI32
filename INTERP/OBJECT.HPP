@@ -59,10 +59,11 @@ _Packed struct MethDict {
 	//	followed by variable number of MethDictEntrys
 };
 
-struct MethDictID : ID<MethDict, MemDictionary>
+FakeTemplateID(FakeMethDictID, MethDict, MemDictionary)
+struct MethDictID : FakeMethDictID
 {
 	MethDictID() {}
-	MethDictID(const MemID& id) : ID<MethDict, MemDictionary>(id) {}
+	MethDictID(const MemID& id) : FakeMethDictID(id) {}
 	MethDictEntry&	operator[](int s)
 		{ return ((MethDictEntry*) (**this + 1))[s]; }
 };
@@ -78,10 +79,11 @@ struct PropDict {
 	//	followed by variable number of PropDictEntrys
 };
 
-struct PropDictID : ID<PropDict, MemDictionary>
+FakeTemplateID(FakePropDictID, PropDict, MemDictionary)
+struct PropDictID : FakePropDictID
 {
 	PropDictID() {}
-	PropDictID(const MemID& id) : ID<PropDict, MemDictionary>(id) {}
+	PropDictID(const MemID& id) : FakePropDictID(id) {}
 	PropDictEntry&	operator[](int s)
 		{ return ((PropDictEntry*) (**this + 1))[s]; }
 };
@@ -91,7 +93,7 @@ struct PropDictID : ID<PropDict, MemDictionary>
 extern "C" size_t searchDict(short, PropDictEntry*, short);
 
 struct Object {
-	Object() {assert(!"Object::Object() only to satisfy ID<Object>"); }
+	Object() {assert(!"Object::Object()"); }
 	Object(MemID id, MemID source, size_t offset, size_t size);
 	Object(MemID id, MemID clonee);
 	~Object();
@@ -247,12 +249,13 @@ protected:
 	Property		info;			// bit-mapped information
 };
 
-struct ObjectID : ID<Object, MemObject>
+FakeTemplateID(FakeObjectID, Object, MemObject)
+struct ObjectID : FakeObjectID
 {
 	ObjectID() {}
-	ObjectID(const MemID& id) : ID<Object, MemObject>(id) {}
-	ObjectID(const ObjectID& id) : ID<Object, MemObject>((MemID&) id) {}
-	ObjectID(SOL_Handle h) : ID<Object, MemObject>(h) {}
+	ObjectID(const MemID& id) : FakeObjectID(id) {}
+	ObjectID(const ObjectID& id) : FakeObjectID((MemID&) id) {}
+	ObjectID(SOL_Handle h) : FakeObjectID(h) {}
 
 	void	Get(MemID id, size_t ofs, size_t size);
 	void 	Get(ObjectID clonee);
@@ -392,10 +395,11 @@ struct ClassTbl {
 	//	followed by variable number of ClassEntrys
 };
 
-struct ClassTblID : ID<ClassTbl, MemClassTbl>
+FakeTemplateID(FakeClassTblID, ClassTbl, MemClassTbl)
+struct ClassTblID : FakeClassTblID
 {
 	ClassTblID() {}
-	ClassTblID(const MemID& id) : ID<ClassTbl, MemClassTbl>(id) {}
+	ClassTblID(const MemID& id) : FakeClassTblID(id) {}
 	ClassTblEntry&	operator[](int s)
 		{ return ((ClassTblEntry*) (**this + 1))[s]; }
 };
