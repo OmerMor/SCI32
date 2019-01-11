@@ -1,0 +1,85 @@
+Actor 	x:
+Actor		y:
+Actor		signal:
+Actor		view:
+Actor		loop:
+Actor		cel:
+Actor		priority:
+Actor		lsLeft:
+Actor		nsLeft:
+Actor		nsTop:
+Actor		nsRight:
+Actor		nsBottom:
+Actor 	brLeft:
+Actor		brTop:
+Actor		brRight:
+Actor		brBottom:
+Actor 	xStep:
+Actor 	yStep:
+Actor 	looper:
+Actor 	heading:
+Actor		mover:
+Actor		moveSpeed:
+Actor		illegalBits:
+Actor		scaleX:
+Actor		scaleY:
+Actor		maxScale:
+Actor		scaleSignal:
+Actor		bitmap:
+Actor		plane:
+Actor		fixPriority:
+Actor		useInsetRect:
+Actor		inLeft:
+Actor		inTop:
+Actor		inRight:
+Actor		inBottom:
+Actor		xLast:
+Actor		yLast:
+Actor		z:
+
+Motion	client:
+Motion	x:
+Motion	y:
+Motion	dx:
+Motion	dy:
+Motion	b-i1:
+Motion	b-i2:
+Motion	b-di:
+Motion	b-incr:
+Motion	b-xAxis:
+Motion	b-moveCnt:
+Motion	xLast:
+Motion	yLast:
+
+Jump		xStep:
+Jump		yStep:
+
+Event		x:
+Event		y:
+Event		z:
+Event		pitch:
+Event		roll:
+Event		yaw:
+Event		type:
+Event		message:
+Event		modifiers:
+Event		claimed:
+
+Sync		syncTime:
+Sync		syncCue:
+
+Sound		handle:
+Sound		number:
+Sound		nodePtr:
+Sound		loop:
+Sound		priority:
+Sound		vol:
+Sound		signal:
+Sound		min:
+Sound		sec:
+Sound		frame:
+Sound		flags:
+Sound		dataInc:
+
+
+

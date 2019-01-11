@@ -1,0 +1,143 @@
+#include = i:\interp\sci\ibm\sci32;c:\watcom\h
+include = .;c:\watcom\h
+
+!ifndef SIERRA
+target	= sci.exe
+targetub = sciub.exe
+debugOpt = /dDEBUG
+bannerOpt=
+!else
+target	= sierra.exe
+targetub = sierraub.exe
+debugOpt = 
+bannerOpt= -Q
+!endif
+
+debugObjs = &
+	graphmd.obd &
+	graphmgr.obd &
+	screen.obd &
+	robot.obd &
+	test.obd &
+	hotkey.obj
+
+objects = &
+	array.obj &
+	audio.obj &
+	audioa.obj &
+	audiod.obj &
+	breakpt.obj &
+	bufferd.obj &
+	celasm.obj &
+	celobj.obj &
+	celobj1.obj &
+	celobj2.obj &
+	celobj3.obj &
+	celobj4.obj &
+	celobja.obj &
+	celobjb.obj &
+	config.obj &
+	criterr.obj &
+	criterrd.obj &
+	cursord.obj &
+	dcomp.obj &
+	debug.obj &
+	debugdsp.obj &
+	debugmnu.obj &
+	dialog.obj &
+	dos.obj &
+	drawlist.obj &
+	errormgr.obj &
+	event.obj &
+	eventd.obj &
+	except.obj &
+	fault.obj &
+	font.obj &
+	fonti.obj &
+	graph.obj &
+	info.obj &
+	integ.obj &
+	intflag.obj &
+	intrpt.obj &
+	kbdd.obj &
+	kbdmgr.obj &
+	kbdmgrd.obj &
+	kernel.obj &
+	language.obj &
+	line.obj &
+	list.obj &
+	magnify.obj &
+	math.obj &
+	memid.obj &
+	memmgr.obj &
+	memmgrd.obj &
+	memmgre.obj &
+	memtype.obj &
+	menu.obj &
+	message.obj &
+	midi.obj &
+	millisec.obj &
+	mono.obj &
+	motion.obj &
+	mouse.obj &
+	moused.obj &
+	movdsp.obj &
+	movie.obj &
+	msg.obj &
+	msgd.obj &
+	new.obj &
+	newroom.obj &
+	object.obj &
+	opcodes.obj &
+	palette.obj &
+	palmgrd.obj &
+	palmgri.obj &
+	palmgrt.obj &
+	picture.obj &
+	plane.obj &
+	platfrmd.obj &
+	plist.obj &
+	polygon.obj &
+	pmachine.obj &
+	pmip.obj &
+	pmstack.obj &
+	profile.obj &
+	ratio.obj &
+	record.obj &
+	rect.obj &
+	rectlist.obj &
+	remap.obj &
+	restart.obj &
+	restype.obj &
+	resource.obj &
+	savegame.obj &
+	sci.obj &
+	scid.obj &
+	script.obj &
+	select.obj &
+	sendstac.obj &
+	shiftpal.obj &
+	shwstyle.obj &
+	si.obj &
+	silist.obj &
+	sound.obj &
+	soundd.obj &
+	stampver.obj &
+	string.obj &
+	sync.obj &
+	text.obj &
+	textid.obj &
+	time.obj &
+	timed.obj &
+	vga.obj &
+	video.obj &
+	window.obj &
+	vocab.obj
+
+$(target) : $(debugObjs) $(objects) 
+	*wlink name $(targetub) system dos4g option map option stack=16k &
+		debug all file {$(debugObjs)} &
+		debug file {$(objects)}
+	4gwbind c:\watcom\bin\4gwpro.exe $(targetub) $(target) $(bannerOpt) -V
+#	del $(targetub)
+

@@ -1,0 +1,43 @@
+srcDir = .;..;i:\interp\sci\ibm\sci32
+
+cpp		= wpp386
+cppOpts	=	/3s /j /s /w4 /we
+
+asm		= ml
+asmOpts	= /c /Cp /Zm
+
+.BEFORE
+	# check to see if a make is already in progress
+	@set alreadyMaking=0
+	@if exist *._ @set alreadyMaking=1
+	@if $(%alreadyMaking)==1 @echo.
+	@if $(%alreadyMaking)==1 @echo Make in progress by
+	@if $(%alreadyMaking)==1 @dir *._
+	@if $(%alreadyMaking)==1 @echo.
+	@if $(%alreadyMaking)==1 @%abort
+	#
+	@%create $(%vcsid)._		
+	@fixtime
+	@set include=$(include)
+
+.ERROR
+	del $(%vcsid)._
+	@echo 
+
+.AFTER
+	@del $(%vcsid)._
+
+.EXTENSIONS: 
+.EXTENSIONS: .obd .obj .asm .cpp .exe
+
+.asm : $(srcDir)
+.asm.obj:
+	$(asm) $(asmOpts) $(debugAsmOpts) $[@
+
+.cpp: $(srcDir)
+.cpp.obj: .AUTODEPEND
+	$(cpp) $(cppOpts) /d1 $(debugOpt) /oe /ot /ox $[@
+
+.cpp.obd: .AUTODEPEND
+	$(cpp) $(cppOpts) /d2 $(debugOpt) $[@ /fo$[&.obd
+
